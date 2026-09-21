@@ -1,6 +1,12 @@
+using Microsoft.EntityFrameworkCore;
+using DatMonAnOnline.API.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Lấy chuỗi kết nối từ appsettings.json và đăng ký DbContext
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<DatMonAnOnlineContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
