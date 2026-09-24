@@ -61,7 +61,7 @@ namespace DatMonAnOnline.API.Controllers
             if (taiKhoan == null)
                 return NotFound(new { message = "Không tìm thấy tài khoản." });
 
-            if (!taiKhoan.TrangThai == true )
+            if (taiKhoan.TrangThai != true )
                 return Conflict(new { message = "Tài khoản đã bị khóa." });
 
             taiKhoan.TrangThai = false;
