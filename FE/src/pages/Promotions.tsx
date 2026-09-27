@@ -14,132 +14,322 @@ function Promotions() {
 
     const loadPromotions = async () => {
         try {
+            setLoading(true);
             setError("");
+
             const data = await getMyPromotions();
             setPromotions(data);
         } catch (err) {
-            setError((err as Error).message);
+            console.error("Lỗi lấy danh sách khuyến mãi:", err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể lấy danh sách khuyến mãi."
+            );
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        getMyPromotions()
-            .then(setPromotions)
-            .catch((err: Error) => setError(err.message))
-            .finally(() => setLoading(false));
+        loadPromotions();
     }, []);
 
     const handleToggle = async (id: number) => {
         try {
             setChangingId(id);
             setError("");
+
             await togglePromotionStatus(id);
-            await loadPromotions();
+
+            // Lấy lại danh sách mới nhất
+            const data = await getMyPromotions();
+            setPromotions(data);
         } catch (err) {
-            setError((err as Error).message);
+            console.error("Lỗi thay đổi trạng thái mã:", err);
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể thay đổi trạng thái mã giảm giá."
+            );
         } finally {
             setChangingId(null);
         }
     };
 
-    const formatMoney = (value: number) =>
-        `${value.toLocaleString("vi-VN")} đ`;
+    const formatMoney = (value: number) => {
+        return `${value.toLocaleString("vi-VN")} đ`;
+    };
+
+    const formatDate = (value: string) => {
+        return new Date(value).toLocaleString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="quan-page-loading">
+                Đang tải danh sách khuyến mãi...
+            </div>
+        );
+    }
 
     return (
-        <main className="profile-page">
-            <div className="profile-page-header">
-                <h1>Mã giảm giá của quán</h1>
-                <p>Quản lý các chương trình khuyến mãi của nhà hàng</p>
+        <div className="quan-dashboard">
+
+            {/* =========================
+                TIÊU ĐỀ
+            ========================= */}
+            <div className="quan-page-title">
+                <div>
+                    <h1>Khuyến mãi</h1>
+                    <p>
+                        Quản lý các mã giảm giá của nhà hàng.
+                    </p>
+                </div>
             </div>
 
-            <CreatePromotionForm onCreated={loadPromotions} />
-                
-            {error && <p className="auth-error">{error}</p>}
 
-            {loading ? (
-                <p>Đang tải mã giảm giá...</p>
-            ) : promotions.length === 0 ? (
-                <div className="empty-result">
-                    <div>🎟️</div>
-                    <h3>Chưa có mã giảm giá</h3>
-                    <p>Ở bước sau chúng ta sẽ thêm biểu mẫu tạo mã.</p>
+            {/* =========================
+                THÔNG BÁO LỖI
+            ========================= */}
+            {error && (
+                <div className="quan-error-message">
+                    ✕ {error}
                 </div>
-            ) : (
-                        <div className="promotion-list">
-                            {promotions.map((item) => (
-                                <article className="promotion-card" key={item.maKhuyenMai}>
-                                    <div className="promotion-card-header">
-                                        <div>
-                                            <h2>{item.maCode}</h2>
-                                            <p>{item.moTa || "Không có mô tả"}</p>
-                                        </div>
-
-                                        <span
-                                            className={
-                                                item.trangThai
-                                                    ? "promotion-status is-active"
-                                                    : "promotion-status is-inactive"
-                                            }
-                                        >
-                                            {item.trangThai ? "Đang bật" : "Đã tắt"}
-                                        </span>
-                                    </div>
-
-                                    <div className="promotion-card-details">
-                                        <div>
-                                            <small>Mức giảm</small>
-                                            <strong>
-                                                {item.loaiGiam === "PhanTram"
-                                                    ? `${item.giaTriGiam}%`
-                                                    : formatMoney(item.giaTriGiam)}
-                                            </strong>
-                                            {item.giamToiDa !== null && (
-                                                <span>
-                                                    Tối đa {formatMoney(item.giamToiDa)}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <small>Đơn tối thiểu</small>
-                                            <strong>{formatMoney(item.donHangToiThieu)}</strong>
-                                        </div>
-
-                                        <div>
-                                            <small>Đã sử dụng</small>
-                                            <strong>
-                                                {item.soLuongDaDung}/{item.soLuong}
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="promotion-card-footer">
-                                        <p>
-                                            <span>Thời hạn</span>
-                                            {new Date(item.ngayBatDau).toLocaleString("vi-VN")}
-                                            {" → "}
-                                            {new Date(item.ngayKetThuc).toLocaleString("vi-VN")}
-                                        </p>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleToggle(item.maKhuyenMai)}
-                                            disabled={changingId === item.maKhuyenMai}
-                                        >
-                                            {changingId === item.maKhuyenMai
-                                                ? "Đang xử lý..."
-                                                : item.trangThai
-                                                    ? "Tắt mã"
-                                                    : "Bật mã"}
-                                        </button>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
             )}
-        </main>
+
+
+            {/* =========================
+                TẠO MÃ GIẢM GIÁ
+            ========================= */}
+            <div className="quan-section">
+
+                <div className="quan-section-header">
+                    <div>
+                        <h2>Tạo mã giảm giá</h2>
+
+                        <p>
+                            Tạo chương trình khuyến mãi mới
+                            cho khách hàng.
+                        </p>
+                    </div>
+                </div>
+
+                <CreatePromotionForm
+                    onCreated={loadPromotions}
+                />
+
+            </div>
+
+
+            {/* =========================
+                DANH SÁCH KHUYẾN MÃI
+            ========================= */}
+            <div className="quan-section">
+
+                <div className="quan-section-header">
+                    <div>
+                        <h2>Danh sách mã giảm giá</h2>
+
+                        <p>
+                            Quản lý các mã giảm giá hiện có
+                            của nhà hàng.
+                        </p>
+                    </div>
+
+                    <span className="quan-promotion-count">
+                        {promotions.length} mã
+                    </span>
+                </div>
+
+
+                {promotions.length === 0 ? (
+
+                    <div className="quan-placeholder">
+                        <div className="quan-empty-icon">
+                            🎟️
+                        </div>
+
+                        <h3>
+                            Chưa có mã giảm giá
+                        </h3>
+
+                        <p>
+                            Hãy tạo mã giảm giá đầu tiên
+                            cho nhà hàng.
+                        </p>
+                    </div>
+
+                ) : (
+
+                    <div className="quan-promotion-list">
+
+                        {promotions.map((item) => (
+
+                            <div
+                                className="quan-promotion-item"
+                                key={item.maKhuyenMai}
+                            >
+
+                                {/* HEADER */}
+                                <div className="quan-promotion-header">
+
+                                    <div>
+                                        <span className="quan-promotion-code-label">
+                                            MÃ GIẢM GIÁ
+                                        </span>
+
+                                        <h3>
+                                            {item.maCode}
+                                        </h3>
+
+                                        <p>
+                                            {item.moTa ||
+                                                "Không có mô tả"}
+                                        </p>
+                                    </div>
+
+
+                                    <span
+                                        className={`quan-promotion-status ${
+                                            item.trangThai
+                                                ? "active"
+                                                : "inactive"
+                                        }`}
+                                    >
+                                        ●{" "}
+                                        {item.trangThai
+                                            ? "Đang bật"
+                                            : "Đã tắt"}
+                                    </span>
+
+                                </div>
+
+
+                                {/* THÔNG TIN */}
+                                <div className="quan-promotion-details">
+
+                                    <div>
+                                        <span>
+                                            Mức giảm
+                                        </span>
+
+                                        <strong>
+                                            {item.loaiGiam ===
+                                            "PhanTram"
+                                                ? `${item.giaTriGiam}%`
+                                                : formatMoney(
+                                                      item.giaTriGiam
+                                                  )}
+                                        </strong>
+
+                                        {item.giamToiDa !== null && (
+                                            <small>
+                                                Tối đa{" "}
+                                                {formatMoney(
+                                                    item.giamToiDa
+                                                )}
+                                            </small>
+                                        )}
+                                    </div>
+
+
+                                    <div>
+                                        <span>
+                                            Đơn tối thiểu
+                                        </span>
+
+                                        <strong>
+                                            {formatMoney(
+                                                item.donHangToiThieu
+                                            )}
+                                        </strong>
+                                    </div>
+
+
+                                    <div>
+                                        <span>
+                                            Đã sử dụng
+                                        </span>
+
+                                        <strong>
+                                            {item.soLuongDaDung}
+                                            /
+                                            {item.soLuong}
+                                        </strong>
+                                    </div>
+
+                                </div>
+
+
+                                {/* FOOTER */}
+                                <div className="quan-promotion-footer">
+
+                                    <div>
+                                        <span>
+                                            Thời hạn
+                                        </span>
+
+                                        <p>
+                                            {formatDate(
+                                                item.ngayBatDau
+                                            )}
+
+                                            {" → "}
+
+                                            {formatDate(
+                                                item.ngayKetThuc
+                                            )}
+                                        </p>
+                                    </div>
+
+
+                                    <button
+                                        type="button"
+                                        className={
+                                            item.trangThai
+                                                ? "quan-secondary-button"
+                                                : "quan-primary-button"
+                                        }
+                                        onClick={() =>
+                                            handleToggle(
+                                                item.maKhuyenMai
+                                            )
+                                        }
+                                        disabled={
+                                            changingId ===
+                                            item.maKhuyenMai
+                                        }
+                                    >
+                                        {changingId ===
+                                        item.maKhuyenMai
+                                            ? "Đang xử lý..."
+                                            : item.trangThai
+                                            ? "Tắt mã"
+                                            : "Bật mã"}
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        ))}
+
+                    </div>
+
+                )}
+
+            </div>
+
+        </div>
     );
 }
 

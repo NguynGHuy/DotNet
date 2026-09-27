@@ -57,7 +57,13 @@ function Login() {
                 })
             );
 
-            navigate(user.role === "Admin" ? "/admin" : "/", { replace: true });
+            if (user.role === "Admin") {
+                navigate("/admin", { replace: true });
+            } else if (user.role === "Quan") {
+                navigate("/quan", { replace: true });
+            } else {
+                navigate("/", { replace: true });
+            }
         } catch (error) {
             console.error("LOGIN ERROR:", error);
 

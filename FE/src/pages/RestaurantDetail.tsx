@@ -16,6 +16,46 @@ interface Restaurant {
     trangThaiHoatDong?: string;
 }
 
+function isRestaurantOpen(restaurant: Restaurant): boolean {
+    if (restaurant.trangThaiHoatDong !== "MoCua") {
+        return false;
+    }
+
+    if (!restaurant.gioMoCua || !restaurant.gioDongCua) {
+        return true;
+    }
+
+    const now = new Date();
+
+    const currentMinutes =
+        now.getHours() * 60 + now.getMinutes();
+
+    const [openHour, openMinute] = restaurant.gioMoCua
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+    const [closeHour, closeMinute] = restaurant.gioDongCua
+        .slice(0, 5)
+        .split(":")
+        .map(Number);
+
+    const openMinutes = openHour * 60 + openMinute;
+    const closeMinutes = closeHour * 60 + closeMinute;
+
+    if (openMinutes <= closeMinutes) {
+        return (
+            currentMinutes >= openMinutes &&
+            currentMinutes < closeMinutes
+        );
+    }
+
+    return (
+        currentMinutes >= openMinutes ||
+        currentMinutes < closeMinutes
+    );
+}
+
 function RestaurantDetail() {
     const { id } = useParams<{ id: string }>();
 
@@ -23,6 +63,9 @@ function RestaurantDetail() {
         useState<Restaurant | null>(null);
 
     const [loading, setLoading] = useState(true);
+
+    const [currentTime, setCurrentTime] =
+        useState(new Date());
 
     useEffect(() => {
         if (!id) return;
@@ -40,234 +83,289 @@ function RestaurantDetail() {
             });
     }, [id]);
 
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 30000);
+
+        return () => clearInterval(timer);
+    }, []);
+
     if (loading) {
         return (
-            <main className= "restaurant-detail-page" >
-            <div className="detail-loading" >
-                <div className="loading-spinner" > </div>
-                    < p > Đang tải thông tin nhà hàng...</p>
-                        </div>
-                        </main>
+            <main className="restaurant-detail-page">
+                <div className="detail-loading">
+                    <div className="loading-spinner"></div>
+                    <p>Đang tải thông tin nhà hàng...</p>
+                </div>
+            </main>
         );
     }
 
     if (!restaurant) {
         return (
-            <main className= "restaurant-detail-page" >
-            <div className="detail-error" >
-                <div>😕</div>
-                    < h2 > Không tìm thấy nhà hàng </h2>
-                        <p>
+            <main className="restaurant-detail-page">
+                <div className="detail-error">
+                    <div className="detail-error-icon">
+                        !
+                    </div>
+
+                    <h2>
+                        Không tìm thấy nhà hàng
+                    </h2>
+
+                    <p>
                         Nhà hàng bạn đang tìm kiếm không tồn tại
                         hoặc đã bị xóa.
                     </p>
 
-            < Link to = "/" className = "back-home-button" >
-                        ← Về trang chủ
-            </Link>
-            </div>
+                    <Link
+                        to="/nha-hang"
+                        className="detail-back-button"
+                    >
+                        ← Xem danh sách nhà hàng
+                    </Link>
+                </div>
             </main>
         );
     }
 
-    const isOpen =
-        restaurant.trangThaiHoatDong === "MoCua";
+    void currentTime;
+
+    const isOpen = isRestaurantOpen(restaurant);
+
+    const rating =
+        restaurant.danhGiaTrungBinh ?? 0;
 
     return (
-        <main className= "restaurant-detail-page" >
+        <main className="restaurant-detail-page">
 
-        {/* BACK */ }
-        < Link to = "/" className = "detail-back" >
-                ← Quay lại danh sách nhà hàng
-        </Link>
+            {/* BACK */}
+            <div className="restaurant-detail-container">
 
-    {/* RESTAURANT HERO */ }
-    <section className="restaurant-detail-card" >
+                <Link
+                    to="/nha-hang"
+                    className="restaurant-detail-back"
+                >
+                    <span>←</span>
+                    Tất cả nhà hàng
+                </Link>
 
-    {/* IMAGE */ }
-        < div className = "detail-image" >
 
-            {
-                restaurant.anhBia ? (
-                    <img
-                            src= { restaurant.anhBia }
-                            alt={ restaurant.tenNhaHang }
-                />
-                    ) : (
-                    <div className="detail-image-placeholder" >
-                            🍽️
-                    </div>
-                )
-}
+                {/* HERO */}
+                <section className="restaurant-detail-hero">
 
-<span
-                        className={
-    isOpen
-        ? "detail-status open"
-        : "detail-status closed"
-}
-                    >
-{
-    isOpen
-    ? "● Đang mở cửa"
-        : "● Đóng cửa"
-}
-    </span>
-    </div>
+                    <div className="restaurant-detail-image">
 
-{/* CONTENT */ }
-<div className="detail-content" >
+                        {restaurant.anhBia ? (
+                            <img
+                                src={restaurant.anhBia}
+                                alt={restaurant.tenNhaHang}
+                            />
+                        ) : (
+                            <div className="restaurant-detail-placeholder">
+                                <span>🍽️</span>
+                            </div>
+                        )}
 
-    <div className="detail-title-row" >
-
-        <div>
-        <h1>
-        { restaurant.tenNhaHang }
-        </h1>
-
-        < div className = "detail-rating" >
-                                ⭐{ " " }
-{
-    restaurant.danhGiaTrungBinh !==
-    undefined
-    ? restaurant.danhGiaTrungBinh.toFixed(
-        1
-    )
-    : "Chưa có đánh giá"
-}
-</div>
-    </div>
-
-    </div>
-
-{/* INFO */ }
-<div className="detail-info-list" >
-
-    <div className="detail-info-item" >
-        <span className="detail-info-icon" >
-                                📍
-</span>
-
-    < div >
-    <span className="detail-info-label" >
-        Địa chỉ
-            </span>
-
-            <p>
-{
-    restaurant.diaChiQuan ||
-    "Chưa có địa chỉ"
-}
-</p>
-    </div>
-    </div>
-
-    < div className = "detail-info-item" >
-        <span className="detail-info-icon" >
-                                🕐
-</span>
-
-    < div >
-    <span className="detail-info-label" >
-        Giờ hoạt động
-            </span>
-
-            <p>
-{
-    restaurant.gioMoCua
-    ? restaurant.gioMoCua.slice(
-        0,
-        5
-    )
-    : "--:--"
-}
-
-{ " - " }
-
-{
-    restaurant.gioDongCua
-    ? restaurant.gioDongCua.slice(
-        0,
-        5
-    )
-    : "--:--"
-}
-</p>
-    </div>
-    </div>
-
-    < div className = "detail-info-item" >
-        <span className="detail-info-icon" >
-                                🛵
-</span>
-
-    < div >
-    <span className="detail-info-label" >
-        Phí giao hàng
-            </span>
-
-            <p>
-{
-    restaurant.phiShipMacDinh !==
-    undefined
-    ? restaurant.phiShipMacDinh.toLocaleString(
-        "vi-VN"
-    )
-    : "0"
-} { " " }
-đ
-    </p>
-    </div>
-    </div>
-
-    </div>
-
-{/* DESCRIPTION */ }
-<div className="detail-description" >
-
-    <h3>
-    Về nhà hàng
-        </h3>
-
-        <p>
-{
-    restaurant.moTa ||
-    "Chưa có mô tả về nhà hàng."
-}
-</p>
-
-    </div>
-
-{/* ACTION */ }
-<div className="detail-actions" >
-
-    <button
-                            className="menu-button"
-disabled = {!isOpen}
+                        <div
+                            className={
+                                isOpen
+                                    ? "restaurant-detail-status open"
+                                    : "restaurant-detail-status closed"
+                            }
                         >
-    <span>🍽️</span>
+                            <span>●</span>
 
-{
-    isOpen
-        ? "Xem thực đơn"
-        : "Nhà hàng đang đóng cửa"
-}
+                            {isOpen
+                                ? "Đang mở cửa"
+                                : "Đóng cửa"}
+                        </div>
 
-{
-    isOpen && (
-        <span>→</span>
-                            )
-}
-</button>
+                    </div>
 
-    </div>
 
-    </div>
-    </section>
+                    {/* BASIC INFO */}
+                    <div className="restaurant-detail-main">
 
-            <RestaurantReviews maNhaHang={restaurant.maNhaHang} />
+                        <div className="restaurant-detail-heading">
 
-    </main>
+                            <div>
+                                <span className="restaurant-detail-eyebrow">
+                                    NHÀ HÀNG
+                                </span>
+
+                                <h1>
+                                    {restaurant.tenNhaHang}
+                                </h1>
+                            </div>
+
+                            <div className="restaurant-detail-rating">
+
+                                <span className="rating-star">
+                                    ★
+                                </span>
+
+                                <strong>
+                                    {rating > 0
+                                        ? rating.toFixed(1)
+                                        : "—"}
+                                </strong>
+
+                                <span>
+                                    {rating > 0
+                                        ? "Đánh giá"
+                                        : "Chưa có đánh giá"}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        {/* QUICK INFO */}
+                        <div className="restaurant-detail-quick-info">
+
+                            <div className="restaurant-quick-item">
+
+                                <div className="restaurant-quick-icon">
+                                    📍
+                                </div>
+
+                                <div>
+                                    <span>
+                                        Địa chỉ
+                                    </span>
+
+                                    <strong>
+                                        {restaurant.diaChiQuan ||
+                                            "Chưa có địa chỉ"}
+                                    </strong>
+                                </div>
+
+                            </div>
+
+
+                            <div className="restaurant-quick-item">
+
+                                <div className="restaurant-quick-icon">
+                                    🕐
+                                </div>
+
+                                <div>
+                                    <span>
+                                        Giờ hoạt động
+                                    </span>
+
+                                    <strong>
+                                        {restaurant.gioMoCua
+                                            ? restaurant.gioMoCua.slice(
+                                                0,
+                                                5
+                                            )
+                                            : "--:--"}
+
+                                        {" – "}
+
+                                        {restaurant.gioDongCua
+                                            ? restaurant.gioDongCua.slice(
+                                                0,
+                                                5
+                                            )
+                                            : "--:--"}
+                                    </strong>
+                                </div>
+
+                            </div>
+
+
+                            <div className="restaurant-quick-item">
+
+                                <div className="restaurant-quick-icon">
+                                    🛵
+                                </div>
+
+                                <div>
+                                    <span>
+                                        Phí giao hàng
+                                    </span>
+
+                                    <strong>
+                                        {(
+                                            restaurant.phiShipMacDinh ??
+                                            0
+                                        ).toLocaleString(
+                                            "vi-VN"
+                                        )}
+                                        đ
+                                    </strong>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        {/* DESCRIPTION */}
+                        <div className="restaurant-detail-description">
+
+                            <h2>
+                                Về nhà hàng
+                            </h2>
+
+                            <p>
+                                {restaurant.moTa ||
+                                    "Nhà hàng chưa cập nhật mô tả."}
+                            </p>
+
+                        </div>
+
+
+                        {/* ACTION */}
+                        <div className="restaurant-detail-action">
+
+                            <button
+                                className="restaurant-detail-menu-button"
+                                disabled={!isOpen}
+                            >
+                                <span>
+                                    {isOpen
+                                        ? "🍽️"
+                                        : "🔒"}
+                                </span>
+
+                                <span>
+                                    {isOpen
+                                        ? "Xem thực đơn"
+                                        : "Nhà hàng đang đóng cửa"}
+                                </span>
+
+                                {isOpen && (
+                                    <span className="menu-arrow">
+                                        →
+                                    </span>
+                                )}
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {/* REVIEWS */}
+                <section className="restaurant-detail-reviews">
+
+                    <RestaurantReviews
+                        maNhaHang={restaurant.maNhaHang}
+                    />
+
+                </section>
+
+            </div>
+
+        </main>
     );
 }
 
