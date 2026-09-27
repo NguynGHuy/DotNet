@@ -2080,3 +2080,26 @@ button {
 .order-actions { margin-top: 15px; text-align: right; }
 .cancel-btn { background: white; color: #dc2626; border: 1px solid #dc2626; }
 .cancel-btn:hover { background: #fee2e2; }
+
+.empty-cart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 50vh;
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.empty-cart h2 {
+    margin: 15px 0 8px;
+    color: #333;
+}
+
+.empty-cart p {
+    color: #777;
+    margin: 0;
+}

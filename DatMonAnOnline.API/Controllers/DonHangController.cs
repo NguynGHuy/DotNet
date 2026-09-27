@@ -29,6 +29,8 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> KiemTraCheckout([FromBody] KiemTraDonHangYeuCau request)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { Message = "Vui lòng đăng nhập." });
+
             var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
             if (khachHang == null) return Unauthorized();
 
@@ -50,6 +52,8 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> DatHang([FromBody] DatHangYeuCau request)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { Message = "Vui lòng đăng nhập." });
+
             var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
             if (khachHang == null) return Unauthorized();
 
@@ -57,7 +61,7 @@ namespace DatMonAnOnline.API.Controllers
             var diaChi = await _context.Diachis.FirstOrDefaultAsync(d => d.MaDiaChi == request.MaDiaChi && d.MaKhachHang == khachHang.MaKhachHang);
             if (diaChi == null) return BadRequest(new { Message = "Địa chỉ giao hàng không hợp lệ." });
 
-            // 2. Tính toán tiền an toàn từ DB (Không tin tưởng frontend)
+            // 2. Tính toán tiền an toàn từ DB
             var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(khachHang.MaKhachHang, request.MaKhuyenMai);
             if (loi != null) return BadRequest(new { Message = loi });
 
@@ -73,7 +77,7 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     MaDonHangHienThi = maDonHienThi,
                     MaKhachHang = khachHang.MaKhachHang,
-                    MaNhaHang = maNhaHang.Value,
+                    MaNhaHang = maNhaHang!.Value, // Thêm ! để báo compiler biết maNhaHang chắc chắn khác null
                     MaDiaChi = diaChi.MaDiaChi,
                     MaTrangThai = 1, // 1 = ChoXacNhan
                     MaKhuyenMai = request.MaKhuyenMai,
@@ -124,7 +128,6 @@ namespace DatMonAnOnline.API.Controllers
                     }
                 }
                 
-                // Đồng bộ lại tổng tiền 1 dòng của chi tiết (Món + Topping)
                 await _context.SaveChangesAsync();
 
                 // 5. Trừ lượt mã khuyến mãi nếu có
@@ -168,7 +171,10 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> DonHangCuaToi()
         {
             var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized();
+
             var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
+            if (khachHang == null) return Unauthorized();
             
             var danhSach = await _context.Donhangs
                 .Where(d => d.MaKhachHang == khachHang.MaKhachHang)
@@ -180,8 +186,8 @@ namespace DatMonAnOnline.API.Controllers
                     d.MaDonHang,
                     d.MaDonHangHienThi,
                     d.ThoiGianDat,
-                    TenNhaHang = d.MaNhaHangNavigation.TenNhaHang,
-                    TrangThai = d.MaTrangThaiNavigation.TenTrangThai,
+                    TenNhaHang = d.MaNhaHangNavigation!.TenNhaHang, // Thêm !
+                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai, // Thêm !
                     ThanhTien = d.ThanhTien
                 })
                 .ToListAsync();
@@ -193,6 +199,11 @@ namespace DatMonAnOnline.API.Controllers
         [Authorize] // Cả Khách và Quán đều xem được
         public async Task<IActionResult> ChiTietDonHang(int id)
         {
+            var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized();
+
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
             var donHang = await _context.Donhangs
                 .Include(d => d.MaTrangThaiNavigation)
                 .Include(d => d.MaNhaHangNavigation)
@@ -200,7 +211,21 @@ namespace DatMonAnOnline.API.Controllers
                 .Include(d => d.Chitietdonhangs).ThenInclude(ct => ct.ChitietdonhangToppings).ThenInclude(tp => tp.MaToppingNavigation)
                 .FirstOrDefaultAsync(d => d.MaDonHang == id);
 
-            if (donHang == null) return NotFound("Không tìm thấy đơn hàng.");
+            if (donHang == null) return NotFound(new { Message = "Không tìm thấy đơn hàng." });
+
+            // KIỂM TRA QUYỀN SỞ HỮU
+            if (role == "KhachHang")
+            {
+                var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
+                if (khachHang == null || donHang.MaKhachHang != khachHang.MaKhachHang)
+                    return StatusCode(403, new { Message = "Bạn không có quyền xem đơn hàng này." });
+            }
+            else if (role == "Quan")
+            {
+                var nhaHang = await _context.Nhahangs.FirstOrDefaultAsync(n => n.MaTaiKhoan == maTaiKhoan);
+                if (nhaHang == null || donHang.MaNhaHang != nhaHang.MaNhaHang)
+                    return StatusCode(403, new { Message = "Đơn hàng này không thuộc quán của bạn." });
+            }
 
             return Ok(new
             {
@@ -211,21 +236,21 @@ namespace DatMonAnOnline.API.Controllers
                 donHang.DiaChiGiaoHang,
                 donHang.GhiChu,
                 donHang.ThoiGianDat,
-                TrangThai = donHang.MaTrangThaiNavigation.TenTrangThai,
-                TenNhaHang = donHang.MaNhaHangNavigation.TenNhaHang,
+                TrangThai = donHang.MaTrangThaiNavigation?.TenTrangThai ?? "",
+                TenNhaHang = donHang.MaNhaHangNavigation?.TenNhaHang ?? "",
                 donHang.TongTienHang,
                 donHang.PhiShip,
                 donHang.SoTienGiam,
                 donHang.ThanhTien,
                 ChiTiet = donHang.Chitietdonhangs.Select(ct => new
                 {
-                    TenMonAn = ct.MaMonAnNavigation.TenMonAn,
+                    TenMonAn = ct.MaMonAnNavigation?.TenMonAn ?? "",
                     SoLuong = ct.SoLuong,
                     DonGia = ct.DonGia,
                     ThanhTien = ct.ThanhTien,
                     Toppings = ct.ChitietdonhangToppings.Select(tp => new
                     {
-                        TenTopping = tp.MaToppingNavigation.TenTopping,
+                        TenTopping = tp.MaToppingNavigation?.TenTopping ?? "",
                         GiaThem = tp.GiaThemLucDat,
                         SoLuong = tp.SoLuong
                     })
@@ -233,12 +258,15 @@ namespace DatMonAnOnline.API.Controllers
             });
         }
 
-        [HttpGet("~/api/nha-hang/don-hang")] // Route đặc biệt cho Người 3 map với check-list
+        [HttpGet("~/api/nha-hang/don-hang")] 
         [Authorize(Roles = "Quan")]
         public async Task<IActionResult> DanhSachDonHangCuaQuan([FromQuery] int? maTrangThai)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized();
+
             var nhaHang = await _context.Nhahangs.FirstOrDefaultAsync(n => n.MaTaiKhoan == maTaiKhoan);
+            if (nhaHang == null) return Unauthorized();
             
             var query = _context.Donhangs.Where(d => d.MaNhaHang == nhaHang.MaNhaHang);
             if (maTrangThai.HasValue) query = query.Where(d => d.MaTrangThai == maTrangThai);
@@ -252,7 +280,7 @@ namespace DatMonAnOnline.API.Controllers
                     d.MaDonHangHienThi,
                     d.ThoiGianDat,
                     d.TenNguoiNhan,
-                    TrangThai = d.MaTrangThaiNavigation.TenTrangThai,
+                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai, // Thêm !
                     ThanhTien = d.ThanhTien
                 })
                 .ToListAsync();
@@ -265,16 +293,34 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> HuyDonHang(int id, [FromBody] HuyDonHangYeuCau request)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
-            var donHang = await _context.Donhangs.FindAsync(id);
-            if (donHang == null) return NotFound("Đơn hàng không tồn tại.");
+            if (maTaiKhoan == null) return Unauthorized();
 
-            // Chỉ cho huỷ nếu đang chờ xác nhận (1) hoặc đã xác nhận (2). Đang giao/Chuẩn bị thì không cho huỷ
-            if (donHang.MaTrangThai > 2)
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            var donHang = await _context.Donhangs.FindAsync(id);
+            if (donHang == null) return NotFound(new { Message = "Đơn hàng không tồn tại." });
+
+            // KIỂM TRA QUYỀN SỞ HỮU
+            if (role == "KhachHang")
             {
-                return BadRequest("Không thể huỷ đơn hàng ở trạng thái hiện tại.");
+                var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
+                if (khachHang == null || donHang.MaKhachHang != khachHang.MaKhachHang)
+                    return StatusCode(403, new { Message = "Bạn không có quyền huỷ đơn hàng này." });
+            }
+            else if (role == "Quan")
+            {
+                var nhaHang = await _context.Nhahangs.FirstOrDefaultAsync(n => n.MaTaiKhoan == maTaiKhoan);
+                if (nhaHang == null || donHang.MaNhaHang != nhaHang.MaNhaHang)
+                    return StatusCode(403, new { Message = "Đơn hàng này không thuộc quán của bạn." });
             }
 
-            donHang.MaTrangThai = 6; // 6 = DaHuy
+            // Chỉ cho huỷ nếu đang chờ xác nhận (1) hoặc đã xác nhận (2)
+            if (donHang.MaTrangThai > 2)
+            {
+                return BadRequest(new { Message = "Không thể huỷ đơn hàng ở trạng thái hiện tại." });
+            }
+
+            donHang.MaTrangThai = 6; // DaHuy
             donHang.LyDoHuy = request.LyDoHuy;
 
             _context.Lichsutrangthaidonhangs.Add(new Lichsutrangthaidonhang
@@ -291,7 +337,7 @@ namespace DatMonAnOnline.API.Controllers
         }
 
 
-        // ---- HÀM HỖ TRỢ TÍNH TIỀN (Sử dụng chung cho Kiểm tra và Đặt hàng) ----
+        // ---- HÀM HỖ TRỢ TÍNH TIỀN ----
         private async Task<(decimal TongTien, decimal PhiShip, decimal Giam, int? MaNhaHang, string? Loi)> TinhTienDonHang(int maKhachHang, int? maKhuyenMai)
         {
             var gioHang = await _context.Giohangs
@@ -341,7 +387,6 @@ namespace DatMonAnOnline.API.Controllers
         }
     }
 
-    // --- Các Class DTO ---
     public class KiemTraDonHangYeuCau
     {
         public int? MaKhuyenMai { get; set; }
