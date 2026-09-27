@@ -8,6 +8,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import AddressPage from "./pages/Address";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Orders from "./pages/Orders";
 function App() {
     return (
         <BrowserRouter>
@@ -38,6 +41,10 @@ function App() {
                 path = "/dia-chi"
                 element = {< AddressPage />}
                 />
+
+                <Route path="/gio-hang" element={<Cart />} />
+                <Route path="/thanh-toan" element={<Checkout />} />
+                <Route path="/don-hang" element={<Orders />} />
     </Routes>
     </BrowserRouter>
   );

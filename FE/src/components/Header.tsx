@@ -82,10 +82,10 @@ function Header() {
     {/* Right side */ }
     <div className="header-right" >
 
-    {/* Cart */ }
-        < button className = "cart-button" >
-            🛒
-    </button>
+    {/* Cart */}
+    <Link to="/gio-hang" className="cart-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+        🛒
+    </Link>
 
     {
         user ? (
@@ -144,6 +144,14 @@ function Header() {
                   >
     <span>📍</span>
                     Địa chỉ giao hàng
+    </Link>
+
+    <Link
+    to="/don-hang"
+    className="dropdown-item"
+    onClick={() => setShowMenu(false)}
+>
+    <span>🧾</span> Đơn hàng của tôi
     </Link>
 
     < div className = "dropdown-divider" />
