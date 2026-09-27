@@ -47,10 +47,10 @@ function Cart() {
     if (!cart || !cart.chiTiet || cart.chiTiet.length === 0) {
         return (
             <main className="cart-page empty-cart">
-                <div style={{ fontSize: 60 }}>🛒</div>
+                <div className="empty-cart-icon">🛒</div>
                 <h2>Giỏ hàng trống</h2>
                 <p>Hãy thêm món ăn hấp dẫn vào giỏ hàng nhé!</p>
-                <Link to="/" className="menu-button" style={{ display: 'inline-flex', marginTop: 20 }}>Đi chọn món</Link>
+                <Link to="/" className="menu-button">Đi chọn món</Link>
             </main>
         );
     }
