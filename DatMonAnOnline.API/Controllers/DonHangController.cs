@@ -335,7 +335,150 @@ namespace DatMonAnOnline.API.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Huỷ đơn hàng thành công." });
         }
+        [HttpGet("~/api/trang-thai-don-hang")]
+        [Authorize]
+        public async Task<IActionResult> GetDanhSachTrangThaiDonHang()
+        {
+            var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+            var result = await _context.Trangthaidonhangs
+                .AsNoTracking()
+                .OrderBy(x => x.ThuTu)
+                .Select(x => new
+                {
+                    x.MaTrangThai,
+                    x.TenTrangThai,
+                    x.ThuTu
+                })
+                .ToListAsync();
+            return Ok(result);
+        }
 
+        [HttpGet("{id:int}/lich-su-trang-thai")]
+        [Authorize]
+        public async Task<IActionResult> GetLichSuTrangThaiDonHang(int id)
+        {
+            var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+            var donHang = await _context.Donhangs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.MaDonHang == id);
+            if (donHang == null)
+                return NotFound(new { message = "Không tìm thấy đơn hàng." });
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var duocXem = await KiemTraQuyenXemDonHang(role, maTaiKhoan.Value, donHang);
+            if (duocXem == false)
+                return StatusCode(403, new { message = "Bạn không có quyền xem đơn hàng này." });
+            if (duocXem == null)
+                return Unauthorized(new { message = "Token không hợp lệ." });
+            var result = await _context.Lichsutrangthaidonhangs
+                .AsNoTracking()
+                .Where(x => x.MaDonHang == id)
+                .OrderBy(x => x.ThoiGianTao)
+                .ThenBy(x => x.MaLichSu)
+                .Select(x => new
+                {
+                    x.MaLichSu,
+                    x.MaDonHang,
+                    x.MaTrangThai,
+                    tenTrangThai = x.MaTrangThaiNavigation.TenTrangThai,
+                    x.MaTaiKhoan,
+                    x.ThoiGianTao,
+                    x.GhiChu
+                })
+                .ToListAsync();
+            return Ok(result);
+        }
+
+        [HttpPut("{id:int}/trang-thai")]
+        [Authorize(Roles = "Quan")]
+        public async Task<IActionResult> CapNhatTrangThaiDonHang(int id, CapNhatTrangThaiYeuCau request)
+        {
+            var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+            var nhaHang = await _context.Nhahangs
+                .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan.Value);
+            if (nhaHang == null)
+                return NotFound(new { message = "Không tìm thấy nhà hàng của tài khoản này." });
+            var donHang = await _context.Donhangs
+                .Include(x => x.Thanhtoans)
+                    .ThenInclude(x => x.MaPhuongThucNavigation)
+                .FirstOrDefaultAsync(x => x.MaDonHang == id);
+            if (donHang == null)
+                return NotFound(new { message = "Không tìm thấy đơn hàng." });
+            if (donHang.MaNhaHang != nhaHang.MaNhaHang)
+                return StatusCode(403, new { message = "Đơn hàng này không thuộc quán của bạn." });
+            if (donHang.MaTrangThai == 5)
+                return BadRequest(new { message = "Đơn hàng đã hoàn thành, không thể cập nhật trạng thái." });
+            if (donHang.MaTrangThai == 6)
+                return BadRequest(new { message = "Đơn hàng đã huỷ, không thể cập nhật trạng thái." });
+            // khong cho nhay qua trang thai, chi duoc nhay sang trang thai tiep theo
+            if (request.MaTrangThai != donHang.MaTrangThai + 1 || request.MaTrangThai > 5)
+                return BadRequest(new { message = "Chỉ được chuyển sang trạng thái kế tiếp theo thứ tự." });
+            var trangThaiMoi = await _context.Trangthaidonhangs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.MaTrangThai == request.MaTrangThai);
+            if (trangThaiMoi == null)
+                return BadRequest(new { message = "Mã trạng thái không hợp lệ." });
+            donHang.MaTrangThai = request.MaTrangThai;
+            if (request.MaTrangThai == 5)  // cap nhat thoi gian giao thuc te va thanh toan khi nhan hang 
+            {
+                donHang.ThoiGianGiaoThucTe = DateTime.Now;
+                var thanhToanCod = donHang.Thanhtoans
+                    .Where(x => x.TrangThaiThanhToan == "ChoThanhToan"
+                                && x.MaPhuongThucNavigation.TenPhuongThuc == "ThanhToanKhiNhan")
+                    .OrderByDescending(x => x.MaThanhToan)
+                    .FirstOrDefault();
+                if (thanhToanCod != null)
+                {
+                    thanhToanCod.TrangThaiThanhToan = "ThanhCong";
+                    thanhToanCod.ThoiGianThanhToan = DateTime.Now;
+                }
+            }
+            _context.Lichsutrangthaidonhangs.Add(new Lichsutrangthaidonhang
+            {
+                MaDonHang = donHang.MaDonHang,
+                MaTrangThai = request.MaTrangThai,
+                MaTaiKhoan = maTaiKhoan.Value,
+                ThoiGianTao = DateTime.Now,
+                GhiChu = string.IsNullOrWhiteSpace(request.GhiChu)
+                    ? $"Quán cập nhật trạng thái: {trangThaiMoi.TenTrangThai}"
+                    : request.GhiChu.Trim()
+            });
+            await _context.SaveChangesAsync();
+            return Ok(new
+            {
+                message = "Cập nhật trạng thái đơn hàng thành công.",
+                maDonHang = donHang.MaDonHang,
+                maTrangThai = donHang.MaTrangThai,
+                tenTrangThai = trangThaiMoi.TenTrangThai
+            });
+        }
+
+        private async Task<bool?> KiemTraQuyenXemDonHang(string? role, int maTaiKhoan, Donhang donHang)
+        {
+            if (role == "KhachHang")
+            {
+                var khachHang = await _context.Khachhangs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan);
+                if (khachHang == null) return null;
+                return donHang.MaKhachHang == khachHang.MaKhachHang;
+            }
+            if (role == "Quan")
+            {
+                var nhaHang = await _context.Nhahangs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan);
+                if (nhaHang == null) return null;
+                return donHang.MaNhaHang == nhaHang.MaNhaHang;
+            }
+            if (role == "Admin")
+            {
+                return true;
+            }
+            return false;
+        }
 
         // ---- HÀM HỖ TRỢ TÍNH TIỀN ----
         private async Task<(decimal TongTien, decimal PhiShip, decimal Giam, int? MaNhaHang, string? Loi)> TinhTienDonHang(int maKhachHang, int? maKhuyenMai)
@@ -402,5 +545,11 @@ namespace DatMonAnOnline.API.Controllers
     public class HuyDonHangYeuCau
     {
         [Required] public string LyDoHuy { get; set; } = string.Empty;
+    }
+
+    public class CapNhatTrangThaiYeuCau
+    {
+        [Required] public int MaTrangThai { get; set; }
+        [MaxLength(200)] public string? GhiChu { get; set; }
     }
 }
