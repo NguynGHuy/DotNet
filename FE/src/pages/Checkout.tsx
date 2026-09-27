@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getAddresses, Address } from "../services/addressService";
+import { getAddresses } from "../services/addressService";
+import type { Address } from "../services/addressService";
 import { checkPreCheckout, placeOrder } from "../services/orderService";
 
 function Checkout() {
