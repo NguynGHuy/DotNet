@@ -3,13 +3,28 @@ import { useNavigate, Link } from "react-router-dom";
 import { getAddresses } from "../services/addressService";
 import type { Address } from "../services/addressService";
 import { checkPreCheckout, placeOrder } from "../services/orderService";
+import { getCart } from "../services/cartService";
+import { checkPromotion } from "../services/promotionService";
 
+interface CheckoutData {
+    tongTienHang: number;
+    phiShip: number;
+    soTienGiam: number;
+    thanhTien: number;
+}
 function Checkout() {
     const navigate = useNavigate();
     const [addresses, setAddresses] = useState<Address[]>([]);
     const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-    const [checkoutData, setCheckoutData] = useState<any>(null);
+    const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
     const [ghiChu, setGhiChu] = useState("");
+
+    const [maCode, setMaCode] = useState("");
+    const [promotionId, setPromotionId] = useState<number | null>(null);
+    const [restaurantId, setRestaurantId] = useState<number | null>(null);
+    const [promoMessage, setPromoMessage] = useState("");
+    const [promoBusy, setPromoBusy] = useState(false);
+
     const [loading, setLoading] = useState(true);
     const [placingOrder, setPlacingOrder] = useState(false);
 
@@ -23,10 +38,15 @@ function Checkout() {
                 if (defaultAddr) setSelectedAddressId(defaultAddr.maDiaChi);
 
                 // 2. Tính tiền (Gọi API của Người 3)
-                const moneyData = await checkPreCheckout(null);
+                const [moneyData, cart] = await Promise.all([
+                    checkPreCheckout(null),
+                    getCart(),
+                ]);
                 setCheckoutData(moneyData);
-            } catch (error: any) {
-                alert(error.message || "Giỏ hàng trống hoặc có lỗi xảy ra");
+                setRestaurantId(cart.maNhaHang);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
+                alert(message);
                 navigate("/gio-hang");
             } finally {
                 setLoading(false);
@@ -34,6 +54,45 @@ function Checkout() {
         };
         initCheckout();
     }, [navigate]);
+
+    const handleApplyPromotion = async () => {
+        if (!maCode.trim() || restaurantId === null || !checkoutData) return;
+
+        try {
+            setPromoBusy(true);
+            setPromoMessage("");
+
+            const result = await checkPromotion(
+                maCode.trim(),
+                restaurantId,
+                checkoutData.tongTienHang
+            );
+
+            const updatedCheckout = await checkPreCheckout(result.maKhuyenMai);
+            setCheckoutData(updatedCheckout);
+            setPromotionId(result.maKhuyenMai);
+            setPromoMessage("Áp dụng mã thành công.");
+        } catch (err) {
+            setPromoMessage((err as Error).message);
+        } finally {
+            setPromoBusy(false);
+        }
+    };
+
+    const handleRemovePromotion = async () => {
+        try {
+            setPromoBusy(true);
+            const updatedCheckout = await checkPreCheckout(null);
+            setCheckoutData(updatedCheckout);
+            setPromotionId(null);
+            setMaCode("");
+            setPromoMessage("");
+        } catch (err) {
+            setPromoMessage((err as Error).message);
+        } finally {
+            setPromoBusy(false);
+        }
+    };
 
     const handlePlaceOrder = async () => {
         if (!selectedAddressId) {
@@ -44,13 +103,14 @@ function Checkout() {
             setPlacingOrder(true);
             const res = await placeOrder({
                 maDiaChi: selectedAddressId,
-                maKhuyenMai: null, // Chưa tích hợp nhập mã ở đây để đơn giản hoá
+                maKhuyenMai: promotionId,
                 ghiChu: ghiChu
             });
             alert("Đặt hàng thành công! Mã đơn: " + res.maDonHangHienThi);
             navigate("/don-hang"); // Chuyển tới lịch sử đơn hàng
-        } catch (error: any) {
-            alert("Lỗi đặt hàng: " + error.message);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
+            alert("Lỗi đặt hàng: " + message);
         } finally {
             setPlacingOrder(false);
         }
@@ -98,6 +158,40 @@ function Checkout() {
                     ></textarea>
                 </div>
 
+                <div className="checkout-section">
+                    <h3>🎟️ Mã giảm giá</h3>
+
+                    <div className="checkout-promotion">
+                        <input
+                            aria-label="Mã giảm giá"
+                            placeholder="Nhập mã giảm giá"
+                            value={maCode}
+                            disabled={promotionId !== null || promoBusy}
+                            onChange={(e) => setMaCode(e.target.value)}
+                        />
+
+                        {promotionId === null ? (
+                            <button
+                                type="button"
+                                onClick={handleApplyPromotion}
+                                disabled={promoBusy || !maCode.trim()}
+                            >
+                                {promoBusy ? "Đang kiểm tra..." : "Áp dụng"}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleRemovePromotion}
+                                disabled={promoBusy}
+                            >
+                                Bỏ mã
+                            </button>
+                        )}
+                    </div>
+
+                    {promoMessage && <p className="checkout-promotion-message">{promoMessage}</p>}
+                </div>
+
                 <div className="checkout-section summary-box">
                     <h3>💰 Tổng cộng</h3>
                     {checkoutData && (
@@ -111,7 +205,7 @@ function Checkout() {
                     )}
                 </div>
 
-                <button className="menu-button" onClick={handlePlaceOrder} disabled={placingOrder || addresses.length === 0} style={{width: '100%', marginTop: 20}}>
+                <button className="menu-button" onClick={handlePlaceOrder} disabled={placingOrder || promoBusy || addresses.length === 0} style={{width: '100%', marginTop: 20}}>
                     {placingOrder ? "Đang xử lý..." : "XÁC NHẬN ĐẶT HÀNG"}
                 </button>
             </div>

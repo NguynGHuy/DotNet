@@ -16,7 +16,7 @@ import type {
 
 function AddressPage() {
     const [addresses, setAddresses] = useState<Address[]>([]);
-    const [loading, setLoading] = useState(true);
+    //const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
     const [showForm, setShowForm] = useState(false);
@@ -31,13 +31,19 @@ function AddressPage() {
         macDinh: false,
     });
 
+    //useEffect(() => {
+    //    loadAddresses();
+    //}, []);
+
     useEffect(() => {
-        loadAddresses();
+        getAddresses()
+            .then(setAddresses)
+            .catch((err: Error) => setError(err.message));
     }, []);
 
     const loadAddresses = async () => {
         try {
-            setLoading(true);
+            //setLoading(true);
             setError("");
 
             const data = await getAddresses();
@@ -54,7 +60,7 @@ function AddressPage() {
                 setError("Không thể tải danh sách địa chỉ.");
             }
         } finally {
-            setLoading(false);
+            //setLoading(false);
         }
     };
 
