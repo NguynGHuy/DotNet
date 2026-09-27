@@ -154,6 +154,36 @@ function Header() {
     <span>🧾</span> Đơn hàng của tôi
     </Link>
 
+    <Link
+    to="/thong-bao"
+    className="dropdown-item"
+    onClick={() => setShowMenu(false)}
+>
+    <span>🔔</span> Thông báo
+
+     </Link>
+    {user?.role === "Quan" && (
+    <Link
+        to="/quan/khuyen-mai"
+        className="dropdown-item"
+        onClick={() => setShowMenu(false)}
+    >
+        <span>🎟️</span> Mã giảm giá của quán
+    </Link>
+)}
+
+{user?.role === "Admin" && (
+    <Link
+        to="/admin/tai-khoan"
+        className="dropdown-item"
+        onClick={() => setShowMenu(false)}
+    >
+        <span>👥</span> Quản lý tài khoản
+    </Link>
+)}
+
+
+
     < div className = "dropdown-divider" />
 
         <button

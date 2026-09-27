@@ -41,6 +41,33 @@ namespace DatMonAnOnline.API.Controllers
             return Ok(new { message = "Tạo mã khuyến mãi hệ thống thành công" });
         }
 
+        [HttpGet("khuyen-mai")]
+        public async Task<IActionResult> LayKhuyenMaiHeThong()
+        {
+            var list = await _context.Khuyenmais
+                .AsNoTracking()
+                .Where(x => x.MaNhaHang == null)
+                .OrderByDescending(x => x.MaKhuyenMai)
+                .Select(x => new
+                {
+                    x.MaKhuyenMai,
+                    x.MaCode,
+                    x.MoTa,
+                    x.LoaiGiam,
+                    x.GiaTriGiam,
+                    x.GiamToiDa,
+                    x.DonHangToiThieu,
+                    x.SoLuong,
+                    x.SoLuongDaDung,
+                    x.NgayBatDau,
+                    x.NgayKetThuc,
+                    x.TrangThai
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
         [HttpGet("nha-hang/cho-duyet")]
         public async Task<IActionResult> DanhSachNhaHangChoDuyet()
         {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiFetch } from "../services/api";
+import RestaurantReviews from "../components/RestaurantReviews";
 
 interface Restaurant {
     maNhaHang: number;
@@ -263,6 +264,8 @@ disabled = {!isOpen}
 
     </div>
     </section>
+
+            <RestaurantReviews maNhaHang={restaurant.maNhaHang} />
 
     </main>
     );
