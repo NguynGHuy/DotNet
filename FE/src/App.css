@@ -8799,3 +8799,330 @@ img {
         width: 100%;
     }
 }
+
+/* =========================================================
+   CHI TIET DON HANG
+========================================================= */
+
+.invoice-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px 14px 8px 10px;
+    border: 1px solid #eee;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    color: #222;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.invoice-back span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff4ef;
+    color: #ff5a1f;
+    font-size: 14px;
+}
+
+.invoice-back:hover {
+    border-color: #ff5a1f;
+    color: #ff5a1f;
+    box-shadow: 0 4px 12px rgba(255, 90, 31, 0.12);
+}
+
+.invoice-sheet {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.invoice-track {
+    padding: 22px 20px 8px;
+}
+
+.invoice-track h1 {
+    margin: 0 0 6px;
+    color: #ff5a1f;
+    font-size: 22px;
+    line-height: 1.3;
+}
+
+.invoice-track p {
+    margin: 0 0 18px;
+    color: #888;
+    font-size: 13px;
+}
+
+.invoice-cancel {
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff1f0;
+    color: #ef4444;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.invoice-steps {
+    display: flex;
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+}
+
+.invoice-step {
+    position: relative;
+    flex: 1;
+    padding: 0 4px 8px;
+    color: #888;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: center;
+}
+
+.invoice-step::before {
+    content: "";
+    display: block;
+    width: 14px;
+    height: 14px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    background: #e5e5e5;
+    position: relative;
+    z-index: 1;
+}
+
+.invoice-step::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: #e5e5e5;
+    z-index: 0;
+}
+
+.invoice-step:last-child::after {
+    display: none;
+}
+
+.invoice-step.is-reached {
+    color: #ff5a1f;
+    font-weight: 600;
+}
+
+.invoice-step.is-reached::before,
+.invoice-step.is-passed::after {
+    background: #ff5a1f;
+}
+
+.invoice-review {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 4px 20px 16px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 10px;
+    background: #ff5a1f;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.invoice-block {
+    padding: 16px 20px;
+    border-top: 8px solid #f6f6f6;
+}
+
+.invoice-block h2 {
+    margin: 0 0 4px;
+    color: #222;
+    font-size: 16px;
+}
+
+.invoice-muted {
+    margin: 4px 0 0;
+    color: #888;
+    font-size: 13px;
+}
+
+.invoice-item + .invoice-item {
+    margin-top: 14px;
+}
+
+.invoice-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    color: #444;
+    font-size: 14px;
+}
+
+.invoice-line strong {
+    color: #222;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.invoice-topping {
+    margin: 4px 0 0 12px;
+    color: #888;
+    font-size: 13px;
+}
+
+.invoice-money .invoice-line + .invoice-line {
+    margin-top: 10px;
+}
+
+.invoice-total {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+    color: #222;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.invoice-total span:last-child {
+    color: #ff5a1f;
+    font-size: 18px;
+}
+
+.invoice-receiver {
+    margin: 0;
+    color: #222;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.invoice-code {
+    margin: 0 0 12px;
+    color: #888;
+    font-size: 13px;
+}
+
+.invoice-history {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.invoice-history li {
+    display: grid;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid #f3f3f3;
+    color: #444;
+    font-size: 13px;
+}
+
+.invoice-history time,
+.invoice-history small {
+    color: #888;
+    font-size: 12px;
+}
+
+.quan-order-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.quan-order-tabs button {
+    padding: 8px 14px;
+    border: 1px solid #eee;
+    border-radius: 999px;
+    background: #fff;
+    color: #444;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.quan-order-tabs button.is-active {
+    border-color: #ff5a1f;
+    background: #fff4ef;
+    color: #ff5a1f;
+}
+
+.quan-order-list {
+    display: grid;
+    gap: 10px;
+}
+
+.quan-order-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+}
+
+.quan-order-row div {
+    display: grid;
+    gap: 4px;
+}
+
+.quan-order-row strong {
+    color: #222;
+    font-size: 15px;
+}
+
+.quan-order-row span,
+.quan-order-row em {
+    color: #777;
+    font-size: 13px;
+    font-style: normal;
+}
+
+.quan-order-row b {
+    color: #ff5a1f;
+    font-size: 15px;
+    text-align: right;
+}
+
+.quan-order-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 16px;
+}
+
+.quan-order-actions .invoice-review {
+    flex: 1;
+    width: auto;
+    margin: 0;
+}
+
+.quan-order-cancel {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #ff5a1f;
+    border-radius: 10px;
+    background: #fff;
+    color: #ff5a1f;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.quan-order-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

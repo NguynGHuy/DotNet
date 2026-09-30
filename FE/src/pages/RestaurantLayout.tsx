@@ -106,6 +106,16 @@ function QuanLayout() {
                     </NavLink>
 
                     <NavLink
+                        to="/quan/don-hang"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <span>🧾</span>
+                        Đơn hàng
+                    </NavLink>
+
+                    <NavLink
                         to="/quan/trang-thai"
                         className={({ isActive }) =>
                             `quan-nav-item ${isActive ? "active" : ""}`

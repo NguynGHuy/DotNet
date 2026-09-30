@@ -38,6 +38,8 @@ function Orders() {
         switch (status) {
             case "ChoXacNhan": return "#f59e0b"; // Vàng
             case "DaXacNhan": return "#3b82f6"; // Xanh dương
+            case "DangChuanBi": return "#8b5cf6";
+            case "DangGiao": return "#0ea5e9";
             case "HoanThanh": return "#10b981"; // Xanh lá
             case "DaHuy": return "#ef4444";     // Đỏ
             default: return "#6b7280";
@@ -77,6 +79,12 @@ function Orders() {
                                 <p>Tổng tiền: <strong style={{color: '#e63946'}}>{order.thanhTien.toLocaleString()} đ</strong></p>
                             </div>
                             <div className="order-actions">
+                                <Link 
+                                    to={ `/don-hang/${order.maDonHang}` }
+                                    className = "menu-button"
+                                    style = {{ display: "inline-flex", marginRight: 8 }}>
+                                    Xem chi tiết
+                                </Link>
                                 {(order.trangThai === "ChoXacNhan" || order.trangThai === "DaXacNhan") && (
                                     <button className="cancel-btn" onClick={() => handleCancel(order.maDonHang)}>Huỷ đơn</button>
                                 )}

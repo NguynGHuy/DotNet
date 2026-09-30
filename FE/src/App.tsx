@@ -19,6 +19,7 @@ import AddressPage from "./pages/Address";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
+import OrderDetail from "./pages/OrderDetail";
 
 import Notifications from "./pages/Notifications";
 import Promotions from "./pages/Promotions";
@@ -33,6 +34,8 @@ import QuanLayout from "./pages/RestaurantLayout";
 import QuanHome from "./pages/RestaurantHome";
 import QuanRestaurantInfo from "./pages/RestaurantInfo";
 import QuanRestaurantStatus from "./pages/RestaurantStatus";
+import RestaurantOrders from "./pages/RestaurantOrders";
+import RestaurantOrderDetail from "./pages/RestaurantOrderDetail";
 import Restaurants from "./pages/Restaurants";
 import Footer from "./components/Footer";
 
@@ -106,6 +109,10 @@ function AppContent() {
                     path="/don-hang"
                     element={<Orders />}
                 />
+                < Route
+                    path = "/don-hang/:id"
+                    element = {< OrderDetail />}
+                />
 
                 <Route
                     path="/thong-bao"
@@ -136,6 +143,15 @@ function AppContent() {
                     <Route
                         path="trang-thai"
                         element={<QuanRestaurantStatus />}
+                    />
+
+                    <Route
+                        path="don-hang"
+                        element={<RestaurantOrders />}
+                    />
+                    <Route
+                        path="don-hang/:id"
+                        element={<RestaurantOrderDetail />}
                     />
 
                     <Route
