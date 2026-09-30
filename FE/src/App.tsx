@@ -36,7 +36,11 @@ import QuanRestaurantInfo from "./pages/RestaurantInfo";
 import QuanRestaurantStatus from "./pages/RestaurantStatus";
 import RestaurantOrders from "./pages/RestaurantOrders";
 import RestaurantOrderDetail from "./pages/RestaurantOrderDetail";
+import RestaurantCategory from "./pages/RestaurantCategory";
+import RestaurantMenu from "./pages/RestaurantMenu";
+import RestaurantTopping from "./pages/RestaurantTopping";
 import Restaurants from "./pages/Restaurants";
+
 import Footer from "./components/Footer";
 
 function AppContent() {
@@ -144,6 +148,26 @@ function AppContent() {
                         path="trang-thai"
                         element={<QuanRestaurantStatus />}
                     />
+                    {/* =========================
+                            NGƯỜI 2 - MÓN ĂN
+                        ========================= */}
+
+                        <Route
+                            path="danh-muc"
+                            element={<RestaurantCategory />}
+                        />
+
+                        <Route
+                            path="menu"
+                            element={<RestaurantMenu />}
+                        />
+
+                        <Route
+                            path="topping"
+                            element={<RestaurantTopping />}
+                        />
+
+                        {/* ========================= */}
 
                     <Route
                         path="don-hang"

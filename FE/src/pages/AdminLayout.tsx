@@ -85,9 +85,6 @@ function AdminLayout() {
                         <strong>Khu quản trị</strong>
                         <span>Quản lý hệ thống đặt món ăn</span>
                     </div>
-                    <Link to="/" className="admin-view-site">
-                        Xem trang khách hàng ↗
-                    </Link>
                 </header>
 
                 <div className="admin-main">

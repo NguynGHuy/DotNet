@@ -630,21 +630,6 @@ img {
     margin-bottom: 22px;
 }
 
-.section-header h2 {
-    margin: 0 0 6px;
-
-    font-size: 28px;
-
-    color: #222;
-}
-
-.section-header p {
-    margin: 0;
-
-    color: #777;
-
-    font-size: 14px;
-}
 
 .restaurant-count {
     padding: 7px 12px;
@@ -2122,29 +2107,6 @@ img {
     cursor: not-allowed;
 }
 
-.detail-loading {
-    min-height: 500px;
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    gap: 15px;
-
-    color: #777;
-}
-
-.detail-error {
-    min-height: 500px;
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    text-align: center;
-}
 
 .detail-error > div {
     margin-bottom: 15px;
@@ -2152,21 +2114,6 @@ img {
     font-size: 55px;
 }
 
-.detail-error h2 {
-    margin: 0 0 8px;
-
-    color: #333;
-
-    font-size: 22px;
-}
-
-.detail-error p {
-    margin: 0 0 20px;
-
-    color: #777;
-
-    font-size: 14px;
-}
 
 .back-home-button {
     padding: 10px 18px;
@@ -4754,22 +4701,6 @@ img {
    BUTTON
    ========================= */
 
-.quan-primary-button {
-    border: none;
-    background: #f97316;
-    color: #fff;
-    padding: 10px 17px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    transition: 0.2s;
-}
-
-.quan-primary-button:hover {
-    background: #ea580c;
-}
-
 
 /* =========================
    INFO GRID
@@ -5560,9 +5491,6 @@ img {
    RESTAURANTS PAGE
 ================================================== */
 
-.restaurants-page {
-    min-height: 500px;
-}
 
 .restaurants-header {
     max-width: 1200px;
@@ -5711,7 +5639,7 @@ img {
     .section-header h2 {
         font-size: 22px;
     }
-} 
+}
 /* =========================================================
    FIX - HOME PAGE
    Đồng bộ với Home.tsx
@@ -5752,60 +5680,6 @@ img {
         );
 
     border: 1px solid #ffe0d2;
-}
-
-.home-hero-content {
-    position: relative;
-    z-index: 2;
-
-    max-width: 650px;
-}
-
-.home-hero-content h1 {
-    margin: 0 0 15px;
-
-    color: #222;
-
-    font-size: 42px;
-    line-height: 1.15;
-}
-
-.home-hero-content p {
-    max-width: 540px;
-
-    margin: 0 0 25px;
-
-    color: #666;
-
-    font-size: 16px;
-    line-height: 1.6;
-}
-
-.hero-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 12px 20px;
-
-    border-radius: 10px;
-
-    background: #ff5a1f;
-    color: white;
-
-    text-decoration: none;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    transition:
-        background 0.2s ease,
-        transform 0.2s ease;
-}
-
-.hero-button:hover {
-    background: #e94d16;
-    transform: translateY(-1px);
 }
 
 
@@ -7706,13 +7580,6 @@ img {
    REVIEWS
 ========================================================= */
 
-.restaurant-detail-reviews {
-    margin-top: 35px;
-    padding: 30px;
-    border: 1px solid #e9e9e7;
-    border-radius: 20px;
-    background: #fff;
-}
 
 .restaurant-detail-section-heading {
     margin-bottom: 20px;
@@ -7884,11 +7751,6 @@ img {
         align-self: flex-start;
     }
 
-    .restaurant-detail-reviews {
-        margin-top: 20px;
-        padding: 20px;
-        border-radius: 17px;
-    }
 }
 /* =========================================================
    RESTAURANT REVIEWS - FONT CONSISTENCY
@@ -8276,26 +8138,6 @@ img {
    STATUS
 ========================================================= */
 
-.quan-promotion-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 7px 10px;
-    border-radius: 20px;
-    white-space: nowrap;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.quan-promotion-status.active {
-    background: #eaf8ef;
-    color: #21874c;
-}
-
-.quan-promotion-status.inactive {
-    background: #f1f1f1;
-    color: #888;
-}
 
 .quan-promotion-status span {
     font-size: 7px;
@@ -8753,7 +8595,6 @@ img {
 /* FOOTER */
 
 
-
 .quan-promotion-footer > div {
     min-width: 0;
 }
@@ -9125,4 +8966,659 @@ img {
 .quan-order-actions button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+
+/* =========================================================
+   QUAN - DANH MỤC / THỰC ĐƠN / TOPPING
+========================================================= */
+
+.quan-dashboard {
+    width: 100%;
+}
+
+.quan-page-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.quan-empty-icon {
+    margin-bottom: 10px;
+    font-size: 38px;
+}
+
+.quan-form-group select {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    color: #222;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s;
+}
+
+.quan-form-group select:focus {
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.quan-form-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: #f97316;
+}
+
+.quan-management-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.quan-management-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quan-management-item:hover {
+    border-color: #fdba74;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.quan-management-item.is-selected {
+    border-color: #f97316;
+    background: #fffaf5;
+}
+
+.quan-management-item > div:first-child {
+    min-width: 0;
+}
+
+.quan-management-item strong {
+    display: block;
+    color: #222;
+    font-size: 15px;
+}
+
+.quan-management-item p {
+    margin: 5px 0 0;
+    color: #777;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.quan-management-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.quan-danger-button {
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    padding: 11px 20px;
+    background: #fff;
+    color: #dc2626;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.quan-danger-button:hover:not(:disabled) {
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+
+.quan-danger-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.quan-menu-item {
+    align-items: center;
+}
+
+.quan-menu-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.quan-menu-image {
+    width: 68px;
+    height: 68px;
+    flex-shrink: 0;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    background: #f9fafb;
+    object-fit: cover;
+}
+
+.quan-status-active,
+.quan-status-inactive {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 7px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.quan-status-active {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.quan-status-inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.quan-inline-form {
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    background: #fafafa;
+}
+
+.quan-inline-form .quan-form-actions {
+    margin: 16px 0 0;
+}
+
+.quan-placeholder {
+    flex-direction: column;
+    padding: 30px;
+    text-align: center;
+}
+
+.quan-placeholder h3 {
+    margin: 0;
+    color: #333;
+    font-size: 17px;
+}
+
+.quan-placeholder p {
+    margin: 7px 0 0;
+    color: #888;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+    .quan-page-title {
+        flex-direction: column;
+    }
+
+    .quan-page-title > button {
+        align-self: flex-start;
+    }
+
+    .quan-management-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .quan-management-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 600px) {
+    .quan-management-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .quan-management-actions button {
+        width: 100%;
+    }
+
+    .quan-menu-info {
+        align-items: flex-start;
+    }
+
+    .quan-menu-image {
+        width: 58px;
+        height: 58px;
+    }
+}
+/* =========================================================
+   CUSTOMER - RESTAURANT MENU
+========================================================= */
+
+.customer-menu-section {
+    scroll-margin-top: 90px;
+    margin-top: 32px;
+    padding: 32px;
+    background: #ffffff;
+    border: 1px solid #eeeeee;
+    border-radius: 18px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.customer-menu-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.customer-menu-heading h2 {
+    margin: 6px 0 8px;
+    color: #222222;
+    font-size: 28px;
+    line-height: 1.25;
+}
+
+.customer-menu-heading p {
+    margin: 0;
+    color: #777777;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.customer-menu-eyebrow {
+    display: block;
+    color: #e95622;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.customer-menu-count {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    background: #fff4ef;
+    border-radius: 999px;
+    color: #e95622;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   CLOSED NOTE
+========================================================= */
+
+.customer-menu-closed-note {
+    margin: 10px 0 0;
+    color: #888888;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.customer-menu-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.customer-menu-search {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 420px;
+    height: 44px;
+    padding: 0 14px;
+    background: #fafafa;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+.customer-menu-search:focus-within {
+    background: #ffffff;
+    border-color: #e95622;
+    box-shadow: 0 0 0 3px rgba(233, 86, 34, 0.08);
+}
+
+.customer-menu-search > span {
+    flex-shrink: 0;
+    margin-right: 9px;
+    font-size: 15px;
+}
+
+.customer-menu-search input {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #333333;
+    font: inherit;
+    font-size: 14px;
+}
+
+.customer-menu-search input::placeholder {
+    color: #aaaaaa;
+}
+
+
+/* =========================================================
+   CATEGORY
+========================================================= */
+
+.customer-menu-categories {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.customer-category-button {
+    flex-shrink: 0;
+    padding: 9px 16px;
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 999px;
+    color: #555555;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.customer-category-button:hover {
+    border-color: #e95622;
+    color: #e95622;
+}
+
+.customer-category-button.active {
+    background: #e95622;
+    border-color: #e95622;
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.customer-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+
+/* =========================================================
+   FOOD CARD
+========================================================= */
+
+.customer-food-card {
+    min-width: 0;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #ebebeb;
+    border-radius: 14px;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.customer-food-card:hover {
+    transform: translateY(-3px);
+    border-color: #dddddd;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+}
+
+
+/* =========================================================
+   IMAGE
+========================================================= */
+
+.customer-food-image {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    background: #f5f5f5;
+}
+
+.customer-food-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.customer-food-card:hover .customer-food-image img {
+    transform: scale(1.035);
+}
+
+.customer-food-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #f7f7f7;
+    font-size: 46px;
+}
+
+.customer-food-category {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 6px 10px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 999px;
+    color: #555555;
+    font-size: 11px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    backdrop-filter: blur(5px);
+}
+
+
+/* =========================================================
+   CARD CONTENT
+========================================================= */
+
+.customer-food-content {
+    padding: 16px;
+}
+
+.customer-food-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.customer-food-top h3 {
+    margin: 0;
+    min-width: 0;
+    color: #222222;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.customer-food-rating {
+    flex-shrink: 0;
+    color: #f4a300;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.customer-food-description {
+    display: -webkit-box;
+    min-height: 42px;
+    margin: 9px 0 16px;
+    overflow: hidden;
+    color: #888888;
+    font-size: 13px;
+    line-height: 1.6;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.customer-food-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid #eeeeee;
+}
+
+.customer-food-price {
+    color: #e95622;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.customer-food-available {
+    color: #2f8f55;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   LOADING / EMPTY / ERROR
+========================================================= */
+
+.customer-menu-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 230px;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.customer-menu-state h3 {
+    margin: 12px 0 6px;
+    color: #333333;
+    font-size: 18px;
+}
+
+.customer-menu-state p {
+    max-width: 460px;
+    margin: 0;
+    color: #888888;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.customer-menu-state.error {
+    color: #c0392b;
+}
+
+.customer-menu-empty-icon {
+    font-size: 44px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+    .customer-menu-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .customer-menu-section {
+        margin-top: 20px;
+        padding: 20px 16px;
+        border-radius: 14px;
+    }
+
+    .customer-menu-heading {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .customer-menu-heading h2 {
+        font-size: 23px;
+    }
+
+    .customer-menu-count {
+        align-self: flex-start;
+    }
+
+    .customer-menu-toolbar {
+        display: block;
+    }
+
+    .customer-menu-search {
+        max-width: none;
+    }
+
+    .customer-menu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .customer-food-image {
+        height: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .customer-menu-section {
+        padding: 18px 12px;
+    }
+
+    .customer-food-image {
+        height: 175px;
+    }
+
+    .customer-food-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
 }

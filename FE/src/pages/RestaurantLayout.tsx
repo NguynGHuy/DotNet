@@ -59,12 +59,11 @@ function QuanLayout() {
 
     return (
         <div className="quan-layout">
-
             {/* SIDEBAR */}
             <aside className="quan-sidebar">
-
                 <div className="quan-logo">
                     <span>🍜</span>
+
                     <div>
                         <strong>Đặt Món Ăn</strong>
                         <small>Quản lý nhà hàng</small>
@@ -83,12 +82,13 @@ function QuanLayout() {
                 </div>
 
                 <nav className="quan-nav">
-
                     <NavLink
                         to="/quan"
                         end
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🏠</span>
@@ -98,7 +98,9 @@ function QuanLayout() {
                     <NavLink
                         to="/quan/thong-tin"
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🏪</span>
@@ -108,7 +110,9 @@ function QuanLayout() {
                     <NavLink
                         to="/quan/don-hang"
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🧾</span>
@@ -118,17 +122,58 @@ function QuanLayout() {
                     <NavLink
                         to="/quan/trang-thai"
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🟢</span>
                         Trạng thái quán
                     </NavLink>
 
+                    {/* NGƯỜI 2 - DANH MỤC / THỰC ĐƠN / TOPPING */}
+                    <NavLink
+                        to="/quan/danh-muc"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
+                        }
+                    >
+                        <span>📂</span>
+                        Danh mục
+                    </NavLink>
+
+                    <NavLink
+                        to="/quan/menu"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
+                        }
+                    >
+                        <span>🍜</span>
+                        Thực đơn
+                    </NavLink>
+
+                    <NavLink
+                        to="/quan/topping"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
+                        }
+                    >
+                        <span>🧋</span>
+                        Topping
+                    </NavLink>
+
                     <NavLink
                         to="/quan/khuyen-mai"
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🎟️</span>
@@ -138,41 +183,37 @@ function QuanLayout() {
                     <NavLink
                         to="/quan/thong-bao"
                         className={({ isActive }) =>
-                            `quan-nav-item ${isActive ? "active" : ""}`
+                            `quan-nav-item ${
+                                isActive ? "active" : ""
+                            }`
                         }
                     >
                         <span>🔔</span>
                         Thông báo
                     </NavLink>
-
                 </nav>
 
                 <div className="quan-sidebar-bottom">
-
                     <button
+                        type="button"
                         className="quan-logout"
                         onClick={handleLogout}
                     >
                         <span>🚪</span>
                         Đăng xuất
                     </button>
-
                 </div>
-
             </aside>
 
             {/* MAIN */}
             <main className="quan-main">
-
                 <header className="quan-topbar">
-
                     <div>
                         <h2>{restaurantName}</h2>
                         <p>Khu vực quản lý nhà hàng</p>
                     </div>
 
                     <div className="quan-user">
-
                         <div className="quan-user-avatar">
                             {restaurantName
                                 .charAt(0)
@@ -183,17 +224,13 @@ function QuanLayout() {
                             <strong>{restaurantName}</strong>
                             <span>{user.email}</span>
                         </div>
-
                     </div>
-
                 </header>
 
                 <section className="quan-content">
                     <Outlet />
                 </section>
-
             </main>
-
         </div>
     );
 }
