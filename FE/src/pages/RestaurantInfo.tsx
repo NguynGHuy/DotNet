@@ -2,21 +2,8 @@ import { useEffect, useState } from "react";
 import {
     getRestaurantProfile,
     updateRestaurantProfile,
+    type Restaurant,
 } from "../services/restaurantService";
-
-interface Restaurant {
-    maNhaHang: number;
-    tenNhaHang: string;
-    moTa?: string;
-    diaChiQuan?: string;
-    anhBia?: string;
-    gioMoCua?: string;
-    gioDongCua?: string;
-    trangThaiDuyet?: string;
-    trangThaiHoatDong?: string;
-    danhGiaTrungBinh?: number;
-    phiShipMacDinh?: number;
-}
 
 function QuanRestaurantInfo() {
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -95,17 +82,17 @@ function QuanRestaurantInfo() {
             setMessage("");
             setError("");
 
-            const data = await updateRestaurantProfile({
-                tenNhaHang: form.tenNhaHang,
-                moTa: form.moTa,
-                diaChiQuan: form.diaChiQuan,
-                anhBia: form.anhBia,
-                gioMoCua: form.gioMoCua,
-                gioDongCua: form.gioDongCua,
+            await updateRestaurantProfile({
+                tenNhaHang: form.tenNhaHang.trim(),
+                moTa: form.moTa.trim() || null,
+                diaChiQuan: form.diaChiQuan.trim(),
+                anhBia: form.anhBia.trim() || null,
+                gioMoCua: form.gioMoCua || null,
+                gioDongCua: form.gioDongCua || null,
                 phiShipMacDinh: form.phiShipMacDinh,
             });
 
-            setRestaurant(data);
+            await loadRestaurant();
 
             setMessage("Cập nhật thông tin nhà hàng thành công.");
 

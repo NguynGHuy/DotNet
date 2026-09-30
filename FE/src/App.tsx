@@ -40,6 +40,7 @@ import RestaurantCategory from "./pages/RestaurantCategory";
 import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantTopping from "./pages/RestaurantTopping";
 import Restaurants from "./pages/Restaurants";
+import RegisterRestaurant from "./pages/RegisterRestaurant";
 
 import Footer from "./components/Footer";
 
@@ -77,6 +78,10 @@ function AppContent() {
                 <Route
                     path="/dang-ky"
                     element={<Register />}
+                />
+                <Route
+                    path="/dang-ky-nha-hang"
+                    element={<RegisterRestaurant />}
                 />
 
                 <Route

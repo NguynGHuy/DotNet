@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
-import  { getRestaurantProfile } from "../services/restaurantService";
-
-interface Restaurant {
-    maNhaHang: number;
-    tenNhaHang: string;
-    moTa?: string;
-    diaChiQuan?: string;
-    anhBia?: string;
-    gioMoCua?: string;
-    gioDongCua?: string;
-    trangThaiDuyet?: string;
-    trangThaiHoatDong?: string;
-    danhGiaTrungBinh?: number;
-    phiShipMacDinh?: number;
-}
+import {
+    getRestaurantProfile,
+    type Restaurant,
+} from "../services/restaurantService";
 
 function QuanHome() {
     const [restaurant, setRestaurant] =

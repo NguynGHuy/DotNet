@@ -247,6 +247,12 @@ disabled = { loading }
                 Đăng nhập
                     </Link>
                     </p>
+    <p className="auth-footer">
+        Bạn là chủ nhà hàng?{" "}
+            <Link to="/dang-ky-nha-hang">
+                Đăng ký nhà hàng
+                    </Link>
+                    </p>
 
                     </div>
                     </main>
