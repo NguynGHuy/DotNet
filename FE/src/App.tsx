@@ -33,6 +33,9 @@ import QuanLayout from "./pages/RestaurantLayout";
 import QuanHome from "./pages/RestaurantHome";
 import QuanRestaurantInfo from "./pages/RestaurantInfo";
 import QuanRestaurantStatus from "./pages/RestaurantStatus";
+import RestaurantCategory from "./pages/RestaurantCategory";
+import RestaurantTopping from "./pages/RestaurantTopping";
+import RestaurantMenu from "./pages/RestaurantMenu";
 import Restaurants from "./pages/Restaurants";
 import Footer from "./components/Footer";
 
@@ -136,6 +139,22 @@ function AppContent() {
                     <Route
                         path="trang-thai"
                         element={<QuanRestaurantStatus />}
+                    />
+
+                    <Route
+                        path="danh-muc"
+                        element={<RestaurantCategory />}
+                    />
+                    <Route
+                        path="menu"
+                        element={
+                            <RestaurantMenu />
+                        }
+                    />
+
+                    <Route
+                        path="topping"
+                        element={<RestaurantTopping />}
                     />
 
                     <Route

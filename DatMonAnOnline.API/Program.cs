@@ -3,6 +3,8 @@ using DatMonAnOnline.API.Models;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -100,13 +102,33 @@ builder.Services
 // OPENAPI
 // =========================
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Components ??= new OpenApiComponents();
 
-var app = builder.Build();
+        document.Components.SecuritySchemes ??=
+            new Dictionary<string, IOpenApiSecurityScheme>();
+
+        document.Components.SecuritySchemes["Bearer"] =
+            new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                In = ParameterLocation.Header,
+                BearerFormat = "JWT"
+            };
+
+        return Task.CompletedTask;
+    });
+});
+
 
 // =========================
 // DEVELOPMENT
 // =========================
+var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {

@@ -116,6 +116,36 @@ function QuanLayout() {
                     </NavLink>
 
                     <NavLink
+                        to="/quan/danh-muc"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <span>📂</span>
+                        Danh mục
+                    </NavLink>
+
+                    <NavLink
+                        to="/quan/menu"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <span>🍜</span>
+                        Menu món ăn
+                    </NavLink>
+
+                    <NavLink
+                        to="/quan/topping"
+                        className={({ isActive }) =>
+                            `quan-nav-item ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <span> O </span>
+                        Topping
+                    </NavLink>
+
+                    <NavLink
                         to="/quan/khuyen-mai"
                         className={({ isActive }) =>
                             `quan-nav-item ${isActive ? "active" : ""}`

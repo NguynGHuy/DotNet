@@ -88,3 +88,45 @@ INSERT INTO ThanhToan (MaDonHang, MaPhuongThuc, SoTien, TrangThaiThanhToan, MaGi
 -- Khách hàng đánh giá món ăn sau khi nhận
 INSERT INTO DanhGiaMonAn (MaKhachHang, MaMonAn, MaDonHang, SoSao, NoiDung) VALUES
 (1, 1, 1, 5, 'Trà sữa ngon, giao hàng nhanh!');
+
+
+
+-- Tạo tài khoản Nhà hàng
+INSERT INTO TaiKhoan (Email, MatKhau, SoDienThoai, MaRole, TrangThai, DaXacThucEmail)
+SELECT 
+    'nhahangtest@gmail.com',
+    'PBKDF2$100000$5wnU52NdHSKxh1SdTlw6Xw==$GuxGNpGi57IX1Smici3KUlsxAq0vRl9LvXkY6pDPVIk=',
+    '0909999998',
+    MaRole,
+    1,
+    1 
+FROM Role 
+WHERE TenRole = 'Quan';
+
+-- Tạo nhà hàng tương ứng
+INSERT INTO NhaHang (
+    MaTaiKhoan,
+    TenNhaHang,
+    MoTa,
+    DiaChiQuan,
+    AnhBia,
+    GioMoCua,
+    GioDongCua,
+    TrangThaiDuyet,
+    TrangThaiHoatDong,
+    DanhGiaTrungBinh,
+    PhiShipMacDinh
+)
+VALUES (
+    SCOPE_IDENTITY(), -- Lấy ID vừa tự động tăng của bảng TaiKhoan trong SQL Server
+    'Nhà Hàng Test',
+    'Nhà hàng dùng để test tài khoản',
+    '123 Nguyễn Huệ, Quận 1, TP.HCM',
+    NULL,
+    '08:00:00',
+    '22:00:00',
+    'DaDuyet',
+    'MoCua',
+    5.0,
+    15000
+);
