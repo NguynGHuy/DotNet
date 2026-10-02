@@ -4,6 +4,7 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -11,7 +12,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173","http://localhost:5174")
+            .WithOrigins("http://localhost:5173", "http://localhost:5174")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -65,6 +66,36 @@ builder.Services.AddAuthentication(options =>
     // Hiển thị lỗi JWT trong Terminal khi authentication thất bại
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = async context =>
+        {
+            var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(id, out var maTaiKhoan) || maTaiKhoan <= 0)
+            {
+                context.Fail("Token không chứa tài khoản hợp lệ.");
+                return;
+            }
+
+            // Kiểm tra DB ở mỗi request, không dùng trạng thái cũ trong JWT/cache.
+            var db = context.HttpContext.RequestServices
+                .GetRequiredService<DatMonAnOnlineContext>();
+            var dangHoatDong = await db.Taikhoans
+                .AsNoTracking()
+                .AnyAsync(t => t.MaTaiKhoan == maTaiKhoan && t.TrangThai == true,
+                    context.HttpContext.RequestAborted);
+
+            if (!dangHoatDong)
+                context.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
+        },
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Headers["WWW-Authenticate"] = "Bearer";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                message = "Phiên đăng nhập không hợp lệ, đã hết hạn hoặc tài khoản đã bị khóa. Vui lòng đăng nhập lại."
+            });
+        },
         OnAuthenticationFailed = context =>
         {
             Console.WriteLine("=================================");
@@ -110,7 +141,7 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi(); 
+    app.MapOpenApi();
 
     app.MapScalarApiReference(options =>
     {
@@ -134,3 +165,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Cho phép kiểm thử API qua WebApplicationFactory.
+public partial class Program { }

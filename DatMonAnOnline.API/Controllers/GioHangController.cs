@@ -1,4 +1,5 @@
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -86,9 +87,17 @@ namespace DatMonAnOnline.API.Controllers
             var maKhachHang = await LayMaKhachHang();
             if (maKhachHang == null) return Unauthorized();
 
-            var monAn = await _context.Monans.FindAsync(request.MaMonAn);
+            var monAn = await _context.Monans
+                .AsNoTracking()
+                .Include(m => m.MaNhomToppings).ThenInclude(nhom => nhom.Toppings)
+                .FirstOrDefaultAsync(m => m.MaMonAn == request.MaMonAn);
             if (monAn == null || monAn.TrangThai == false) 
                 return NotFound("Món ăn không tồn tại hoặc đã ngừng bán.");
+
+            var danhSachMaTopping = request.DanhSachMaTopping ?? new List<int>();
+            var loiTopping = ToppingValidator.KiemTra(monAn, danhSachMaTopping);
+            if (loiTopping != null)
+                return BadRequest(new { message = loiTopping });
 
             var gioHang = await LayHoacTaoGioHang(maKhachHang.Value);
 
@@ -109,28 +118,21 @@ namespace DatMonAnOnline.API.Controllers
                 SoLuong = request.SoLuong,
                 GhiChu = request.GhiChu
             };
-            _context.Chitietgiohangs.Add(chiTietMoi);
-            await _context.SaveChangesAsync();
-
-            if (request.DanhSachMaTopping != null && request.DanhSachMaTopping.Any())
+            var maToppingDaChon = danhSachMaTopping.ToHashSet();
+            foreach (var topping in monAn.MaNhomToppings
+                .SelectMany(nhom => nhom.Toppings)
+                .Where(topping => maToppingDaChon.Contains(topping.MaTopping)))
             {
-                foreach (var maTopping in request.DanhSachMaTopping)
+                chiTietMoi.ChitietgiohangToppings.Add(new ChitietgiohangTopping
                 {
-                    var topping = await _context.Toppings.FindAsync(maTopping);
-                    if (topping != null && topping.TrangThai == true)
-                    {
-                        _context.ChitietgiohangToppings.Add(new ChitietgiohangTopping
-                        {
-                            MaChiTietGioHang = chiTietMoi.MaChiTietGioHang,
-                            MaTopping = maTopping,
-                            SoLuong = 1,
-                            GiaThem = topping.GiaThem
-                        });
-                    }
-                }
-                await _context.SaveChangesAsync();
+                    MaTopping = topping.MaTopping,
+                    SoLuong = 1,
+                    GiaThem = topping.GiaThem
+                });
             }
 
+            // EF lưu món và toàn bộ topping cùng một lần, tránh để lại món bị lưu dở.
+            _context.Chitietgiohangs.Add(chiTietMoi);
             gioHang.NgayCapNhat = DateTime.Now;
             await _context.SaveChangesAsync();
 

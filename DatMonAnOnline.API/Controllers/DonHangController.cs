@@ -1,4 +1,5 @@
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -485,6 +486,7 @@ namespace DatMonAnOnline.API.Controllers
         {
             var gioHang = await _context.Giohangs
                 .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.MaMonAnNavigation)
+                    .ThenInclude(m => m.MaNhomToppings).ThenInclude(nhom => nhom.Toppings)
                 .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.ChitietgiohangToppings)
                 .FirstOrDefaultAsync(g => g.MaKhachHang == maKhachHang);
 
@@ -500,6 +502,14 @@ namespace DatMonAnOnline.API.Controllers
             foreach (var ct in gioHang.Chitietgiohangs)
             {
                 if(ct.MaMonAnNavigation.TrangThai == false) return (0,0,0,null, $"Món {ct.MaMonAnNavigation.TenMonAn} đã ngưng bán.");
+                if (ct.ChitietgiohangToppings.Any(tp => tp.SoLuong != 1))
+                    return (0, 0, 0, null, "Số lượng topping trong giỏ không hợp lệ. Vui lòng xóa món và chọn lại.");
+
+                var loiTopping = ToppingValidator.KiemTra(ct.MaMonAnNavigation,
+                    ct.ChitietgiohangToppings.Select(tp => tp.MaTopping).ToArray());
+                if (loiTopping != null)
+                    return (0, 0, 0, null, $"Món {ct.MaMonAnNavigation.TenMonAn}: {loiTopping} Vui lòng xóa món khỏi giỏ và chọn lại.");
+
                 decimal giaTopping = ct.ChitietgiohangToppings.Sum(tp => tp.GiaThem * tp.SoLuong);
                 tongTienHang += (ct.MaMonAnNavigation.Gia + giaTopping) * ct.SoLuong;
             }
