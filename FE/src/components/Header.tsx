@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getCurrentUser } from "../services/userService";
 
 interface User {
@@ -19,6 +19,7 @@ interface User {
 }
 
 function Header() {
+    const navigate = useNavigate();
     const [user, setUser] = useState<User | null>(null);
     const [showMenu, setShowMenu] = useState(false);
 
@@ -59,6 +60,7 @@ function Header() {
         localStorage.removeItem("token");
         setUser(null);
         setShowMenu(false);
+        navigate("/dang-nhap");
     };
 
     // Tên hiển thị tùy theo role
