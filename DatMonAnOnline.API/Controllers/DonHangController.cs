@@ -231,6 +231,7 @@ namespace DatMonAnOnline.API.Controllers
             return Ok(new
             {
                 donHang.MaDonHang,
+                donHang.MaNhaHang,
                 donHang.MaDonHangHienThi,
                 donHang.TenNguoiNhan,
                 donHang.SoDienThoaiNhan,
@@ -245,6 +246,7 @@ namespace DatMonAnOnline.API.Controllers
                 donHang.ThanhTien,
                 ChiTiet = donHang.Chitietdonhangs.Select(ct => new
                 {
+                    ct.MaMonAn,
                     TenMonAn = ct.MaMonAnNavigation?.TenMonAn ?? "",
                     SoLuong = ct.SoLuong,
                     DonGia = ct.DonGia,
