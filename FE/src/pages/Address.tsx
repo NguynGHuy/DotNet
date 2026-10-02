@@ -414,11 +414,10 @@ disabled = { saving }
 </div>
         )}
 
-<div className="address-back" >
-    <Link to="/ho-so" >
-            ← Quay lại hồ sơ
-    </Link>
-    </div>
+        <Link to="/ho-so" className="invoice-back address-back">
+            <span aria-hidden="true">←</span>
+            Quay lại hồ sơ
+        </Link>
 
     </div>
     </main>

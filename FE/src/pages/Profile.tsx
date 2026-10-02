@@ -150,9 +150,9 @@ function Profile() {
     return (
         <main className= "profile-page" >
 
-        {/* BACK */ }
-        < Link to = "/" className = "profile-back" >
-                ← Về trang chủ
+        <Link to="/" className="invoice-back">
+            <span aria-hidden="true">←</span>
+            Về trang chủ
         </Link>
 
     {/* HEADER */ }
