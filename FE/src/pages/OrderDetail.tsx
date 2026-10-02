@@ -1,6 +1,11 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getOrderById, getOrderStatusHistory } from "../services/orderService";
+import OrderReviewForm from "../components/OrderReviewForm";
+import type {
+    OrderDetails,
+    OrderStatusHistory,
+} from "../services/orderService";
 
 const FLOW = [
     { code: "ChoXacNhan", label: "Chờ xác nhận", hint: "Quán sẽ xác nhận đơn trong ít phút." },
@@ -23,35 +28,43 @@ function formatMoney(value: number) {
     return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 }
 
+interface ReviewDish {
+    maMonAn: number;
+    tenMonAn: string;
+}
+
 function OrderDetail() {
     const { id } = useParams();
-    const [order, setOrder] = useState<any>(null);
-    const [history, setHistory] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [order, setOrder] = useState<OrderDetails | null>(null);
+    const [history, setHistory] = useState<OrderStatusHistory[]>([]);
+    const [loadedId, setLoadedId] = useState<string | null>(null);
     const [error, setError] = useState("");
+    const [showReview, setShowReview] = useState(false);
 
     useEffect(() => {
         const maDonHang = Number(id);
 
-        if (!id || Number.isNaN(maDonHang)) {
-            setError("Mã đơn hàng không hợp lệ.");
-            setLoading(false);
+        if (!id || !Number.isInteger(maDonHang) || maDonHang <= 0) {
             return;
         }
 
+        let cancelled = false;
+
         const load = async () => {
             try {
-                setLoading(true);
-                setError("");
-
                 const [orderData, historyData] = await Promise.all([
                     getOrderById(maDonHang),
                     getOrderStatusHistory(maDonHang),
                 ]);
 
+                if (cancelled) return;
+
                 setOrder(orderData);
-                setHistory(Array.isArray(historyData) ? historyData : []);
+                setHistory(historyData);
+                setError("");
             } catch (err) {
+                if (cancelled) return;
+
                 setError(
                     err instanceof Error
                         ? err.message
@@ -60,15 +73,37 @@ function OrderDetail() {
                 setOrder(null);
                 setHistory([]);
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoadedId(id);
+                }
             }
         };
 
-        load();
+        void load();
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
-    if (loading) {
-        return <div className="loading-spinner" style={{ margin: "100px auto" }}></div>;
+    const maDonHang = Number(id);
+
+    if (!id || !Number.isInteger(maDonHang) || maDonHang <= 0) {
+        return (
+            <main className="profile-page">
+                <p className="auth-error">Mã đơn hàng không hợp lệ.</p>
+                <Link to="/don-hang">← Về danh sách đơn hàng</Link>
+            </main>
+        );
+    }
+
+    if (loadedId !== id) {
+        return (
+            <div
+                className="loading-spinner"
+                style={{ margin: "100px auto" }}
+            />
+        );
     }
 
     const currentIndex = FLOW.findIndex((step) => step.code === order?.trangThai);
@@ -77,6 +112,16 @@ function OrderDetail() {
         order?.trangThai === "DaHuy"
             ? latestNote || "Đơn hàng đã được hủy."
             : latestNote || FLOW[currentIndex]?.hint || "";
+
+    // Một món có thể xuất hiện nhiều dòng do chọn topping khác nhau.
+    // Chỉ hiển thị một form đánh giá cho mỗi món.
+    const reviewDishes: ReviewDish[] = order?.chiTiet ?? [];
+
+    const uniqueReviewDishes = reviewDishes.filter(
+        (dish, index, dishes) =>
+            dish.maMonAn > 0 &&
+            dishes.findIndex((item) => item.maMonAn === dish.maMonAn) === index
+    );
 
     return (
         <main className="profile-page">
@@ -118,11 +163,50 @@ function OrderDetail() {
                         )}
                     </header>
 
-                    {order.trangThai === "HoanThanh" && (
-                        <button type="button" className="invoice-review">
-                            Đánh giá đơn hàng
-                        </button>
-                    )}
+                        {order.trangThai === "HoanThanh" && (
+                            <>
+                                <button
+                                    type="button"
+                                    className="invoice-review"
+                                    onClick={() => setShowReview((previous) => !previous)}
+                                    aria-expanded={showReview}
+                                    aria-controls="order-review-panel"
+                                >
+                                    {showReview ? "Ẩn phần đánh giá" : "Đánh giá đơn hàng"}
+                                </button>
+
+                                <section
+                                    id="order-review-panel"
+                                    className="invoice-block"
+                                    hidden={!showReview}
+                                >
+                                    <h2>Đánh giá trải nghiệm</h2>
+                                    <p className="invoice-muted">
+                                        Bạn có thể đánh giá quán và từng món trong đơn hàng.
+                                    </p>
+
+                                    <div className="order-review-list">
+                                        <OrderReviewForm
+                                            key={`quan-${order.maDonHang}`}
+                                            loai="quan"
+                                            maDonHang={order.maDonHang}
+                                            maNhaHang={order.maNhaHang}
+                                            title={`Quán: ${order.tenNhaHang}`}
+                                        />
+
+                                        {uniqueReviewDishes.map((dish) => (
+                                            <OrderReviewForm
+                                                key={`mon-${order.maDonHang}-${dish.maMonAn}`}
+                                                loai="mon"
+                                                maDonHang={order.maDonHang}
+                                                maMonAn={dish.maMonAn}
+                                                title={`Món: ${dish.tenMonAn}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            </>
+                        )}
 
                     <section className="invoice-block">
                         <h2>{order.tenNhaHang}</h2>
@@ -132,13 +216,13 @@ function OrderDetail() {
                     </section>
 
                     <section className="invoice-block">
-                        {(order.chiTiet || []).map((ct: any, index: number) => (
+                            {(order.chiTiet || []).map((ct, index) => (
                             <div key={index} className="invoice-item">
                                 <div className="invoice-line">
                                     <strong>{ct.tenMonAn} x{ct.soLuong}</strong>
                                     <span>{formatMoney(ct.thanhTien)}</span>
                                 </div>
-                                {(ct.toppings || []).map((tp: any, tpIndex: number) => (
+                                    {(ct.toppings || []).map((tp, tpIndex) => (
                                     <p key={tpIndex} className="invoice-topping">
                                         + {tp.tenTopping} x{tp.soLuong}
                                     </p>

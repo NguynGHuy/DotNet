@@ -33,6 +33,23 @@ namespace DatMonAnOnline.API.Controllers
             if (donHang == null || donHang.MaTrangThai != 5)
                 return BadRequest("Chỉ được đánh giá các đơn hàng đã hoàn thành.");
 
+            if (maKhachHang == 0)
+                return Unauthorized("Không tìm thấy thông tin khách hàng.");
+
+            if (donHang.MaKhachHang != maKhachHang)
+                return Forbid();
+
+            if (req.SoSao < 1 || req.SoSao > 5)
+                return BadRequest("Số sao phải từ 1 đến 5.");
+
+            bool monThuocDon = await _context.Chitietdonhangs
+                .AnyAsync(x =>
+                    x.MaDonHang == req.MaDonHang &&
+                    x.MaMonAn == req.MaMonAn);
+
+            if (!monThuocDon)
+                return BadRequest("Món ăn không thuộc đơn hàng này.");
+
             // Check đánh giá trùng
             bool isExist = await _context.Danhgiamonans.AnyAsync(x =>
                 x.MaKhachHang == maKhachHang && x.MaMonAn == req.MaMonAn && x.MaDonHang == req.MaDonHang);
@@ -84,6 +101,18 @@ namespace DatMonAnOnline.API.Controllers
             var donHang = await _context.Donhangs.FindAsync(req.MaDonHang);
             if (donHang == null || donHang.MaTrangThai != 5)
                 return BadRequest("Chỉ được đánh giá các đơn hàng đã hoàn thành.");
+
+            if (maKhachHang == 0)
+                return Unauthorized("Không tìm thấy thông tin khách hàng.");
+
+            if (donHang.MaKhachHang != maKhachHang)
+                return Forbid();
+
+            if (req.SoSao < 1 || req.SoSao > 5)
+                return BadRequest("Số sao phải từ 1 đến 5.");
+
+            if (donHang.MaNhaHang != req.MaNhaHang)
+                return BadRequest("Nhà hàng không thuộc đơn hàng này.");
 
             bool isExist = await _context.Danhgianhahangs.AnyAsync(x =>
                 x.MaKhachHang == maKhachHang && x.MaNhaHang == req.MaNhaHang && x.MaDonHang == req.MaDonHang);

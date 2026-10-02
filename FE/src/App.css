@@ -9622,3 +9622,156 @@ img {
         gap: 6px;
     }
 }
+
+/*form đánh giá*/
+
+.order-review-form {
+    padding: 22px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 14px;
+}
+
+    .order-review-form h3 {
+        margin: 0 0 16px;
+    }
+
+    .order-review-form fieldset {
+        min-width: 0;
+        margin: 0 0 16px;
+        padding: 0;
+        border: 0;
+    }
+
+    .order-review-form legend,
+    .order-review-form label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-size: 14px;
+    }
+
+.order-review-stars {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+    .order-review-stars button {
+        padding: 2px;
+        background: transparent;
+        color: #ccc;
+        font-size: 32px;
+        line-height: 1;
+    }
+
+        .order-review-stars button.selected {
+            color: #f59e0b;
+        }
+
+    .order-review-stars span {
+        margin-left: 10px;
+        color: #777;
+    }
+
+.order-review-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 9px;
+    resize: vertical;
+    font: inherit;
+}
+
+    .order-review-form textarea:focus {
+        outline: 2px solid #ff5a1f;
+        outline-offset: 2px;
+    }
+
+.order-review-success {
+    margin: 0;
+    color: #15803d;
+}
+
+.order-review-list {
+    display: grid;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+/*đánh giá nhà hàng*/
+.food-reviews {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+
+.food-reviews-toggle {
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    color: #d94b16;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .food-reviews-toggle:focus-visible {
+        outline: 2px solid #ff5a1f;
+        outline-offset: 4px;
+    }
+
+.food-reviews-list {
+    display: grid;
+    gap: 12px;
+    max-height: 320px;
+    margin-top: 12px;
+    overflow-y: auto;
+}
+
+.food-reviews-count,
+.food-reviews-empty {
+    color: #777;
+    font-size: 13px;
+}
+
+.food-review-item {
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.food-review-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 13px;
+}
+
+    .food-review-heading time {
+        color: #777;
+        font-size: 12px;
+    }
+
+.food-review-stars {
+    margin-top: 6px;
+    color: #f59e0b;
+    letter-spacing: 2px;
+}
+
+    .food-review-stars span {
+        color: #bbb;
+    }
+
+.food-review-item p {
+    margin: 8px 0 0;
+    color: #555;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

@@ -247,6 +247,7 @@ namespace DatMonAnOnline.API.Controllers
 
             return Ok(new
             {
+                maKhuyenMai = km.MaKhuyenMai,
                 soTienGiam,
                 message = "Mã hợp lệ"
             });

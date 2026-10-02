@@ -23,19 +23,21 @@ import {
 } from "../services/menuService";
 
 import RestaurantReviews from "../components/RestaurantReviews";
+import type { Restaurant } from "../services/restaurantService";
+import FoodReviews from "../components/FoodReviews";
 
-interface Restaurant {
-    maNhaHang: number;
-    tenNhaHang: string;
-    moTa?: string;
-    diaChiQuan?: string;
-    anhBia?: string | null;
-    danhGiaTrungBinh?: number;
-    phiShipMacDinh?: number;
-    gioMoCua?: string;
-    gioDongCua?: string;
-    trangThaiHoatDong?: string;
-}
+// interface Restaurant {
+//     maNhaHang: number;
+//     tenNhaHang: string;
+//     moTa?: string;
+//     diaChiQuan?: string;
+//     anhBia?: string | null;
+//     danhGiaTrungBinh?: number;
+//     phiShipMacDinh?: number;
+//     gioMoCua?: string;
+//     gioDongCua?: string;
+//     trangThaiHoatDong?: string;
+// }
 
 /* =========================================================
    KIỂM TRA NHÀ HÀNG CÓ ĐANG MỞ CỬA
@@ -125,8 +127,10 @@ function RestaurantDetail() {
     const [restaurant, setRestaurant] =
         useState<Restaurant | null>(null);
 
-    const [loading, setLoading] =
-        useState(true);
+    const [loadedRestaurantId, setLoadedRestaurantId] =
+        useState<string | null>(null);
+
+    const loading = loadedRestaurantId !== id;
 
     const [error, setError] =
         useState("");
@@ -167,46 +171,43 @@ function RestaurantDetail() {
     ========================================================= */
 
     useEffect(() => {
-        if (!id) {
-            setError(
-                "Mã nhà hàng không hợp lệ."
-            );
+        const restaurantId = Number(id);
 
-            setLoading(false);
-
+        if (!id || !Number.isInteger(restaurantId) || restaurantId <= 0) {
             return;
         }
 
+        let cancelled = false;
+
         const loadRestaurant = async () => {
             try {
-                setLoading(true);
-                setError("");
+                const data = await apiFetch(`/nha-hang/${restaurantId}`);
 
-                const data =
-                    await apiFetch(
-                        `/nha-hang/${id}`
-                    );
+                if (cancelled) return;
 
                 setRestaurant(data);
+                setError("");
             } catch (err) {
-                console.error(
-                    "Lỗi tải nhà hàng:",
-                    err
-                );
+                if (cancelled) return;
 
                 setError(
                     err instanceof Error
                         ? err.message
                         : "Không thể tải thông tin nhà hàng."
                 );
-
                 setRestaurant(null);
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoadedRestaurantId(id);
+                }
             }
         };
 
-        loadRestaurant();
+        void loadRestaurant();
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
     /* =========================================================
@@ -366,6 +367,17 @@ function RestaurantDetail() {
     /* =========================================================
        LOADING
     ========================================================= */
+
+    const restaurantId = Number(id);
+
+    if (!id || !Number.isInteger(restaurantId) || restaurantId <= 0) {
+        return (
+            <main className="restaurant-detail-page">
+                <p className="auth-error">Mã nhà hàng không hợp lệ.</p>
+                <Link to="/">← Về trang chủ</Link>
+            </main>
+        );
+    }
 
     if (loading) {
         return (
@@ -899,6 +911,8 @@ function RestaurantDetail() {
                                                     ● Đang bán
                                                 </span>
                                             </div>
+                                            <FoodReviews maMonAn={item.maMonAn} />
+
                                         </div>
                                     </article>
                                 )

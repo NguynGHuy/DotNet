@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getRestaurants } from "../services/restaurantService";
+import type { Restaurant } from "../services/restaurantService";
 
-interface Restaurant {
-    maNhaHang: number;
-    tenNhaHang: string;
-    moTa?: string;
-    diaChiQuan?: string;
-    anhBia?: string | null;
-    danhGiaTrungBinh?: number;
-    phiShipMacDinh?: number;
-    gioMoCua?: string;
-    gioDongCua?: string;
-    trangThaiHoatDong?: string;
-}
+// interface Restaurant {
+//     maNhaHang: number;
+//     tenNhaHang: string;
+//     moTa?: string;
+//     diaChiQuan?: string;
+//     anhBia?: string | null;
+//     danhGiaTrungBinh?: number;
+//     phiShipMacDinh?: number;
+//     gioMoCua?: string;
+//     gioDongCua?: string;
+//     trangThaiHoatDong?: string;
+// }
 
 function isRestaurantOpen(restaurant: Restaurant): boolean {
     if (restaurant.trangThaiHoatDong !== "MoCua") {

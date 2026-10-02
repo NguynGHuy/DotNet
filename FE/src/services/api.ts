@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000/api";
+const API_URL = "http://localhost:5038/api";
 
 export async function apiFetch(
     endpoint: string,
@@ -20,14 +20,24 @@ export async function apiFetch(
         try {
             data = JSON.parse(text);
         } catch {
-            data = null;
+            data = text;
         }
     }
 
     if (!response.ok) {
-        throw new Error(
-            data?.message || `Request thất bại (${response.status})`
-        );
+        let message = `Request thất bại (${response.status})`;
+
+        if (typeof data === "string" && data.trim()) {
+            message = data;
+        } else if (data && typeof data === "object") {
+            if ("message" in data && typeof data.message === "string") {
+                message = data.message;
+            } else if ("title" in data && typeof data.title === "string") {
+                message = data.title;
+            }
+        }
+
+        throw new Error(message);
     }
 
     return data;

@@ -4,14 +4,16 @@ import {
     updateRestaurantStatus,
 } from "../services/restaurantService";
 
-interface Restaurant {
-    maNhaHang: number;
-    tenNhaHang: string;
-    gioMoCua?: string;
-    gioDongCua?: string;
-    trangThaiDuyet?: string;
-    trangThaiHoatDong?: string;
-}
+// interface Restaurant {
+//     maNhaHang: number;
+//     tenNhaHang: string;
+//     gioMoCua?: string;
+//     gioDongCua?: string;
+//     trangThaiDuyet?: string;
+//     trangThaiHoatDong?: string;
+// }
+
+import type { Restaurant } from "../services/restaurantService";
 
 function QuanRestaurantStatus() {
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -39,7 +41,9 @@ function QuanRestaurantStatus() {
         }
     };
 
-    const handleChangeStatus = async (status: string) => {
+    const handleChangeStatus = async (
+        status: "MoCua" | "TamNgung"
+    ) => {
         try {
             setUpdating(true);
             setMessage("");

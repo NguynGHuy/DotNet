@@ -40,7 +40,9 @@ export async function cancelOrder(id: number, lyDoHuy: string) {
         body: JSON.stringify({ lyDoHuy }),
     });
 }
-export async function getOrderById(id: number) {
+export async function getOrderById(
+    id: number
+): Promise<OrderDetails> {
     const token = localStorage.getItem("token");
     return apiFetch(`/don-hang/${id}`, {
         method: "GET",
@@ -48,7 +50,9 @@ export async function getOrderById(id: number) {
     });
 }
 
-export async function getOrderStatusHistory(id: number) {
+export async function getOrderStatusHistory(
+    id: number
+): Promise<OrderStatusHistory[]> {
     const token = localStorage.getItem("token");
     return apiFetch(`/don-hang/${id}/lich-su-trang-thai`, {
         method: "GET",
@@ -80,4 +84,44 @@ export async function updateOrderStatus(id: number, maTrangThai: number, ghiChu?
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ maTrangThai, ghiChu }),
     });
+}
+
+export interface OrderTopping {
+    tenTopping: string;
+    giaThem: number;
+    soLuong: number;
+}
+
+export interface OrderItem {
+    maMonAn: number;
+    tenMonAn: string;
+    soLuong: number;
+    donGia: number;
+    thanhTien: number;
+    toppings: OrderTopping[];
+}
+
+export interface OrderDetails {
+    maDonHang: number;
+    maDonHangHienThi: string;
+    maNhaHang: number;
+    tenNhaHang: string;
+    trangThai: string;
+    thoiGianDat: string;
+    tenNguoiNhan: string;
+    soDienThoaiNhan: string;
+    diaChiGiaoHang: string;
+    ghiChu: string | null;
+    tongTienHang: number;
+    phiShip: number;
+    soTienGiam: number;
+    thanhTien: number;
+    chiTiet: OrderItem[];
+}
+
+export interface OrderStatusHistory {
+    maLichSu: number;
+    tenTrangThai: string;
+    thoiGianTao: string;
+    ghiChu: string | null;
 }
