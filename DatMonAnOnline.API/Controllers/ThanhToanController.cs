@@ -184,7 +184,7 @@ namespace DatMonAnOnline.API.Controllers
             if (thanhToan.TrangThaiThanhToan != "ChoThanhToan")
                 return BadRequest(new { message = "Chỉ mô phỏng được giao dịch đang chờ thanh toán." });
 
-            if (thanhToan.MaPhuongThucNavigation.TenPhuongThuc == "ThanhToanKhiNhan")
+            if (thanhToan.MaPhuongThucNavigation.TenPhuongThuc == "COD")
                 return BadRequest(new { message = "Thanh toán khi nhan hang không mô phỏng. Sẽ thành công khi quán hoàn thành đơn." });
 
             thanhToan.TrangThaiThanhToan = ketQua;

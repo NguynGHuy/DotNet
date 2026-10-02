@@ -2,6 +2,16 @@
 import { Link, useParams } from "react-router-dom";
 import { getOrderById, getOrderStatusHistory } from "../services/orderService";
 import OrderReviewForm from "../components/OrderReviewForm";
+import PaymentQr from "../components/PaymentQr";
+import { getRestaurantById } from "../services/restaurantService";
+import {
+    changePaymentMethod,
+    docDonDangThanhToan,
+    getPaymentMethods,
+    getPaymentsByOrder,
+    simulatePayment,
+    xoaDonDangThanhToan,
+} from "../services/paymentService";
 import type {
     OrderDetails,
     OrderStatusHistory,
@@ -33,6 +43,24 @@ interface ReviewDish {
     tenMonAn: string;
 }
 
+interface ThanhToanDon {
+    maThanhToan: number;
+    maPhuongThuc: number;
+    tenPhuongThuc: string;
+    trangThaiThanhToan: string;
+}
+
+interface PhuongThucThanhToan {
+    maPhuongThuc: number;
+    tenPhuongThuc: string;
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+    ChoThanhToan: "Chờ thanh toán",
+    ThanhCong: "Thành công",
+    ThatBai: "Thất bại",
+};
+
 function OrderDetail() {
     const { id } = useParams();
     const [order, setOrder] = useState<OrderDetails | null>(null);
@@ -40,6 +68,16 @@ function OrderDetail() {
     const [loadedId, setLoadedId] = useState<string | null>(null);
     const [error, setError] = useState("");
     const [showReview, setShowReview] = useState(false);
+    const [payments, setPayments] = useState<ThanhToanDon[]>([]);
+    const [methods, setMethods] = useState<PhuongThucThanhToan[]>([]);
+    const [paymentVersion, setPaymentVersion] = useState(0);
+    const [showRetry, setShowRetry] = useState(false);
+    const [selectedMethodId, setSelectedMethodId] = useState<number | null>(null);
+    const [retrying, setRetrying] = useState(false);
+    const [showQr, setShowQr] = useState(false);
+    const [qrBusy, setQrBusy] = useState(false);
+    const [qrPaymentId, setQrPaymentId] = useState<number | null>(null);
+    const [qrMethodName, setQrMethodName] = useState("");
 
     useEffect(() => {
         const maDonHang = Number(id);
@@ -57,10 +95,28 @@ function OrderDetail() {
                     getOrderStatusHistory(maDonHang),
                 ]);
 
+                let paymentData: ThanhToanDon[] = [];
+                try {
+                    const rawPayments = await getPaymentsByOrder(maDonHang);
+                    paymentData = Array.isArray(rawPayments) ? rawPayments : [];
+                } catch {
+                    paymentData = [];
+                }
+
+                let methodData: PhuongThucThanhToan[] = [];
+                try {
+                    const rawMethods = await getPaymentMethods();
+                    methodData = Array.isArray(rawMethods) ? rawMethods : [];
+                } catch {
+                    methodData = [];
+                }
+
                 if (cancelled) return;
 
                 setOrder(orderData);
                 setHistory(historyData);
+                setPayments(paymentData);
+                setMethods(methodData);
                 setError("");
             } catch (err) {
                 if (cancelled) return;
@@ -72,6 +128,7 @@ function OrderDetail() {
                 );
                 setOrder(null);
                 setHistory([]);
+                setPayments([]);
             } finally {
                 if (!cancelled) {
                     setLoadedId(id);
@@ -84,7 +141,83 @@ function OrderDetail() {
         return () => {
             cancelled = true;
         };
-    }, [id]);
+    }, [id, paymentVersion]);
+
+    const latestPayment = [...payments].sort(
+        (a, b) => b.maThanhToan - a.maThanhToan
+    )[0];
+
+    const handleRetry = async () => {
+        if (!order || !latestPayment || selectedMethodId === null) return;
+
+        const method = methods.find((item) => item.maPhuongThuc === selectedMethodId);
+        if (!method) return;
+
+        try {
+            setRetrying(true);
+            const nhaHang = await getRestaurantById(order.maNhaHang);
+            if (nhaHang.trangThaiHoatDong !== "MoCua") {
+                alert("Nhà hàng hiện đang tạm ngưng nhận đơn.");
+                return;
+            }
+
+            const created = await changePaymentMethod(
+                latestPayment.maThanhToan,
+                method.maPhuongThuc
+            );
+            const newPaymentId = Number(created.maThanhToanMoi);
+
+            if (method.tenPhuongThuc === "COD") {
+                if (docDonDangThanhToan()?.maDonHang === order.maDonHang) {
+                    xoaDonDangThanhToan();
+                }
+                setShowRetry(false);
+                setPaymentVersion((current) => current + 1);
+                return;
+            }
+
+            setQrPaymentId(newPaymentId);
+            setQrMethodName(method.tenPhuongThuc);
+            setShowQr(true);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Không đổi được phương thức thanh toán.");
+        } finally {
+            setRetrying(false);
+        }
+    };
+
+    const handleQrSuccess = async () => {
+        if (qrPaymentId === null) return;
+        try {
+            setQrBusy(true);
+            await simulatePayment(qrPaymentId, "ThanhCong");
+            if (order && docDonDangThanhToan()?.maDonHang === order.maDonHang) {
+                xoaDonDangThanhToan();
+            }
+            setShowQr(false);
+            setShowRetry(false);
+            setPaymentVersion((current) => current + 1);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Không cập nhật được thanh toán.");
+        } finally {
+            setQrBusy(false);
+        }
+    };
+
+    const handleQrFail = async () => {
+        if (qrPaymentId === null) return;
+        try {
+            setQrBusy(true);
+            await simulatePayment(qrPaymentId, "ThatBai");
+            setShowQr(false);
+            setShowRetry(false);
+            setPaymentVersion((current) => current + 1);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Không cập nhật được thanh toán.");
+        } finally {
+            setQrBusy(false);
+        }
+    };
 
     const maDonHang = Number(id);
 
@@ -258,6 +391,76 @@ function OrderDetail() {
                         {order.ghiChu && <p className="invoice-muted">Ghi chú: {order.ghiChu}</p>}
                     </section>
 
+                    {latestPayment && (
+                        <section className="invoice-block">
+                            <h2>Thanh toán</h2>
+                            <p className="invoice-muted">
+                                {latestPayment.tenPhuongThuc}: {PAYMENT_LABEL[latestPayment.trangThaiThanhToan] || latestPayment.trangThaiThanhToan}
+                            </p>
+
+                            {order.trangThai !== "DaHuy" &&
+                                latestPayment.trangThaiThanhToan === "ChoThanhToan" &&
+                                latestPayment.tenPhuongThuc !== "COD" && (
+                                    <button
+                                        type="button"
+                                        className="menu-button"
+                                        onClick={() => {
+                                            setQrPaymentId(latestPayment.maThanhToan);
+                                            setQrMethodName(latestPayment.tenPhuongThuc);
+                                            setShowQr(true);
+                                        }}
+                                        style={{ width: "100%" }}
+                                    >
+                                        Tiếp tục thanh toán
+                                    </button>
+                                )}
+
+                            {order.trangThai !== "DaHuy" && latestPayment.trangThaiThanhToan === "ThatBai" && (
+                                showRetry ? (
+                                    <>
+                                        <div className="address-options">
+                                            {methods.map((item) => (
+                                                <label
+                                                    key={item.maPhuongThuc}
+                                                    className={`address-option ${selectedMethodId === item.maPhuongThuc ? "selected" : ""}`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="retry-payment"
+                                                        checked={selectedMethodId === item.maPhuongThuc}
+                                                        onChange={() => setSelectedMethodId(item.maPhuongThuc)}
+                                                    />
+                                                    <strong>{item.tenPhuongThuc}</strong>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="menu-button"
+                                            onClick={handleRetry}
+                                            disabled={retrying || selectedMethodId === null}
+                                            style={{ width: "100%", marginTop: 12 }}
+                                        >
+                                            {retrying ? "Đang xử lý..." : "Xác nhận thanh toán"}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="menu-button"
+                                        onClick={() => {
+                                            setSelectedMethodId(latestPayment.maPhuongThuc);
+                                            setShowRetry(true);
+                                        }}
+                                        style={{ width: "100%" }}
+                                    >
+                                        Thanh toán lại
+                                    </button>
+                                )
+                            )}
+                        </section>
+                    )}
+
                     <section className="invoice-block">
                         <p className="invoice-code">Mã đơn {order.maDonHangHienThi}</p>
                         {history.length === 0 ? (
@@ -275,6 +478,34 @@ function OrderDetail() {
                         )}
                     </section>
                 </article>
+            )}
+            {showQr && order && (
+                <div className="qr-overlay" role="dialog" aria-modal="true" aria-labelledby="retry-qr-title">
+                    <div className="qr-dialog">
+                        <h2 id="retry-qr-title">Thanh toán {qrMethodName}</h2>
+                        <p>Quét mã mô phỏng, rồi chọn kết quả.</p>
+                        <PaymentQr />
+                        <p>{formatMoney(order.thanhTien)}</p>
+                        <div className="qr-actions">
+                            <button
+                                type="button"
+                                className="menu-button"
+                                onClick={handleQrSuccess}
+                                disabled={qrBusy}
+                            >
+                                {qrBusy ? "Đang xử lý..." : "Tôi đã thanh toán"}
+                            </button>
+                            <button
+                                type="button"
+                                className="menu-button checkout-secondary"
+                                onClick={handleQrFail}
+                                disabled={qrBusy}
+                            >
+                                Thanh toán thất bại
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     );

@@ -24,6 +24,34 @@ export async function placeOrder(data: DatHangRequest) {
     });
 }
 
+export interface DatHangTamRequest {
+    maDiaChi: number;
+    maPhuongThuc: number;
+    maKhuyenMai?: number | null;
+    ghiChu?: string | null;
+}
+
+export interface DatHangTamResult {
+    message: string;
+    maDonHang: number;
+    maDonHangHienThi: string;
+    maThanhToan: number;
+    tenMonAn: string;
+    thanhTien: number;
+    tenPhuongThuc: string;
+}
+
+export async function placeTemporaryOrder(
+    data: DatHangTamRequest
+): Promise<DatHangTamResult> {
+    const token = localStorage.getItem("token");
+    return apiFetch("/don-hang/dat-hang-tam", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(data),
+    });
+}
+
 export async function getMyOrders() {
     const token = localStorage.getItem("token");
     return apiFetch("/don-hang/cua-toi", {

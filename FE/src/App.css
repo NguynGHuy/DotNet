@@ -2718,6 +2718,150 @@ img {
     font-size: 14px;
 }
 
+.checkout-bill-actions {
+    display: flex;
+
+    gap: 10px;
+
+    padding: 0 20px 22px;
+}
+
+.checkout-bill-actions .menu-button {
+    flex: 1;
+
+    min-width: 0;
+
+    border: none;
+}
+
+.checkout-bill-actions .checkout-secondary {
+    background: #fff;
+
+    color: #ff5a1f;
+
+    border: 1px solid #ff5a1f;
+}
+
+.checkout-bill-actions .checkout-secondary:hover:not(:disabled) {
+    background: #fffaf8;
+
+    color: #e94d16;
+
+    transform: none;
+}
+
+.qr-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 1100;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.qr-dialog {
+    width: min(100%, 360px);
+
+    padding: 24px;
+
+    background: #fff;
+
+    border-radius: 16px;
+
+    text-align: center;
+}
+
+.qr-dialog h2 {
+    margin: 0 0 8px;
+
+    font-size: 20px;
+}
+
+.qr-dialog p {
+    margin: 0;
+
+    color: #666;
+}
+
+.qr-box {
+    display: flex;
+
+    justify-content: center;
+
+    margin: 18px 0;
+}
+
+.fake-qr {
+    width: 203px;
+
+    height: 203px;
+
+    display: grid;
+
+    grid-template-columns: repeat(29, 1fr);
+
+    grid-template-rows: repeat(29, 1fr);
+
+    gap: 0;
+
+    background: #fff;
+
+    border: 10px solid #fff;
+
+    box-shadow: 0 0 0 1px #ddd;
+}
+
+.fake-qr span {
+    display: block;
+
+    background: #fff;
+}
+
+.fake-qr span.qr-black {
+    background: #111;
+}
+
+.qr-actions {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    margin-top: 18px;
+}
+
+.qr-actions .menu-button {
+    width: 100%;
+
+    border: none;
+}
+
+.qr-actions .checkout-secondary {
+    background: #fff;
+
+    color: #ff5a1f;
+
+    border: 1px solid #ff5a1f;
+}
+
+.qr-actions .checkout-secondary:hover:not(:disabled) {
+    background: #fffaf8;
+
+    color: #e94d16;
+
+    transform: none;
+}
+
 
 /* =========================================================
    ORDERS

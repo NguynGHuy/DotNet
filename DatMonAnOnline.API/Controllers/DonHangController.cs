@@ -19,6 +19,22 @@ namespace DatMonAnOnline.API.Controllers
             _context = context;
         }
 
+        private static bool HienThiDonChoQuan(Donhang donHang)
+        {
+            var moiNhat = donHang.Thanhtoans
+                .OrderByDescending(x => x.MaThanhToan)
+                .FirstOrDefault();
+
+            if (moiNhat == null)
+                return true;
+
+            if (moiNhat.MaPhuongThucNavigation?.TenPhuongThuc == "COD")
+                return true;
+
+            return moiNhat.TrangThaiThanhToan != "ChoThanhToan"
+                && moiNhat.TrangThaiThanhToan != "ThatBai";
+        }
+
         private async Task<int?> LayMaTaiKhoan()
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -167,6 +183,125 @@ namespace DatMonAnOnline.API.Controllers
             }
         }
 
+        [HttpPost("dat-hang-tam")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> DatHangTam([FromBody] DatHangTamYeuCau request)
+        {
+            const int maNhaHangTest = 3;
+
+            var maTaiKhoan = await LayMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { message = "Vui lòng đăng nhập." });
+
+            var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
+            if (khachHang == null) return Unauthorized();
+
+            var diaChi = await _context.Diachis.FirstOrDefaultAsync(d =>
+                d.MaDiaChi == request.MaDiaChi && d.MaKhachHang == khachHang.MaKhachHang);
+            if (diaChi == null) return BadRequest(new { message = "Địa chỉ giao hàng không hợp lệ." });
+
+            var nhaHang = await _context.Nhahangs.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.MaNhaHang == maNhaHangTest);
+            if (nhaHang == null || nhaHang.TrangThaiHoatDong != "MoCua")
+                return BadRequest(new { message = "Nhà hàng hiện đang tạm ngưng nhận đơn." });
+
+            var monAn = await _context.Monans.AsNoTracking()
+                .Where(m => m.MaNhaHang == maNhaHangTest && m.TrangThai == true)
+                .OrderBy(m => m.MaMonAn)
+                .FirstOrDefaultAsync();
+            if (monAn == null)
+                return BadRequest(new { message = "Nhà hàng test không còn món đang bán." });
+
+            var phuongThuc = await _context.Phuongthucthanhtoans.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.MaPhuongThuc == request.MaPhuongThuc && p.TrangThai == true);
+            if (phuongThuc == null)
+                return BadRequest(new { message = "Phương thức thanh toán không hợp lệ hoặc đã tắt." });
+
+            var tongTienHang = monAn.Gia;
+            var phiShip = nhaHang.PhiShipMacDinh;
+            var (soTienGiam, loiGiam) = await TinhGiamChoDonTam(request.MaKhuyenMai, tongTienHang, maNhaHangTest);
+            if (loiGiam != null) return BadRequest(new { message = loiGiam });
+
+            var thanhTien = tongTienHang + phiShip - soTienGiam;
+            if (thanhTien < 0) thanhTien = 0;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var donHang = new Donhang
+                {
+                    MaDonHangHienThi = $"DH{DateTime.Now:yyMMdd}-{new Random().Next(1000, 9999)}",
+                    MaKhachHang = khachHang.MaKhachHang,
+                    MaNhaHang = maNhaHangTest,
+                    MaDiaChi = diaChi.MaDiaChi,
+                    MaTrangThai = 1,
+                    MaKhuyenMai = request.MaKhuyenMai,
+                    ThoiGianDat = DateTime.Now,
+                    TenNguoiNhan = diaChi.TenNguoiNhan,
+                    SoDienThoaiNhan = diaChi.SoDienThoaiNhan,
+                    DiaChiGiaoHang = diaChi.DiaChiCuThe,
+                    TongTienHang = tongTienHang,
+                    PhiShip = phiShip,
+                    SoTienGiam = soTienGiam,
+                    ThanhTien = thanhTien,
+                    GhiChu = request.GhiChu
+                };
+                _context.Donhangs.Add(donHang);
+                await _context.SaveChangesAsync();
+
+                _context.Chitietdonhangs.Add(new Chitietdonhang
+                {
+                    MaDonHang = donHang.MaDonHang,
+                    MaMonAn = monAn.MaMonAn,
+                    SoLuong = 1,
+                    DonGia = monAn.Gia,
+                    ThanhTien = monAn.Gia
+                });
+
+                _context.Lichsutrangthaidonhangs.Add(new Lichsutrangthaidonhang
+                {
+                    MaDonHang = donHang.MaDonHang,
+                    MaTrangThai = 1,
+                    MaTaiKhoan = maTaiKhoan.Value,
+                    ThoiGianTao = DateTime.Now,
+                    GhiChu = "Khách hàng đặt đơn tạm"
+                });
+
+                var thanhToan = new Thanhtoan
+                {
+                    MaDonHang = donHang.MaDonHang,
+                    MaPhuongThuc = phuongThuc.MaPhuongThuc,
+                    SoTien = thanhTien,
+                    TrangThaiThanhToan = "ChoThanhToan"
+                };
+                _context.Thanhtoans.Add(thanhToan);
+
+                if (request.MaKhuyenMai.HasValue)
+                {
+                    var km = await _context.Khuyenmais.FindAsync(request.MaKhuyenMai);
+                    if (km != null) km.SoLuongDaDung += 1;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    message = "Đặt hàng tạm thành công.",
+                    maDonHang = donHang.MaDonHang,
+                    maDonHangHienThi = donHang.MaDonHangHienThi,
+                    maThanhToan = thanhToan.MaThanhToan,
+                    tenMonAn = monAn.TenMonAn,
+                    thanhTien,
+                    tenPhuongThuc = phuongThuc.TenPhuongThuc
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi đặt hàng tạm: " + ex.Message });
+            }
+        }
+
         [HttpGet("cua-toi")]
         [Authorize(Roles = "KhachHang")]
         public async Task<IActionResult> DonHangCuaToi()
@@ -274,19 +409,25 @@ namespace DatMonAnOnline.API.Controllers
             var query = _context.Donhangs.Where(d => d.MaNhaHang == nhaHang.MaNhaHang);
             if (maTrangThai.HasValue) query = query.Where(d => d.MaTrangThai == maTrangThai);
 
-            var danhSach = await query
+            var donHangQuan = await query
                 .Include(d => d.MaTrangThaiNavigation)
+                .Include(d => d.Thanhtoans)
+                    .ThenInclude(t => t.MaPhuongThucNavigation)
                 .OrderByDescending(d => d.ThoiGianDat)
+                .ToListAsync();
+
+            var danhSach = donHangQuan
+                .Where(HienThiDonChoQuan)
                 .Select(d => new
                 {
                     d.MaDonHang,
                     d.MaDonHangHienThi,
                     d.ThoiGianDat,
                     d.TenNguoiNhan,
-                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai, // Thêm !
+                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai,
                     ThanhTien = d.ThanhTien
                 })
-                .ToListAsync();
+                .ToList();
 
             return Ok(danhSach);
         }
@@ -429,7 +570,7 @@ namespace DatMonAnOnline.API.Controllers
                 donHang.ThoiGianGiaoThucTe = DateTime.Now;
                 var thanhToanCod = donHang.Thanhtoans
                     .Where(x => x.TrangThaiThanhToan == "ChoThanhToan"
-                                && x.MaPhuongThucNavigation.TenPhuongThuc == "ThanhToanKhiNhan")
+                                && x.MaPhuongThucNavigation.TenPhuongThuc == "COD")
                     .OrderByDescending(x => x.MaThanhToan)
                     .FirstOrDefault();
                 if (thanhToanCod != null)
@@ -540,6 +681,28 @@ namespace DatMonAnOnline.API.Controllers
 
             return (tongTienHang, phiShip, soTienGiam, maNhaHang, null);
         }
+
+        private async Task<(decimal SoTienGiam, string? Loi)> TinhGiamChoDonTam(int? maKhuyenMai, decimal tongTienHang, int maNhaHang)
+        {
+            if (!maKhuyenMai.HasValue) return (0, null);
+
+            var km = await _context.Khuyenmais.AsNoTracking().FirstOrDefaultAsync(k => k.MaKhuyenMai == maKhuyenMai);
+            if (km == null || km.TrangThai == false)
+                return (0, "Mã khuyến mãi không hợp lệ.");
+            if (DateTime.Now < km.NgayBatDau || DateTime.Now > km.NgayKetThuc)
+                return (0, "Mã khuyến mãi hết hạn hoặc chưa đến giờ.");
+            if (km.SoLuongDaDung >= km.SoLuong)
+                return (0, "Mã khuyến mãi đã hết lượt.");
+            if (tongTienHang < km.DonHangToiThieu)
+                return (0, $"Đơn hàng chưa đạt tối thiểu {km.DonHangToiThieu} để áp dụng mã.");
+            if (km.MaNhaHang.HasValue && km.MaNhaHang != maNhaHang)
+                return (0, "Mã khuyến mãi không áp dụng cho quán này.");
+
+            var soTienGiam = km.LoaiGiam == "SoTien" ? km.GiaTriGiam : (tongTienHang * km.GiaTriGiam / 100);
+            if (km.GiamToiDa.HasValue && soTienGiam > km.GiamToiDa.Value)
+                soTienGiam = km.GiamToiDa.Value;
+            return (soTienGiam, null);
+        }
     }
 
     public class KiemTraDonHangYeuCau
@@ -550,6 +713,14 @@ namespace DatMonAnOnline.API.Controllers
     public class DatHangYeuCau
     {
         [Required] public int MaDiaChi { get; set; }
+        public int? MaKhuyenMai { get; set; }
+        public string? GhiChu { get; set; }
+    }
+
+    public class DatHangTamYeuCau
+    {
+        [Required] public int MaDiaChi { get; set; }
+        [Required] public int MaPhuongThuc { get; set; }
         public int? MaKhuyenMai { get; set; }
         public string? GhiChu { get; set; }
     }
