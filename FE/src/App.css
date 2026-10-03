@@ -9919,3 +9919,457 @@ img {
     overflow-wrap: anywhere;
     white-space: pre-wrap;
 }
+/* Cho biết thẻ món ăn có thể bấm */
+.customer-food-card {
+    cursor: pointer;
+}
+
+.customer-food-card:focus-visible {
+    outline: 3px solid rgba(233, 86, 34, 0.22);
+    outline-offset: 3px;
+}
+
+/* =========================================================
+   MODAL CHỌN MÓN VÀ TOPPING
+========================================================= */
+
+.food-order-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(20, 20, 20, 0.58);
+    backdrop-filter: blur(4px);
+}
+
+.food-order-dialog {
+    position: relative;
+    width: min(720px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+}
+
+/* Nút đóng modal */
+.food-order-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #e6e6e6;
+    border-radius: 50%;
+    color: #444444;
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+}
+
+.food-order-close:hover:not(:disabled) {
+    color: #e95622;
+    border-color: #e95622;
+}
+
+.food-order-close:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+/* Trạng thái đang tải hoặc lỗi */
+.food-order-state {
+    display: flex;
+    min-height: 260px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.food-order-state p {
+    margin: 0;
+    color: #777777;
+}
+
+.food-order-state.error strong {
+    color: #b42318;
+    font-size: 20px;
+}
+
+/* Thông tin món ăn */
+.food-order-hero {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr);
+    min-height: 210px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.food-order-image {
+    min-height: 210px;
+    overflow: hidden;
+    background: #f6f6f6;
+    border-radius: 20px 0 0 0;
+}
+
+.food-order-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.food-order-image div {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 210px;
+    align-items: center;
+    justify-content: center;
+    font-size: 58px;
+}
+
+.food-order-summary {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 34px 60px 30px 28px;
+}
+
+.food-order-summary > span {
+    align-self: flex-start;
+    padding: 5px 9px;
+    background: #fff2ec;
+    border-radius: 999px;
+    color: #cf4616;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.food-order-summary h2 {
+    margin: 12px 0 7px;
+    color: #242424;
+    font-size: 25px;
+    line-height: 1.25;
+}
+
+.food-order-summary p {
+    margin: 0 0 14px;
+    color: #777777;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.food-order-summary > strong {
+    color: #e95622;
+    font-size: 20px;
+}
+
+.food-order-body {
+    padding: 22px 26px 8px;
+}
+
+/* Nhóm topping */
+.food-topping-group {
+    min-width: 0;
+    margin: 0 0 22px;
+    padding: 0;
+    border: 0;
+}
+
+.food-topping-group legend {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 10px;
+    color: #333333;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.food-topping-group legend b {
+    margin-left: 6px;
+    padding: 3px 7px;
+    background: #fff0eb;
+    border-radius: 999px;
+    color: #d74716;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.food-topping-group legend small {
+    color: #888888;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.food-topping-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.food-topping-option {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 12px;
+    background: #fafafa;
+    border: 1px solid #e7e7e7;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.food-topping-option:has(input:checked) {
+    background: #fff7f3;
+    border-color: #e95622;
+}
+
+.food-topping-option input {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    accent-color: #e95622;
+}
+
+.food-topping-option span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: #444444;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.food-topping-option strong {
+    flex-shrink: 0;
+    color: #e95622;
+    font-size: 12px;
+}
+
+.food-topping-empty {
+    margin: 0;
+    color: #a33b2e;
+    font-size: 13px;
+}
+
+/* Ghi chú món ăn */
+.food-order-note {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.food-order-note label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333333;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.food-order-note textarea {
+    width: 100%;
+    padding: 11px 13px 24px;
+    resize: vertical;
+    background: #fafafa;
+    border: 1px solid #dedede;
+    border-radius: 10px;
+    color: #333333;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+
+.food-order-note textarea:focus {
+    outline: none;
+    border-color: #e95622;
+    box-shadow: 0 0 0 3px rgba(233, 86, 34, 0.08);
+}
+
+.food-order-note small {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    color: #999999;
+    font-size: 10px;
+}
+
+/* Chọn số lượng */
+.food-order-quantity-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    border-top: 1px solid #eeeeee;
+}
+
+.food-order-quantity-row > span {
+    color: #333333;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.food-order-quantity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.food-order-quantity button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: #ffffff;
+    border: 1px solid #dddddd;
+    border-radius: 9px;
+    color: #333333;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.food-order-quantity button:hover:not(:disabled) {
+    color: #e95622;
+    border-color: #e95622;
+}
+
+.food-order-quantity button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+.food-order-quantity strong {
+    min-width: 24px;
+    color: #222222;
+    text-align: center;
+}
+
+/* Thông báo lỗi và thành công */
+.food-order-message {
+    margin: 4px 0 12px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 13px;
+}
+
+.food-order-message.error {
+    background: #fff1f0;
+    color: #b42318;
+}
+
+.food-order-message.success {
+    background: #ecfdf3;
+    color: #087443;
+}
+
+/* Nút thêm vào giỏ */
+.food-order-footer {
+    position: sticky;
+    bottom: 0;
+    padding: 14px 26px 20px;
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(8px);
+}
+
+.food-order-submit,
+.food-order-cart-link {
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 12px 18px;
+    background: #e95622;
+    border: none;
+    border-radius: 11px;
+    color: #ffffff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.food-order-submit:hover:not(:disabled),
+.food-order-cart-link:hover {
+    background: #d84817;
+}
+
+.food-order-submit:disabled {
+    background: #aaaaaa;
+    cursor: not-allowed;
+}
+
+.food-order-cart-link {
+    justify-content: center;
+}
+
+/* Giao diện điện thoại */
+@media (max-width: 620px) {
+    .food-order-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .food-order-dialog {
+        width: 100%;
+        max-height: 92vh;
+        border-radius: 18px 18px 0 0;
+    }
+
+    .food-order-hero {
+        grid-template-columns: 115px minmax(0, 1fr);
+        min-height: 150px;
+    }
+
+    .food-order-image,
+    .food-order-image div {
+        min-height: 150px;
+        border-radius: 18px 0 0 0;
+    }
+
+    .food-order-summary {
+        padding: 24px 52px 20px 16px;
+    }
+
+    .food-order-summary h2 {
+        font-size: 20px;
+    }
+
+    .food-order-summary p {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .food-order-body {
+        padding: 18px 16px 4px;
+    }
+
+    .food-topping-list {
+        grid-template-columns: 1fr;
+    }
+
+    .food-order-footer {
+        padding: 12px 16px 16px;
+        border-radius: 0;
+    }
+}

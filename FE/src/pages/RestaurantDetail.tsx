@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -7,6 +8,7 @@ import {
 
 import {
     Link,
+    useNavigate,
     useParams,
 } from "react-router-dom";
 
@@ -18,26 +20,29 @@ import {
 } from "../services/categoryService";
 
 import {
+    getMonAn,
     getMonAns,
     type MonAn,
+    type MonAnChiTiet,
+    type NhomToppingMonAn,
 } from "../services/menuService";
 
-import RestaurantReviews from "../components/RestaurantReviews";
-import type { Restaurant } from "../services/restaurantService";
-import FoodReviews from "../components/FoodReviews";
+import { addToCart } from "../services/cartService";
 
-// interface Restaurant {
-//     maNhaHang: number;
-//     tenNhaHang: string;
-//     moTa?: string;
-//     diaChiQuan?: string;
-//     anhBia?: string | null;
-//     danhGiaTrungBinh?: number;
-//     phiShipMacDinh?: number;
-//     gioMoCua?: string;
-//     gioDongCua?: string;
-//     trangThaiHoatDong?: string;
-// }
+import RestaurantReviews from "../components/RestaurantReviews";
+
+interface Restaurant {
+    maNhaHang: number;
+    tenNhaHang: string;
+    moTa?: string;
+    diaChiQuan?: string;
+    anhBia?: string | null;
+    danhGiaTrungBinh?: number;
+    phiShipMacDinh?: number;
+    gioMoCua?: string;
+    gioDongCua?: string;
+    trangThaiHoatDong?: string;
+}
 
 /* =========================================================
    KIỂM TRA NHÀ HÀNG CÓ ĐANG MỞ CỬA
@@ -114,6 +119,8 @@ function formatMoney(value: number) {
 ========================================================= */
 
 function RestaurantDetail() {
+    const navigate = useNavigate();
+
     const { id } =
         useParams<{ id: string }>();
 
@@ -127,13 +134,13 @@ function RestaurantDetail() {
     const [restaurant, setRestaurant] =
         useState<Restaurant | null>(null);
 
-    const [loadedRestaurantId, setLoadedRestaurantId] =
-        useState<string | null>(null);
-
-    const loading = loadedRestaurantId !== id;
+    const [loading, setLoading] =
+        useState(Boolean(id));
 
     const [error, setError] =
-        useState("");
+        useState(
+            id ? "" : "Mã nhà hàng không hợp lệ."
+        );
 
     /* =========================
        MENU
@@ -159,6 +166,33 @@ function RestaurantDetail() {
     const [searchTerm, setSearchTerm] =
         useState("");
 
+    const [foodDialogOpen, setFoodDialogOpen] =
+        useState(false);
+
+    const [selectedFood, setSelectedFood] =
+        useState<MonAnChiTiet | null>(null);
+
+    const [foodLoading, setFoodLoading] =
+        useState(false);
+
+    const [foodActionError, setFoodActionError] =
+        useState("");
+
+    const [foodSuccess, setFoodSuccess] =
+        useState("");
+
+    const [selectedToppingIds, setSelectedToppingIds] =
+        useState<number[]>([]);
+
+    const [quantity, setQuantity] =
+        useState(1);
+
+    const [note, setNote] =
+        useState("");
+
+    const [addingToCart, setAddingToCart] =
+        useState(false);
+
     /* =========================
        TIME
     ========================= */
@@ -171,43 +205,40 @@ function RestaurantDetail() {
     ========================================================= */
 
     useEffect(() => {
-        const restaurantId = Number(id);
-
-        if (!id || !Number.isInteger(restaurantId) || restaurantId <= 0) {
+        if (!id) {
             return;
         }
 
-        let cancelled = false;
-
         const loadRestaurant = async () => {
             try {
-                const data = await apiFetch(`/nha-hang/${restaurantId}`);
+                setLoading(true);
+                setError("");
 
-                if (cancelled) return;
+                const data =
+                    await apiFetch(
+                        `/nha-hang/${id}`
+                    );
 
                 setRestaurant(data);
-                setError("");
             } catch (err) {
-                if (cancelled) return;
+                console.error(
+                    "Lỗi tải nhà hàng:",
+                    err
+                );
 
                 setError(
                     err instanceof Error
                         ? err.message
                         : "Không thể tải thông tin nhà hàng."
                 );
+
                 setRestaurant(null);
             } finally {
-                if (!cancelled) {
-                    setLoadedRestaurantId(id);
-                }
+                setLoading(false);
             }
         };
 
-        void loadRestaurant();
-
-        return () => {
-            cancelled = true;
-        };
+        loadRestaurant();
     }, [id]);
 
     /* =========================================================
@@ -364,20 +395,163 @@ function RestaurantDetail() {
         });
     };
 
+    const closeFoodDialog = useCallback(() => {
+        if (addingToCart) return;
+
+        setFoodDialogOpen(false);
+        setSelectedFood(null);
+        setSelectedToppingIds([]);
+        setQuantity(1);
+        setNote("");
+        setFoodActionError("");
+        setFoodSuccess("");
+    }, [addingToCart]);
+
+    const handleOpenFood = async (item: MonAn) => {
+        setFoodDialogOpen(true);
+        setSelectedFood(null);
+        setSelectedToppingIds([]);
+        setQuantity(1);
+        setNote("");
+        setFoodActionError("");
+        setFoodSuccess("");
+
+        try {
+            setFoodLoading(true);
+            const detail = await getMonAn(item.maMonAn);
+            setSelectedFood(detail);
+        } catch (err) {
+            setFoodActionError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể tải thông tin món ăn."
+            );
+        } finally {
+            setFoodLoading(false);
+        }
+    };
+
+    const handleToggleTopping = (
+        group: NhomToppingMonAn,
+        toppingId: number
+    ) => {
+        setFoodActionError("");
+        setFoodSuccess("");
+
+        if (selectedToppingIds.includes(toppingId)) {
+            setSelectedToppingIds((current) =>
+                current.filter((id) => id !== toppingId)
+            );
+            return;
+        }
+
+        const idsInGroup = new Set(
+            group.toppings.map((topping) => topping.maTopping)
+        );
+
+        const selectedInGroup = selectedToppingIds.filter((id) =>
+            idsInGroup.has(id)
+        );
+
+        if (group.chonToiDa === 1) {
+            setSelectedToppingIds((current) => [
+                ...current.filter((id) => !idsInGroup.has(id)),
+                toppingId,
+            ]);
+            return;
+        }
+
+        if (
+            group.chonToiDa !== null &&
+            selectedInGroup.length >= group.chonToiDa
+        ) {
+            setFoodActionError(
+                `Nhóm “${group.tenNhom}” chỉ được chọn tối đa ${group.chonToiDa} lựa chọn.`
+            );
+            return;
+        }
+
+        setSelectedToppingIds((current) => [...current, toppingId]);
+    };
+
+    const handleAddToCart = async () => {
+        if (!selectedFood) return;
+
+        if (!localStorage.getItem("token")) {
+            navigate("/dang-nhap");
+            return;
+        }
+
+        if (!restaurant || !isRestaurantOpen(restaurant)) {
+            setFoodActionError(
+                "Nhà hàng đang đóng cửa nên chưa thể nhận đơn."
+            );
+            return;
+        }
+
+        const missingRequiredGroup = selectedFood.nhomToppings.find(
+            (group) =>
+                group.batBuocChon &&
+                !group.toppings.some((topping) =>
+                    selectedToppingIds.includes(topping.maTopping)
+                )
+        );
+
+        if (missingRequiredGroup) {
+            setFoodActionError(
+                `Vui lòng chọn ít nhất một lựa chọn trong nhóm “${missingRequiredGroup.tenNhom}”.`
+            );
+            return;
+        }
+
+        try {
+            setAddingToCart(true);
+            setFoodActionError("");
+            setFoodSuccess("");
+
+            await addToCart({
+                maMonAn: selectedFood.maMonAn,
+                soLuong: quantity,
+                ghiChu: note.trim() || undefined,
+                danhSachMaTopping: selectedToppingIds,
+            });
+
+            setFoodSuccess("Đã thêm món vào giỏ hàng.");
+            window.dispatchEvent(new Event("cart-updated"));
+        } catch (err) {
+            setFoodActionError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể thêm món vào giỏ hàng."
+            );
+        } finally {
+            setAddingToCart(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!foodDialogOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                closeFoodDialog();
+            }
+        };
+
+        window.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener("keydown", handleEscape);
+        };
+    }, [foodDialogOpen, closeFoodDialog]);
+
     /* =========================================================
        LOADING
     ========================================================= */
-
-    const restaurantId = Number(id);
-
-    if (!id || !Number.isInteger(restaurantId) || restaurantId <= 0) {
-        return (
-            <main className="restaurant-detail-page">
-                <p className="auth-error">Mã nhà hàng không hợp lệ.</p>
-                <Link to="/">← Về trang chủ</Link>
-            </main>
-        );
-    }
 
     if (loading) {
         return (
@@ -431,6 +605,18 @@ function RestaurantDetail() {
 
     const isOpen =
         isRestaurantOpen(restaurant);
+
+    const selectedToppingsPrice =
+        selectedFood?.nhomToppings
+            .flatMap((group) => group.toppings)
+            .filter((topping) =>
+                selectedToppingIds.includes(topping.maTopping)
+            )
+            .reduce((total, topping) => total + topping.giaThem, 0) ?? 0;
+
+    const selectedFoodTotal = selectedFood
+        ? (selectedFood.gia + selectedToppingsPrice) * quantity
+        : 0;
 
     const rating =
         restaurant.danhGiaTrungBinh ??
@@ -847,6 +1033,21 @@ function RestaurantDetail() {
                                             item.maMonAn
                                         }
                                         className="customer-food-card"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-haspopup="dialog"
+                                        onClick={() =>
+                                            handleOpenFood(item)
+                                        }
+                                        onKeyDown={(event) => {
+                                            if (
+                                                event.key === "Enter" ||
+                                                event.key === " "
+                                            ) {
+                                                event.preventDefault();
+                                                handleOpenFood(item);
+                                            }
+                                        }}
                                     >
                                         {/* IMAGE */}
 
@@ -911,8 +1112,6 @@ function RestaurantDetail() {
                                                     ● Đang bán
                                                 </span>
                                             </div>
-                                            <FoodReviews maMonAn={item.maMonAn} />
-
                                         </div>
                                     </article>
                                 )
@@ -932,6 +1131,243 @@ function RestaurantDetail() {
                         }
                     />
                 </section>
+
+                {foodDialogOpen && (
+                    <div
+                        className="food-order-overlay"
+                        role="presentation"
+                        onMouseDown={(event) => {
+                            if (event.target === event.currentTarget) {
+                                closeFoodDialog();
+                            }
+                        }}
+                    >
+                        <section
+                            className="food-order-dialog"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="food-order-title"
+                        >
+                            <button
+                                type="button"
+                                className="food-order-close"
+                                aria-label="Đóng"
+                                disabled={addingToCart}
+                                onClick={closeFoodDialog}
+                            >
+                                ×
+                            </button>
+
+                            {foodLoading ? (
+                                <div className="food-order-state">
+                                    <div className="loading-spinner" />
+                                    <p>Đang tải thông tin món...</p>
+                                </div>
+                            ) : !selectedFood ? (
+                                <div className="food-order-state error">
+                                    <strong>Không thể mở món ăn</strong>
+                                    <p>
+                                        {foodActionError ||
+                                            "Món ăn không tồn tại hoặc đã ngừng bán."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="food-order-hero">
+                                        <div className="food-order-image">
+                                            {selectedFood.hinhAnh ? (
+                                                <img
+                                                    src={selectedFood.hinhAnh}
+                                                    alt={selectedFood.tenMonAn}
+                                                />
+                                            ) : (
+                                                <div>🍜</div>
+                                            )}
+                                        </div>
+
+                                        <div className="food-order-summary">
+                                            <span>{selectedFood.tenDanhMuc}</span>
+                                            <h2 id="food-order-title">
+                                                {selectedFood.tenMonAn}
+                                            </h2>
+                                            <p>
+                                                {selectedFood.moTa ||
+                                                    "Món ăn của nhà hàng."}
+                                            </p>
+                                            <strong>
+                                                {formatMoney(selectedFood.gia)}
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    <div className="food-order-body">
+                                        {selectedFood.nhomToppings.map(
+                                            (group) => (
+                                                <fieldset
+                                                    className="food-topping-group"
+                                                    key={group.maNhomTopping}
+                                                >
+                                                    <legend>
+                                                        <span>
+                                                            {group.tenNhom}
+                                                            {group.batBuocChon && (
+                                                                <b> Bắt buộc</b>
+                                                            )}
+                                                        </span>
+                                                        <small>
+                                                            {group.chonToiDa === null
+                                                                ? "Chọn tùy thích"
+                                                                : `Chọn tối đa ${group.chonToiDa}`}
+                                                        </small>
+                                                    </legend>
+
+                                                    {group.toppings.length === 0 ? (
+                                                        <p className="food-topping-empty">
+                                                            Nhóm này chưa có lựa chọn khả dụng.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="food-topping-list">
+                                                            {group.toppings.map(
+                                                                (topping) => (
+                                                                    <label
+                                                                        className="food-topping-option"
+                                                                        key={topping.maTopping}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={selectedToppingIds.includes(
+                                                                                topping.maTopping
+                                                                            )}
+                                                                            onChange={() =>
+                                                                                handleToggleTopping(
+                                                                                    group,
+                                                                                    topping.maTopping
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <span>
+                                                                            {topping.tenTopping}
+                                                                        </span>
+                                                                        <strong>
+                                                                            {topping.giaThem > 0
+                                                                                ? `+${formatMoney(
+                                                                                      topping.giaThem
+                                                                                  )}`
+                                                                                : "Miễn phí"}
+                                                                        </strong>
+                                                                    </label>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </fieldset>
+                                            )
+                                        )}
+
+                                        <div className="food-order-note">
+                                            <label htmlFor="food-note">
+                                                Ghi chú cho quán
+                                            </label>
+                                            <textarea
+                                                id="food-note"
+                                                maxLength={200}
+                                                rows={3}
+                                                value={note}
+                                                placeholder="Ví dụ: ít cay, không hành..."
+                                                onChange={(event) => {
+                                                    setNote(event.target.value);
+                                                    setFoodSuccess("");
+                                                }}
+                                            />
+                                            <small>{note.length}/200</small>
+                                        </div>
+
+                                        <div className="food-order-quantity-row">
+                                            <span>Số lượng</span>
+                                            <div className="food-order-quantity">
+                                                <button
+                                                    type="button"
+                                                    aria-label="Giảm số lượng"
+                                                    disabled={quantity <= 1}
+                                                    onClick={() => {
+                                                        setQuantity((value) =>
+                                                            Math.max(1, value - 1)
+                                                        );
+                                                        setFoodSuccess("");
+                                                    }}
+                                                >
+                                                    −
+                                                </button>
+                                                <strong>{quantity}</strong>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Tăng số lượng"
+                                                    disabled={quantity >= 100}
+                                                    onClick={() => {
+                                                        setQuantity((value) =>
+                                                            Math.min(100, value + 1)
+                                                        );
+                                                        setFoodSuccess("");
+                                                    }}
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {foodActionError && (
+                                            <p className="food-order-message error">
+                                                {foodActionError}
+                                            </p>
+                                        )}
+
+                                        {foodSuccess && (
+                                            <p className="food-order-message success">
+                                                {foodSuccess}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="food-order-footer">
+                                        {foodSuccess ? (
+                                            <button
+                                                type="button"
+                                                className="food-order-cart-link"
+                                                onClick={() => navigate("/gio-hang")}
+                                            >
+                                                Xem giỏ hàng
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="food-order-submit"
+                                                disabled={
+                                                    addingToCart || !isOpen
+                                                }
+                                                onClick={handleAddToCart}
+                                            >
+                                                <span>
+                                                    {addingToCart
+                                                        ? "Đang thêm..."
+                                                        : isOpen
+                                                          ? "Thêm vào giỏ"
+                                                          : "Nhà hàng đang đóng cửa"}
+                                                </span>
+                                                {isOpen && !addingToCart && (
+                                                    <strong>
+                                                        {formatMoney(
+                                                            selectedFoodTotal
+                                                        )}
+                                                    </strong>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </section>
+                    </div>
+                )}
             </div>
         </main>
     );
