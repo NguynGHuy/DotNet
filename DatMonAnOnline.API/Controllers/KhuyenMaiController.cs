@@ -293,6 +293,11 @@ namespace DatMonAnOnline.API.Controllers
                 soTienGiam = km.GiamToiDa.Value;
             }
 
+            soTienGiam = Math.Min(
+                Math.Max(soTienGiam, 0m),
+                Math.Max(req.TongTienHang, 0m)
+             );
+
             return Ok(new
             {
                 maKhuyenMai = km.MaKhuyenMai,

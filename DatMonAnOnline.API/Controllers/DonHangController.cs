@@ -760,6 +760,11 @@ namespace DatMonAnOnline.API.Controllers
                     soTienGiam = km.GiamToiDa.Value;
             }
 
+            soTienGiam = Math.Min(
+                Math.Max(soTienGiam, 0m),
+                Math.Max(tongTienHang, 0m)
+                );
+
             return (tongTienHang, phiShip, soTienGiam, maNhaHang, null);
         }
 
@@ -782,6 +787,11 @@ namespace DatMonAnOnline.API.Controllers
             var soTienGiam = km.LoaiGiam == "SoTien" ? km.GiaTriGiam : (tongTienHang * km.GiaTriGiam / 100);
             if (km.GiamToiDa.HasValue && soTienGiam > km.GiamToiDa.Value)
                 soTienGiam = km.GiamToiDa.Value;
+
+            soTienGiam = Math.Min(
+                Math.Max(soTienGiam, 0m),
+                Math.Max(tongTienHang, 0m)
+            );
             return (soTienGiam, null);
         }
     }
