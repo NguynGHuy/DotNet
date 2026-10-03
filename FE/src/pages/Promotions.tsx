@@ -5,12 +5,15 @@ import {
 } from "../services/promotionService";
 import type { Promotion } from "../services/promotionService";
 import CreatePromotionForm from "../components/CreatePromotionForm";
+import EditPromotionForm from "../components/EditPromotionForm";
 
 function Promotions() {
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [loading, setLoading] = useState(true);
     const [changingId, setChangingId] = useState<number | null>(null);
     const [error, setError] = useState("");
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [success, setSuccess] = useState("");
 
     const loadPromotions = async () => {
         try {
@@ -33,7 +36,33 @@ function Promotions() {
     };
 
     useEffect(() => {
-        loadPromotions();
+        let cancelled = false;
+
+        getMyPromotions()
+            .then((data) => {
+                if (!cancelled) {
+                    setPromotions(data);
+                    setError("");
+                }
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Không thể lấy danh sách khuyến mãi."
+                    );
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const handleToggle = async (id: number) => {
@@ -137,6 +166,8 @@ function Promotions() {
 
                 <div className="quan-section-header">
                     <div>
+                        {success && <p role="status">{success}</p>}
+
                         <h2>Danh sách mã giảm giá</h2>
 
                         <p>
@@ -304,10 +335,7 @@ function Promotions() {
                                                 item.maKhuyenMai
                                             )
                                         }
-                                        disabled={
-                                            changingId ===
-                                            item.maKhuyenMai
-                                        }
+                                        disabled={changingId !== null || editingId !== null}
                                     >
                                         {changingId ===
                                         item.maKhuyenMai
@@ -319,6 +347,36 @@ function Promotions() {
 
                                 </div>
 
+                                {editingId === item.maKhuyenMai ? (
+                                    <EditPromotionForm
+                                        key={item.maKhuyenMai}
+                                        promotion={item}
+                                        onCancel={() => setEditingId(null)}
+                                        onSaved={(updated) => {
+                                            setPromotions((previous) =>
+                                                previous.map((promotion) =>
+                                                    promotion.maKhuyenMai === updated.maKhuyenMai
+                                                        ? updated
+                                                        : promotion
+                                                )
+                                            );
+                                            setEditingId(null);
+                                            setSuccess(`Đã cập nhật mã ${updated.maCode}.`);
+                                        }}
+                                    />
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="promotion-edit-open"
+                                            disabled={editingId !== null || changingId !== null}
+                                        onClick={() => {
+                                            setSuccess("");
+                                            setEditingId(item.maKhuyenMai);
+                                        }}
+                                    >
+                                        Sửa mã
+                                    </button>
+                                )}
                             </div>
 
                         ))}

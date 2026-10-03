@@ -218,6 +218,7 @@ function AppContent() {
                         element={<AdminRestaurants />}
                     />
 
+               
                     <Route
                         path="khuyen-mai"
                         element={<AdminPromotions />}

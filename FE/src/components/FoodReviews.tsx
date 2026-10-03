@@ -93,7 +93,11 @@ function FoodReviews({ maMonAn }: Props) {
     const panelId = `food-reviews-${maMonAn}`;
 
     return (
-        <div className="food-reviews">
+        <div
+            className="food-reviews"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+        >
             <button
                 type="button"
                 className="food-reviews-toggle"

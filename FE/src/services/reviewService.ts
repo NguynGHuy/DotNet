@@ -69,3 +69,24 @@ export function getFoodReviews(
 ): Promise<FoodReview[]> {
     return apiFetch(`/mon-an/${maMonAn}/danh-gia`);
 }
+
+export interface SavedReview {
+    soSao: number;
+    noiDung: string | null;
+}
+
+export interface OrderReviews {
+    maDonHang: number;
+    danhGiaQuan: (SavedReview & { maNhaHang: number }) | null;
+    danhGiaMon: (SavedReview & { maMonAn: number })[];
+}
+
+export function getMyOrderReviews(
+    maDonHang: number
+): Promise<OrderReviews> {
+    return apiFetch(`/don-hang/${maDonHang}/danh-gia-cua-toi`, {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+    });
+}

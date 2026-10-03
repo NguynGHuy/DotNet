@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getOrderById, getOrderStatusHistory } from "../services/orderService";
-import OrderReviewForm from "../components/OrderReviewForm";
+import OrderReviewPanel from "../components/OrderReviewPanel";
 import PaymentQr from "../components/PaymentQr";
 import { getRestaurantById } from "../services/restaurantService";
 import {
@@ -318,25 +318,13 @@ function OrderDetail() {
                                         Bạn có thể đánh giá quán và từng món trong đơn hàng.
                                     </p>
 
-                                    <div className="order-review-list">
-                                        <OrderReviewForm
-                                            key={`quan-${order.maDonHang}`}
-                                            loai="quan"
-                                            maDonHang={order.maDonHang}
-                                            maNhaHang={order.maNhaHang}
-                                            title={`Quán: ${order.tenNhaHang}`}
-                                        />
-
-                                        {uniqueReviewDishes.map((dish) => (
-                                            <OrderReviewForm
-                                                key={`mon-${order.maDonHang}-${dish.maMonAn}`}
-                                                loai="mon"
-                                                maDonHang={order.maDonHang}
-                                                maMonAn={dish.maMonAn}
-                                                title={`Món: ${dish.tenMonAn}`}
-                                            />
-                                        ))}
-                                    </div>
+                                    <OrderReviewPanel
+                                        key={order.maDonHang}
+                                        maDonHang={order.maDonHang}
+                                        maNhaHang={order.maNhaHang}
+                                        tenNhaHang={order.tenNhaHang}
+                                        dishes={uniqueReviewDishes}
+                                    />
                                 </section>
                             </>
                         )}

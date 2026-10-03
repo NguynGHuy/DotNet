@@ -5,12 +5,15 @@ import {
     togglePromotionStatus,
 } from "../services/promotionService";
 import type { Promotion } from "../services/promotionService";
+import EditPromotionForm from "../components/EditPromotionForm";
 
 function AdminPromotions() {
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [error, setError] = useState("");
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [success, setSuccess] = useState("");
 
     useEffect(() => {
         getSystemPromotions()
@@ -50,6 +53,8 @@ function AdminPromotions() {
             <CreatePromotionForm admin onCreated={reload} />
 
             <section>
+                {success && <p role="status">{success}</p>}
+                    
                 <h2>Danh sách mã toàn hệ thống</h2>
                 {error && <p className="auth-error">{error}</p>}
 
@@ -133,7 +138,7 @@ function AdminPromotions() {
 
                                     <button
                                         type="button"
-                                        disabled={busyId === item.maKhuyenMai}
+                                        disabled={busyId !== null || editingId !== null}
                                         onClick={() =>
                                             handleToggle(item.maKhuyenMai)
                                         }
@@ -145,6 +150,38 @@ function AdminPromotions() {
                                                 : "Bật mã"}
                                     </button>
                                 </div>
+
+                                {editingId === item.maKhuyenMai ? (
+                                    <EditPromotionForm
+                                        key={item.maKhuyenMai}
+                                        promotion={item}
+                                        onCancel={() => setEditingId(null)}
+                                        onSaved={(updated) => {
+                                            setPromotions((previous) =>
+                                                previous.map((promotion) =>
+                                                    promotion.maKhuyenMai === updated.maKhuyenMai
+                                                        ? updated
+                                                        : promotion
+                                                )
+                                            );
+                                            setEditingId(null);
+                                            setSuccess(`Đã cập nhật mã ${updated.maCode}.`);
+                                        }}
+                                    />
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="promotion-edit-open"
+                                        disabled={editingId !== null || busyId !== null}
+                                        onClick={() => {
+                                            setSuccess("");
+                                            setEditingId(item.maKhuyenMai);
+                                        }}
+                                    >
+                                        Sửa mã
+                                    </button>
+                                )}
+
                             </article>
                         ))}
                     </div>

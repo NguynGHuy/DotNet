@@ -24,6 +24,22 @@ namespace DatMonAnOnline.API.Controllers
             );
         }
 
+        private async Task<bool> CoQuyenQuanLyKhuyenMai(Khuyenmai km)
+        {
+            if (User.IsInRole("Admin"))
+                return true;
+
+            if (!User.IsInRole("Quan") || !km.MaNhaHang.HasValue)
+                return false;
+
+            var maTaiKhoan = GetCurrentUserId();
+
+            return await _context.Nhahangs.AnyAsync(n =>
+                n.MaTaiKhoan == maTaiKhoan &&
+                n.MaNhaHang == km.MaNhaHang.Value
+            );
+        }
+
         // =========================
         // TẠO KHUYẾN MÃI
         // =========================
@@ -153,6 +169,30 @@ namespace DatMonAnOnline.API.Controllers
             if (km == null)
                 return NotFound();
 
+            if (!await CoQuyenQuanLyKhuyenMai(km))
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền quản lý mã khuyến mãi này."
+                });
+            }
+
+            if (request.NgayKetThuc <= request.NgayBatDau)
+            {
+                return BadRequest(new
+                {
+                    message = "Thời gian kết thúc phải sau thời gian bắt đầu."
+                });
+            }
+
+            if (request.SoLuong < 1 || request.SoLuong < km.SoLuongDaDung)
+            {
+                return BadRequest(new
+                {
+                    message = "Số lượng phải lớn hơn 0 và không nhỏ hơn số lượt đã dùng."
+                });
+            }
+
             km.MoTa = request.MoTa;
             km.SoLuong = request.SoLuong;
             km.NgayBatDau = request.NgayBatDau;
@@ -178,6 +218,14 @@ namespace DatMonAnOnline.API.Controllers
 
             if (km == null)
                 return NotFound();
+
+            if (!await CoQuyenQuanLyKhuyenMai(km))
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền quản lý mã khuyến mãi này."
+                });
+            }
 
             km.TrangThai = !km.TrangThai;
 

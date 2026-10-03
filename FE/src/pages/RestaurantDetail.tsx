@@ -30,6 +30,7 @@ import {
 import { addToCart } from "../services/cartService";
 
 import RestaurantReviews from "../components/RestaurantReviews";
+import FoodReviews from "../components/FoodReviews";
 
 interface Restaurant {
     maNhaHang: number;
@@ -1112,6 +1113,7 @@ function RestaurantDetail() {
                                                     ● Đang bán
                                                 </span>
                                             </div>
+                                            <FoodReviews maMonAn={item.maMonAn} />
                                         </div>
                                     </article>
                                 )

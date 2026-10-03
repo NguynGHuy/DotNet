@@ -22,6 +22,73 @@ namespace DatMonAnOnline.API.Controllers
             return _context.Khachhangs.FirstOrDefault(k => k.MaTaiKhoan == tkId)?.MaKhachHang ?? 0;
         }
 
+        [HttpGet("api/don-hang/{id:int}/danh-gia-cua-toi")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> LayDanhGiaCuaToiTrongDon(int id)
+        {
+            var maKhachHang = GetKhachHangId();
+
+            if (maKhachHang == 0)
+                return Unauthorized(new
+                {
+                    message = "Không tìm thấy thông tin khách hàng."
+                });
+
+            var donHang = await _context.Donhangs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.MaDonHang == id);
+
+            if (donHang == null)
+                return NotFound(new
+                {
+                    message = "Không tìm thấy đơn hàng."
+                });
+
+            if (donHang.MaKhachHang != maKhachHang)
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền xem đánh giá của đơn này."
+                });
+
+            var danhGiaQuan = await _context.Danhgianhahangs
+                .AsNoTracking()
+                .Where(x =>
+                    x.MaDonHang == id &&
+                    x.MaKhachHang == maKhachHang)
+                .Select(x => new
+                {
+                    x.MaDanhGia,
+                    x.MaNhaHang,
+                    x.SoSao,
+                    x.NoiDung,
+                    x.NgayDanhGia
+                })
+                .FirstOrDefaultAsync();
+
+            var danhGiaMon = await _context.Danhgiamonans
+                .AsNoTracking()
+                .Where(x =>
+                    x.MaDonHang == id &&
+                    x.MaKhachHang == maKhachHang)
+                .OrderBy(x => x.MaMonAn)
+                .Select(x => new
+                {
+                    x.MaDanhGia,
+                    x.MaMonAn,
+                    x.SoSao,
+                    x.NoiDung,
+                    x.NgayDanhGia
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                maDonHang = id,
+                danhGiaQuan,
+                danhGiaMon
+            });
+        }
+
         [HttpPost("api/danh-gia-mon-an")]
         [Authorize(Roles = "KhachHang")]
         public async Task<IActionResult> DanhGiaMonAn([FromBody] DanhGiaMonAnRequest req)

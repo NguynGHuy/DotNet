@@ -4,10 +4,12 @@ import {
     createFoodReview,
     createRestaurantReview,
 } from "../services/reviewService";
+import type { SavedReview } from "../services/reviewService";
 
 type Props = {
     maDonHang: number;
     title: string;
+    existingReview?: SavedReview | null;
 } & (
         | { loai: "mon"; maMonAn: number }
         | { loai: "quan"; maNhaHang: number }
@@ -25,7 +27,7 @@ function OrderReviewForm(props: Props) {
         event: SyntheticEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
-        if (busy || success) return;
+        if (busy || success || props.existingReview) return;
 
         try {
             setBusy(true);
@@ -62,14 +64,31 @@ function OrderReviewForm(props: Props) {
         }
     };
 
+    const savedReview: SavedReview | null =
+        props.existingReview ??
+        (success ? { soSao, noiDung: noiDung.trim() || null } : null);
+
     return (
         <form className="order-review-form" onSubmit={handleSubmit}>
             <h3>{props.title}</h3>
 
-            {success ? (
-                <p className="order-review-success" role="status">
-                    ✓ Đã gửi đánh giá thành công.
-                </p>
+            {savedReview ? (
+                <div className="order-review-saved">
+                    <p className="order-review-success" role="status">
+                        ✓ Đã đánh giá
+                    </p>
+                    <p
+                        className="order-review-saved-stars"
+                        aria-label={`${savedReview.soSao} trên 5 sao`}
+                    >
+                        {"★".repeat(savedReview.soSao)}
+                        {"☆".repeat(5 - savedReview.soSao)}
+                        {" "}{savedReview.soSao}/5
+                    </p>
+                    <p className="order-review-saved-content">
+                        {savedReview.noiDung || "Bạn không để lại nhận xét."}
+                    </p>
+                </div>
             ) : (
                 <>
                     <fieldset disabled={busy}>

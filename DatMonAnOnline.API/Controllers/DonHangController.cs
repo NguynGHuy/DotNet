@@ -464,6 +464,18 @@ namespace DatMonAnOnline.API.Controllers
                 return BadRequest(new { Message = "Không thể huỷ đơn hàng ở trạng thái hiện tại." });
             }
 
+            // Lấy tài khoản khách và quán, loại người đang thực hiện hủy.
+            var taiKhoanNhanThongBao = await _context.Khachhangs
+                .Where(x => x.MaKhachHang == donHang.MaKhachHang)
+                .Select(x => x.MaTaiKhoan)
+                .Union(
+                    _context.Nhahangs
+                        .Where(x => x.MaNhaHang == donHang.MaNhaHang)
+                        .Select(x => x.MaTaiKhoan)
+                )
+                .Where(x => x != maTaiKhoan.Value)
+                .ToListAsync();
+
             donHang.MaTrangThai = 6; // DaHuy
             donHang.LyDoHuy = request.LyDoHuy;
 
@@ -475,6 +487,38 @@ namespace DatMonAnOnline.API.Controllers
                 ThoiGianTao = DateTime.Now,
                 GhiChu = $"Huỷ đơn. Lý do: {request.LyDoHuy}"
             });
+
+            var nguoiHuy = role switch
+            {
+                "KhachHang" => "Khách hàng",
+                "Quan" => "Quán",
+                _ => "Hệ thống"
+            };
+
+            var lyDo = request.LyDoHuy?.Trim();
+
+            var noiDungThongBao =
+                $"{nguoiHuy} đã hủy đơn {donHang.MaDonHangHienThi}.";
+
+            if (!string.IsNullOrWhiteSpace(lyDo))
+            {
+                noiDungThongBao += $" Lý do: {lyDo}";
+            }
+
+            foreach (var taiKhoanNhan in taiKhoanNhanThongBao)
+            {
+                _context.Thongbaos.Add(new Thongbao
+                {
+                    MaTaiKhoan = taiKhoanNhan,
+                    TieuDe = "Đơn hàng đã bị hủy",
+                    NoiDung = noiDungThongBao.Length > 500
+                        ? noiDungThongBao[..500]
+                        : noiDungThongBao,
+                    Loai = "DonHang",
+                    DaDoc = false,
+                    NgayTao = DateTime.Now
+                });
+            }
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Huỷ đơn hàng thành công." });
@@ -564,6 +608,21 @@ namespace DatMonAnOnline.API.Controllers
                 .FirstOrDefaultAsync(x => x.MaTrangThai == request.MaTrangThai);
             if (trangThaiMoi == null)
                 return BadRequest(new { message = "Mã trạng thái không hợp lệ." });
+
+            var maTaiKhoanKhach = await _context.Khachhangs
+                .AsNoTracking()
+                .Where(x => x.MaKhachHang == donHang.MaKhachHang)
+                .Select(x => (int?)x.MaTaiKhoan)
+                .FirstOrDefaultAsync();
+
+            if (maTaiKhoanKhach == null)
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy khách hàng của đơn hàng."
+                });
+            }
+
             donHang.MaTrangThai = request.MaTrangThai;
             if (request.MaTrangThai == 5)  // cap nhat thoi gian giao thuc te va thanh toan khi nhan hang 
             {
@@ -589,6 +648,28 @@ namespace DatMonAnOnline.API.Controllers
                     ? $"Quán cập nhật trạng thái: {trangThaiMoi.TenTrangThai}"
                     : request.GhiChu.Trim()
             });
+
+            var noiDungThongBao = request.MaTrangThai switch
+            {
+                2 => $"Quán {nhaHang.TenNhaHang} đã xác nhận đơn {donHang.MaDonHangHienThi}.",
+                3 => $"Quán {nhaHang.TenNhaHang} đang chuẩn bị đơn {donHang.MaDonHangHienThi}.",
+                4 => $"Đơn {donHang.MaDonHangHienThi} đang được giao đến bạn.",
+                5 => $"Đơn {donHang.MaDonHangHienThi} đã hoàn thành. Bạn có thể đánh giá quán và món ăn.",
+                _ => $"Đơn {donHang.MaDonHangHienThi} đã cập nhật trạng thái."
+            };
+
+            _context.Thongbaos.Add(new Thongbao
+            {
+                MaTaiKhoan = maTaiKhoanKhach.Value,
+                TieuDe = "Cập nhật đơn hàng",
+                NoiDung = noiDungThongBao.Length > 500
+                    ? noiDungThongBao[..500]
+                    : noiDungThongBao,
+                Loai = "DonHang",
+                DaDoc = false,
+                NgayTao = DateTime.Now
+            });
+
             await _context.SaveChangesAsync();
             return Ok(new
             {
