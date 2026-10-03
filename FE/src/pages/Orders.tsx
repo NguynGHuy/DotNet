@@ -52,7 +52,24 @@ function Orders() {
         return "#6b7280";
     }
   };
-
+const getStatusLabel = (status: string) => {
+    switch (status) {
+        case "ChoXacNhan":
+            return "Chờ xác nhận";
+        case "DaXacNhan":
+            return "Đã xác nhận";
+        case "DangChuanBi":
+            return "Đang chuẩn bị";
+        case "DangGiao":
+            return "Đang giao";
+        case "HoanThanh":
+            return "Hoàn thành";
+        case "DaHuy":
+            return "Đã hủy";
+        default:
+            return "Không xác định";
+    }
+};
   if (loading)
     return (
       <div className="loading-spinner" style={{ margin: "100px auto" }}></div>
@@ -95,7 +112,7 @@ function Orders() {
                     color: getStatusColor(order.trangThai),
                   }}
                 >
-                  {order.trangThai}
+                  {getStatusLabel(order.trangThai)}
                 </span>
               </div>
               <div className="order-body">
