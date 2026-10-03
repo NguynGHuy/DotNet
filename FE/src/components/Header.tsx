@@ -3,406 +3,301 @@ import { Link, useNavigate } from "react-router-dom";
 import { getCurrentUser } from "../services/userService";
 
 interface User {
-    email: string;
-    role: string;
-    maTaiKhoan: number;
-    trangThai: boolean;
+  email: string;
+  role: string;
+  maTaiKhoan: number;
+  trangThai: boolean;
 
-    khachHang?: {
-        hoTen: string;
-    };
+  khachHang?: {
+    hoTen: string;
+  };
 
-    nhaHang?: {
-        maNhaHang: number;
-        tenNhaHang: string;
-    };
+  nhaHang?: {
+    maNhaHang: number;
+    tenNhaHang: string;
+  };
 }
 
 function Header() {
-    const navigate = useNavigate();
-    const [user, setUser] = useState<User | null>(null);
-    const [showMenu, setShowMenu] = useState(false);
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
-    useEffect(() => {
-        const token = localStorage.getItem("token");
+  useEffect(() => {
+    const token = localStorage.getItem("token");
 
-        if (token) {
-            getCurrentUser()
-                .then((data) => {
-                    setUser(data);
-                })
-                .catch(() => {
-                    localStorage.removeItem("token");
-                    setUser(null);
-                });
-        }
+    if (token) {
+      getCurrentUser()
+        .then((data) => {
+          setUser(data);
+        })
+        .catch(() => {
+          localStorage.removeItem("token");
+          setUser(null);
+        });
+    }
 
-        const handleLoginSuccess = (event: Event) => {
-            const customEvent = event as CustomEvent<User>;
+    const handleLoginSuccess = (event: Event) => {
+      const customEvent = event as CustomEvent<User>;
 
-            setUser(customEvent.detail);
-        };
-
-        window.addEventListener(
-            "login-success",
-            handleLoginSuccess
-        );
-
-        return () => {
-            window.removeEventListener(
-                "login-success",
-                handleLoginSuccess
-            );
-        };
-    }, []);
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        setUser(null);
-        setShowMenu(false);
-        navigate("/dang-nhap");
+      setUser(customEvent.detail);
     };
 
-    // Tên hiển thị tùy theo role
-    const userName =
-        user?.role === "Quan"
-            ? user?.nhaHang?.tenNhaHang ||
-              user?.email ||
-              "Nhà hàng"
-            : user?.khachHang?.hoTen ||
-              user?.email ||
-              "Tài khoản";
+    window.addEventListener("login-success", handleLoginSuccess);
 
-    return (
-        <header className="header">
-            <div className="header-container">
+    return () => {
+      window.removeEventListener("login-success", handleLoginSuccess);
+    };
+  }, []);
 
-                {/* =========================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setShowMenu(false);
+    //navigate("/dang-nhap");
+    navigate("/");
+  };
+
+  // Tên hiển thị tùy theo role
+  const userName =
+    user?.role === "Quan"
+      ? user?.nhaHang?.tenNhaHang || user?.email || "Nhà hàng"
+      : user?.khachHang?.hoTen || user?.email || "Tài khoản";
+
+  return (
+    <header className="header">
+      <div className="header-container">
+        {/* =========================
                     LOGO
                 ========================= */}
 
-                <Link to="/" className="logo">
-                    <span className="logo-icon">
-                        🍜
-                    </span>
+        <Link to="/" className="logo">
+          <span className="logo-icon">🍜</span>
 
-                    <span>
-                        Đặt Món Ăn
-                    </span>
-                </Link>
+          <span>Đặt Món Ăn</span>
+        </Link>
 
-
-                {/* =========================
+        {/* =========================
                     NAVIGATION
                 ========================= */}
 
-                <nav className="main-nav">
+        <nav className="main-nav">
+          <Link to="/" className="nav-link">
+            Trang chủ
+          </Link>
 
-                    <Link
-                        to="/"
-                        className="nav-link"
-                    >
-                        Trang chủ
-                    </Link>
+          <Link to="/nha-hang" className="nav-link">
+            Nhà hàng
+          </Link>
+        </nav>
 
-                    <Link
-                        to="/nha-hang"
-                        className="nav-link"
-                    >
-                        Nhà hàng
-                    </Link>
-
-                </nav>
-
-
-                {/* =========================
+        {/* =========================
                     RIGHT SIDE
                 ========================= */}
 
-                <div className="header-right">
+        <div className="header-right">
+          {/* CART */}
 
-                    {/* CART */}
+          {(!user || user.role === "KhachHang") && (
+            <Link
+              to="/gio-hang"
+              className="cart-button"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textDecoration: "none",
+              }}
+            >
+              🛒
+            </Link>
+          )}
 
-                    {(!user || user.role === "KhachHang") && (
-                        <Link
-                            to="/gio-hang"
-                            className="cart-button"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                textDecoration: "none",
-                            }}
-                        >
-                            🛒
-                        </Link>
-                    )}
-
-
-                    {/* =========================
+          {/* =========================
                         USER LOGGED IN
                     ========================= */}
 
-                    {user ? (
+          {user ? (
+            <div className="user-menu-wrapper">
+              <button
+                className="user-menu-button"
+                onClick={() => setShowMenu(!showMenu)}
+              >
+                <span className="user-avatar">
+                  {userName.charAt(0).toUpperCase()}
+                </span>
 
-                        <div className="user-menu-wrapper">
+                <span className="user-name">{userName}</span>
 
-                            <button
-                                className="user-menu-button"
-                                onClick={() =>
-                                    setShowMenu(!showMenu)
-                                }
-                            >
+                <span className="user-arrow">{showMenu ? "▲" : "▼"}</span>
+              </button>
 
-                                <span className="user-avatar">
-                                    {userName
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </span>
-
-                                <span className="user-name">
-                                    {userName}
-                                </span>
-
-                                <span className="user-arrow">
-                                    {showMenu
-                                        ? "▲"
-                                        : "▼"}
-                                </span>
-
-                            </button>
-
-
-                            {/* =========================
+              {/* =========================
                                 DROPDOWN
                             ========================= */}
 
-                            {showMenu && (
+              {showMenu && (
+                <div className="user-dropdown">
+                  {/* USER INFO */}
 
-                                <div className="user-dropdown">
+                  <div className="dropdown-user-info">
+                    <div className="dropdown-avatar">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
 
-                                    {/* USER INFO */}
+                    <div>
+                      <strong>{userName}</strong>
 
-                                    <div className="dropdown-user-info">
+                      <span>{user.email}</span>
+                    </div>
+                  </div>
 
-                                        <div className="dropdown-avatar">
-                                            {userName
-                                                .charAt(0)
-                                                .toUpperCase()}
-                                        </div>
+                  <div className="dropdown-divider" />
 
-                                        <div>
-
-                                            <strong>
-                                                {userName}
-                                            </strong>
-
-                                            <span>
-                                                {user.email}
-                                            </span>
-
-                                        </div>
-
-                                    </div>
-
-
-                                    <div className="dropdown-divider" />
-
-
-                                    {/* ==================================================
+                  {/* ==================================================
                                         KHÁCH HÀNG
                                     ================================================== */}
 
-                                    {user.role === "KhachHang" && (
-                                        <>
+                  {user.role === "KhachHang" && (
+                    <>
+                      <Link
+                        to="/ho-so"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>👤</span>
+                        Hồ sơ
+                      </Link>
 
-                                            <Link
-                                                to="/ho-so"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>👤</span>
-                                                Hồ sơ
-                                            </Link>
+                      <Link
+                        to="/dia-chi"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>📍</span>
+                        Địa chỉ giao hàng
+                      </Link>
 
+                      <Link
+                        to="/don-hang"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>🧾</span>
+                        Đơn hàng của tôi
+                      </Link>
 
-                                            <Link
-                                                to="/dia-chi"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>📍</span>
-                                                Địa chỉ giao hàng
-                                            </Link>
+                      <Link
+                        to="/thong-bao"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>🔔</span>
+                        Thông báo
+                      </Link>
+                    </>
+                  )}
 
-
-                                            <Link
-                                                to="/don-hang"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>🧾</span>
-                                                Đơn hàng của tôi
-                                            </Link>
-
-
-                                            <Link
-                                                to="/thong-bao"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>🔔</span>
-                                                Thông báo
-                                            </Link>
-
-                                        </>
-                                    )}
-
-
-                                    {/* ==================================================
+                  {/* ==================================================
                                         CHỦ NHÀ HÀNG
                                     ================================================== */}
 
-                                    {user.role === "Quan" && (
-                                        <>
+                  {user.role === "Quan" && (
+                    <>
+                      <Link
+                        to="/quan"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>🏪</span>
+                        Quản lý nhà hàng
+                      </Link>
 
-                                            <Link
-                                                to="/quan"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>🏪</span>
-                                                Quản lý nhà hàng
-                                            </Link>
+                      <Link
+                        to="/quan/khuyen-mai"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>🎟️</span>
+                        Mã giảm giá của quán
+                      </Link>
 
+                      <Link
+                        to="/quan/thong-bao"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>🔔</span>
+                        Thông báo
+                      </Link>
+                    </>
+                  )}
 
-                                            <Link
-                                                to="/quan/khuyen-mai"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>🎟️</span>
-                                                Mã giảm giá của quán
-                                            </Link>
-
-
-                                            <Link
-                                                to="/quan/thong-bao"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>🔔</span>
-                                                Thông báo
-                                            </Link>
-
-                                        </>
-                                    )}
-
-
-                                    {/* ==================================================
+                  {/* ==================================================
                                         ADMIN
                                     ================================================== */}
 
-                                    {user.role === "Admin" && (
-                                        <>
+                  {user.role === "Admin" && (
+                    <>
+                      <Link
+                        to="/admin/tai-khoan"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>👥</span>
+                        Quản lý tài khoản
+                      </Link>
 
-                                            <Link
-                                                to="/admin/tai-khoan"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>👥</span>
-                                                Quản lý tài khoản
-                                            </Link>
+                      <Link
+                        to="/admin"
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span>⚙️</span>
+                        Trang quản trị
+                      </Link>
+                    </>
+                  )}
 
-
-                                            <Link
-                                                to="/admin"
-                                                className="dropdown-item"
-                                                onClick={() =>
-                                                    setShowMenu(false)
-                                                }
-                                            >
-                                                <span>⚙️</span>
-                                                Trang quản trị
-                                            </Link>
-
-                                        </>
-                                    )}
-
-
-                                    {/* =========================
+                  {/* =========================
                                         DIVIDER
                                     ========================= */}
 
-                                    <div className="dropdown-divider" />
+                  <div className="dropdown-divider" />
 
-
-                                    {/* =========================
+                  {/* =========================
                                         LOGOUT
                                     ========================= */}
 
-                                    <button
-                                        className="dropdown-item logout-item"
-                                        onClick={handleLogout}
-                                    >
-                                        <span>🚪</span>
-                                        Đăng xuất
-                                    </button>
-
-                                </div>
-                            )}
-
-                        </div>
-
-                    ) : (
-
-                        /* =========================
+                  <button
+                    className="dropdown-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    <span>🚪</span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* =========================
                            NOT LOGGED IN
                         ========================= */
 
-                        <div className="auth-area">
+            <div className="auth-area">
+              <Link to="/dang-nhap" className="login-link">
+                Đăng nhập
+              </Link>
 
-                            <Link
-                                to="/dang-nhap"
-                                className="login-link"
-                            >
-                                Đăng nhập
-                            </Link>
-
-
-                            <Link
-                                to="/dang-ky"
-                                className="register-button"
-                            >
-                                Đăng ký
-                            </Link>
-
-                        </div>
-
-                    )}
-
-                </div>
-
+              <Link to="/dang-ky" className="register-button">
+                Đăng ký
+              </Link>
             </div>
-        </header>
-    );
+          )}
+        </div>
+      </div>
+    </header>
+  );
 }
 
 export default Header;
