@@ -58,6 +58,7 @@ namespace DatMonAnOnline.API.Controllers
                 MaChiTietGioHang = ct.MaChiTietGioHang,
                 MaMonAn = ct.MaMonAn,
                 TenMonAn = ct.MaMonAnNavigation.TenMonAn,
+                HinhAnh = ct.MaMonAnNavigation.HinhAnh,
                 DonGia = ct.MaMonAnNavigation.Gia,
                 SoLuong = ct.SoLuong,
                 GhiChu = ct.GhiChu,

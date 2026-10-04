@@ -51,9 +51,6 @@ function Cart() {
                 <h2>Giỏ hàng trống</h2>
                 <p>Hãy thêm món ăn hấp dẫn vào giỏ hàng nhé!</p>
                 <Link to="/" className="menu-button">Đi chọn món</Link>
-                <button className="checkout-btn" onClick={() => navigate('/thanh-toan')} style={{ marginTop: 16 }}>
-                    Đặt món
-                </button>
             </main>
         );
     }
@@ -97,9 +94,6 @@ function Cart() {
                         <span>Tạm tính:</span>
                         <span>{cart.tongTienTamTinh.toLocaleString('vi-VN')} đ</span>
                     </div>
-                    {/* KHOI PHUC KHI GIO HANG DAY DU
-                    <button className="checkout-btn" onClick={() => navigate('/thanh-toan')}>Tiến hành Đặt hàng →</button>
-                    */}
                     <button className="checkout-btn" onClick={() => navigate('/thanh-toan')}>Đặt món</button>
                 </div>
             </div>

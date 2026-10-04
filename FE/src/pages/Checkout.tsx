@@ -2,21 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getAddresses } from "../services/addressService";
 import type { Address } from "../services/addressService";
-// KHOI PHUC KHI GIO HANG DAY DU: import { checkPreCheckout, placeOrder } from "../services/orderService";
-// KHOI PHUC KHI GIO HANG DAY DU: import { getCart } from "../services/cartService";
-import { placeTemporaryOrder } from "../services/orderService";
+import { checkPreCheckout, placeOrder } from "../services/orderService";
+import type { TienDonHang } from "../services/orderService";
+import { getCart } from "../services/cartService";
 import { checkPromotion } from "../services/promotionService";
-import { getMonAns } from "../services/menuService";
 import { getRestaurantById } from "../services/restaurantService";
 import {
   changePaymentMethod,
-  docDonDangThanhToan,
   getPaymentMethods,
-  getPaymentsByOrder,
-  ghiDonDangThanhToan,
   simulatePayment,
-  xoaDonDangThanhToan,
-  type DonDangThanhToan,
+  type DongMonNho,
 } from "../services/paymentService";
 import PaymentQr from "../components/PaymentQr";
 
@@ -27,57 +22,23 @@ interface CheckoutData {
   thanhTien: number;
 }
 
-interface MonTam {
-  maMonAn: number;
-  tenMonAn: string;
-  gia: number;
-}
-
 interface PhuongThucThanhToan {
   maPhuongThuc: number;
   tenPhuongThuc: string;
 }
 
-const MA_NHA_HANG_TAM = 3;
+// Một dòng món trong giỏ: tên, ảnh, số lượng, tiền và topping để trang xác nhận vẽ ra.
+interface GioHangDong {
+  tenMonAn: string;
+  hinhAnh?: string | null;
+  soLuong: number;
+  thanhTien: number;
+  toppings?: { tenTopping?: string; giaThem?: number }[];
+}
 
-async function donConTiepTuc(): Promise<(DonDangThanhToan & { moQr: boolean }) | null> {
-  const pending = docDonDangThanhToan();
-  if (!pending) return null;
-
-  let payments: Array<{
-    maThanhToan: number;
-    maPhuongThuc: number;
-    tenPhuongThuc: string;
-    trangThaiThanhToan: string;
-  }> = [];
-  try {
-    const raw = await getPaymentsByOrder(pending.maDonHang);
-    payments = Array.isArray(raw) ? raw : [];
-  } catch {
-    return null;
-  }
-
-  const latest = [...payments].sort((a, b) => b.maThanhToan - a.maThanhToan)[0];
-  if (
-    !latest ||
-    latest.trangThaiThanhToan === "ThanhCong" ||
-    latest.tenPhuongThuc === "COD"
-  ) {
-    xoaDonDangThanhToan();
-    return null;
-  }
-
-  const next: DonDangThanhToan = {
-    ...pending,
-    maThanhToan: latest.maThanhToan,
-    maPhuongThuc: latest.maPhuongThuc,
-    tenPhuongThuc: latest.tenPhuongThuc,
-  };
-  ghiDonDangThanhToan(next);
-  return {
-    ...next,
-    moQr: latest.trangThaiThanhToan === "ChoThanhToan",
-  };
+interface GioHang {
+  maNhaHang: number | null;
+  chiTiet: GioHangDong[];
 }
 
 interface DonTamDaTao {
@@ -85,6 +46,29 @@ interface DonTamDaTao {
   maDonHangHienThi: string;
   maThanhToan: number;
 }
+
+function soTien(raw: TienDonHang): CheckoutData {
+  return {
+    tongTienHang: Number(raw.tongTienHang),
+    phiShip: Number(raw.phiShip),
+    soTienGiam: Number(raw.soTienGiam),
+    thanhTien: Number(raw.thanhTien),
+  };
+}
+
+function mapDong(chiTiet: GioHangDong[]): DongMonNho[] {
+  return chiTiet.map((item) => ({
+    tenMonAn: item.tenMonAn,
+    hinhAnh: item.hinhAnh?.trim() || null,
+    soLuong: item.soLuong,
+    thanhTien: item.thanhTien,
+    toppings: (item.toppings ?? []).map((tp) => ({
+      tenTopping: tp.tenTopping ?? "",
+      giaThem: tp.giaThem ?? 0,
+    })),
+  }));
+}
+
 function Checkout() {
   const navigate = useNavigate();
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -101,16 +85,13 @@ function Checkout() {
   const [promoBusy, setPromoBusy] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  /* KHOI PHUC KHI GIO HANG DAY DU
-  const [placingOrder, setPlacingOrder] = useState(false);
-  */
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
   const [showBill, setShowBill] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [qrBusy, setQrBusy] = useState(false);
   const [donDaTao, setDonDaTao] = useState<DonTamDaTao | null>(null);
-  const [monTam, setMonTam] = useState<MonTam | null>(null);
+  const [dongGio, setDongGio] = useState<DongMonNho[]>([]);
   const [tenNhaHang, setTenNhaHang] = useState("");
   const [phuongThucList, setPhuongThucList] = useState<PhuongThucThanhToan[]>(
     [],
@@ -122,89 +103,32 @@ function Checkout() {
   useEffect(() => {
     const initCheckout = async () => {
       try {
-        // 1. Lấy địa chỉ
-        const addrData = await getAddresses();
+        const [addrData, phuongThuc, cart] = await Promise.all([
+          getAddresses(),
+          getPaymentMethods(),
+          getCart() as Promise<GioHang>,
+        ]);
         setAddresses(addrData);
+        setPhuongThucList(phuongThuc);
         const defaultAddr =
           addrData.find((a: Address) => a.macDinh) || addrData[0];
         if (defaultAddr) setSelectedAddressId(defaultAddr.maDiaChi);
 
-        /* KHOI PHUC KHI GIO HANG DAY DU
-                // 2. Tính tiền (Gọi API của Người 3)
-                const [moneyData, cart] = await Promise.all([
-                    checkPreCheckout(null),
-                    getCart(),
-                ]);
-                setCheckoutData(moneyData);
-                setRestaurantId(cart.maNhaHang);
-                */
-
-        const [nhaHang, monAns, phuongThuc] = await Promise.all([
-          getRestaurantById(MA_NHA_HANG_TAM),
-          getMonAns(MA_NHA_HANG_TAM),
-          getPaymentMethods(),
-        ]);
-
-        const monDangBan = monAns
-          .filter((mon) => mon.trangThai)
-          .sort((a, b) => a.maMonAn - b.maMonAn)[0];
-
-        setRestaurantId(MA_NHA_HANG_TAM);
-        setPhuongThucList(phuongThuc);
-
-        const donNho = await donConTiepTuc();
-        if (donNho) {
-          setSelectedAddressId(donNho.maDiaChi);
-          setGhiChu(donNho.ghiChu);
-          setMaCode(donNho.maCode);
-          setPromotionId(donNho.promotionId);
-          setTenNhaHang(donNho.tenNhaHang);
-          setMonTam({
-            maMonAn: donNho.maMonAn,
-            tenMonAn: donNho.tenMonAn,
-            gia: donNho.gia,
-          });
-          setSelectedPaymentId(donNho.maPhuongThuc);
-          setCheckoutData({
-            tongTienHang: donNho.tongTienHang,
-            phiShip: donNho.phiShip,
-            soTienGiam: donNho.soTienGiam,
-            thanhTien: donNho.thanhTien,
-          });
-          setDonDaTao({
-            maDonHang: donNho.maDonHang,
-            maDonHangHienThi: donNho.maDonHangHienThi,
-            maThanhToan: donNho.maThanhToan,
-          });
-          if (donNho.moQr) {
-            setShowBill(true);
-            setShowQr(true);
-          }
-          return;
+        if (!cart?.chiTiet?.length || cart.maNhaHang == null) {
+          throw new Error("Giỏ hàng trống.");
         }
 
-        if (!monDangBan) {
-          throw new Error("Nhà hàng tạm không còn món đang bán.");
-        }
-
-        const phiShip = nhaHang.phiShipMacDinh;
+        const nhaHang = await getRestaurantById(cart.maNhaHang);
+        const money = await checkPreCheckout(null);
+        setRestaurantId(cart.maNhaHang);
         setTenNhaHang(nhaHang.tenNhaHang);
-        setMonTam({
-          maMonAn: monDangBan.maMonAn,
-          tenMonAn: monDangBan.tenMonAn,
-          gia: monDangBan.gia,
-        });
+        setDongGio(mapDong(cart.chiTiet));
+        setCheckoutData(soTien(money));
         const macDinh =
           phuongThuc.find(
             (item: PhuongThucThanhToan) => item.tenPhuongThuc === "COD",
           ) ?? phuongThuc[0];
         setSelectedPaymentId(macDinh ? macDinh.maPhuongThuc : null);
-        setCheckoutData({
-          tongTienHang: monDangBan.gia,
-          phiShip,
-          soTienGiam: 0,
-          thanhTien: monDangBan.gia + phiShip,
-        });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Có lỗi xảy ra";
@@ -229,19 +153,8 @@ function Checkout() {
         restaurantId,
         checkoutData.tongTienHang,
       );
-
-      /* KHOI PHUC KHI GIO HANG DAY DU
-            const updatedCheckout = await checkPreCheckout(result.maKhuyenMai);
-            setCheckoutData(updatedCheckout);
-            */
-      setCheckoutData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          soTienGiam: result.soTienGiam,
-          thanhTien: prev.tongTienHang + prev.phiShip - result.soTienGiam,
-        };
-      });
+      const money = await checkPreCheckout(result.maKhuyenMai);
+      setCheckoutData(soTien(money));
       setPromotionId(result.maKhuyenMai);
       setPromoMessage("Áp dụng mã thành công.");
     } catch (err) {
@@ -254,18 +167,8 @@ function Checkout() {
   const handleRemovePromotion = async () => {
     try {
       setPromoBusy(true);
-      /* KHOI PHUC KHI GIO HANG DAY DU
-            const updatedCheckout = await checkPreCheckout(null);
-            setCheckoutData(updatedCheckout);
-            */
-      setCheckoutData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          soTienGiam: 0,
-          thanhTien: prev.tongTienHang + prev.phiShip,
-        };
-      });
+      const money = await checkPreCheckout(null);
+      setCheckoutData(soTien(money));
       setPromotionId(null);
       setMaCode("");
       setPromoMessage("");
@@ -276,83 +179,24 @@ function Checkout() {
     }
   };
 
-  /* KHOI PHUC KHI GIO HANG DAY DU
-  const handlePlaceOrder = async () => {
-    if (!selectedAddressId) {
-      alert("Vui lòng chọn địa chỉ giao hàng!");
-      return;
-    }
-    try {
-      setPlacingOrder(true);
-      const res = await placeOrder({
-        maDiaChi: selectedAddressId,
-        maKhuyenMai: promotionId,
-        ghiChu: ghiChu,
-      });
-      alert("Đặt hàng thành công! Mã đơn: " + res.maDonHangHienThi);
-      navigate("/don-hang"); // Chuyển tới lịch sử đơn hàng
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
-      alert("Lỗi đặt hàng: " + message);
-    } finally {
-      setPlacingOrder(false);
-    }
-  };
-  */
-
   const recheckBeforeOrder = async () => {
-    if (!monTam || restaurantId === null) {
-      throw new Error("Thiếu thông tin món tạm.");
+    if (restaurantId === null) {
+      throw new Error("Giỏ hàng trống.");
     }
 
-    const [nhaHang, monAns] = await Promise.all([
-      getRestaurantById(MA_NHA_HANG_TAM),
-      getMonAns(MA_NHA_HANG_TAM),
+    const [cart, money] = await Promise.all([
+      getCart() as Promise<GioHang>,
+      checkPreCheckout(promotionId),
     ]);
-
-    if (nhaHang.trangThaiHoatDong !== "MoCua") {
-      throw new Error("Nhà hàng hiện đang tạm ngưng nhận đơn.");
+    if (!cart?.chiTiet?.length) {
+      throw new Error("Giỏ hàng trống.");
     }
 
-    const monConBan = monAns.find(
-      (mon) => mon.maMonAn === monTam.maMonAn && mon.trangThai,
-    );
-    if (!monConBan) {
-      throw new Error("Món tạm không còn được bán.");
-    }
-
-    const phiShip = nhaHang.phiShipMacDinh;
-    let soTienGiam = 0;
-    let maKhuyenMai = promotionId;
-    if (promotionId !== null) {
-      const result = await checkPromotion(
-        maCode.trim(),
-        restaurantId,
-        monConBan.gia,
-      );
-      soTienGiam = result.soTienGiam;
-      maKhuyenMai = result.maKhuyenMai;
-    }
-
-    return { nhaHang, monConBan, phiShip, soTienGiam, maKhuyenMai };
-  };
-
-  const applyFreshTotals = (
-    fresh: Awaited<ReturnType<typeof recheckBeforeOrder>>,
-  ) => {
-    setTenNhaHang(fresh.nhaHang.tenNhaHang);
-    setMonTam({
-      maMonAn: fresh.monConBan.maMonAn,
-      tenMonAn: fresh.monConBan.tenMonAn,
-      gia: fresh.monConBan.gia,
-    });
-    setPromotionId(fresh.maKhuyenMai);
-    setCheckoutData({
-      tongTienHang: fresh.monConBan.gia,
-      phiShip: fresh.phiShip,
-      soTienGiam: fresh.soTienGiam,
-      thanhTien: fresh.monConBan.gia + fresh.phiShip - fresh.soTienGiam,
-    });
+    const lines = mapDong(cart.chiTiet);
+    const tien = soTien(money);
+    setDongGio(lines);
+    setCheckoutData(tien);
+    return { lines, tien };
   };
 
   const handleConfirm = async () => {
@@ -373,17 +217,18 @@ function Checkout() {
       alert("Vui lòng chọn phương thức thanh toán!");
       return;
     }
-    if (!monTam || !checkoutData || restaurantId === null) return;
+    if (!checkoutData || restaurantId === null || dongGio.length === 0) return;
 
     if (maCode.trim() && promotionId === null) {
-      alert("Bạn đã nhập mã giảm giá nhưng chưa áp dụng. Hãy áp dụng hoặc xóa mã.");
+      alert(
+        "Bạn đã nhập mã giảm giá nhưng chưa áp dụng. Hãy áp dụng hoặc xóa mã.",
+      );
       return;
     }
 
     try {
       setConfirming(true);
-      const fresh = await recheckBeforeOrder();
-      applyFreshTotals(fresh);
+      await recheckBeforeOrder();
       setShowBill(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
@@ -397,62 +242,39 @@ function Checkout() {
     const payment = phuongThucList.find(
       (item) => item.maPhuongThuc === selectedPaymentId,
     );
-    if (!payment || selectedAddressId === null) return;
+    if (!payment || selectedAddressId === null || restaurantId === null) return;
 
     try {
       setPaying(true);
 
       if (donDaTao) {
-        const nhaHang = await getRestaurantById(MA_NHA_HANG_TAM);
+        const nhaHang = await getRestaurantById(restaurantId);
         if (nhaHang.trangThaiHoatDong !== "MoCua") {
           alert("Nhà hàng hiện đang tạm ngưng nhận đơn.");
           return;
         }
 
-        const created = await changePaymentMethod(
+        const created = (await changePaymentMethod(
           donDaTao.maThanhToan,
           payment.maPhuongThuc,
-        );
+        )) as { maThanhToanMoi: number };
         const nextPaymentId = Number(created.maThanhToanMoi);
         const donMoi = { ...donDaTao, maThanhToan: nextPaymentId };
         setDonDaTao(donMoi);
         if (payment.tenPhuongThuc === "COD") {
-          xoaDonDangThanhToan();
           navigate(`/don-hang/${donDaTao.maDonHang}`);
           return;
-        }
-        if (monTam && checkoutData) {
-          ghiDonDangThanhToan({
-            maDonHang: donMoi.maDonHang,
-            maDonHangHienThi: donMoi.maDonHangHienThi,
-            maThanhToan: donMoi.maThanhToan,
-            maPhuongThuc: payment.maPhuongThuc,
-            tenPhuongThuc: payment.tenPhuongThuc,
-            maDiaChi: selectedAddressId,
-            ghiChu,
-            maCode,
-            promotionId,
-            tongTienHang: checkoutData.tongTienHang,
-            phiShip: checkoutData.phiShip,
-            soTienGiam: checkoutData.soTienGiam,
-            thanhTien: checkoutData.thanhTien,
-            maMonAn: monTam.maMonAn,
-            tenMonAn: monTam.tenMonAn,
-            gia: monTam.gia,
-            tenNhaHang,
-          });
         }
         setShowQr(true);
         return;
       }
 
-      const fresh = await recheckBeforeOrder();
-      applyFreshTotals(fresh);
-      const res = await placeTemporaryOrder({
+      await recheckBeforeOrder();
+      const res = await placeOrder({
         maDiaChi: selectedAddressId,
         maPhuongThuc: payment.maPhuongThuc,
-        maKhuyenMai: fresh.maKhuyenMai,
-        ghiChu: ghiChu.trim() || null,
+        maKhuyenMai: promotionId,
+        ghiChu,
       });
       if (payment.tenPhuongThuc === "COD") {
         navigate(`/don-hang/${res.maDonHang}`);
@@ -463,23 +285,6 @@ function Checkout() {
         maDonHangHienThi: res.maDonHangHienThi,
         maThanhToan: res.maThanhToan,
       };
-      ghiDonDangThanhToan({
-        ...donMoi,
-        maPhuongThuc: payment.maPhuongThuc,
-        tenPhuongThuc: payment.tenPhuongThuc,
-        maDiaChi: selectedAddressId,
-        ghiChu,
-        maCode,
-        promotionId: fresh.maKhuyenMai,
-        tongTienHang: fresh.monConBan.gia,
-        phiShip: fresh.phiShip,
-        soTienGiam: fresh.soTienGiam,
-        thanhTien: fresh.monConBan.gia + fresh.phiShip - fresh.soTienGiam,
-        maMonAn: fresh.monConBan.maMonAn,
-        tenMonAn: fresh.monConBan.tenMonAn,
-        gia: fresh.monConBan.gia,
-        tenNhaHang: fresh.nhaHang.tenNhaHang,
-      });
       setDonDaTao(donMoi);
       setShowQr(true);
     } catch (error) {
@@ -495,7 +300,6 @@ function Checkout() {
     try {
       setQrBusy(true);
       await simulatePayment(donDaTao.maThanhToan, "ThanhCong");
-      xoaDonDangThanhToan();
       navigate(`/don-hang/${donDaTao.maDonHang}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
@@ -525,8 +329,10 @@ function Checkout() {
       <div className="loading-spinner" style={{ margin: "100px auto" }}></div>
     );
 
-  if (showBill && monTam && checkoutData) {
-    const address = addresses.find((item) => item.maDiaChi === selectedAddressId);
+  if (showBill && dongGio.length > 0 && checkoutData) {
+    const address = addresses.find(
+      (item) => item.maDiaChi === selectedAddressId,
+    );
     const payment = phuongThucList.find(
       (item) => item.maPhuongThuc === selectedPaymentId,
     );
@@ -540,7 +346,7 @@ function Checkout() {
             <p>
               {donDaTao
                 ? `Đơn ${donDaTao.maDonHangHienThi} đã được tạo. Chỉ đổi được phương thức thanh toán.`
-                : "Xem lại thông tin. Đơn hàng chưa được tạo."}
+                : "Xem lại thông tin truoc khi thanh toán."}
             </p>
           </div>
 
@@ -549,12 +355,22 @@ function Checkout() {
           </section>
 
           <section className="invoice-block">
-            <div className="invoice-item">
-              <div className="invoice-line">
-                <strong>{monTam.tenMonAn} x1</strong>
-                <span>{formatMoney(monTam.gia)}</span>
+            {dongGio.map((line, index) => (
+              <div key={`${line.tenMonAn}-${index}`} className="invoice-item">
+                <div className="invoice-line">
+                  <strong>
+                    {line.tenMonAn} x{line.soLuong}
+                  </strong>
+                  <span>{formatMoney(line.thanhTien)}</span>
+                </div>
+                {line.toppings.map((tp, tpIndex) => (
+                  <div key={tpIndex} className="invoice-line invoice-topping">
+                    <span>+ {tp.tenTopping}</span>
+                    <span>{formatMoney(tp.giaThem)}</span>
+                  </div>
+                ))}
               </div>
-            </div>
+            ))}
           </section>
 
           <section className="invoice-block invoice-money">
@@ -592,7 +408,9 @@ function Checkout() {
               <p className="invoice-muted">Ghi chú: {ghiChu.trim()}</p>
             )}
             {payment && (
-              <p className="invoice-muted">Thanh toán: {payment.tenPhuongThuc}</p>
+              <p className="invoice-muted">
+                Thanh toán: {payment.tenPhuongThuc}
+              </p>
             )}
           </section>
 
@@ -616,7 +434,12 @@ function Checkout() {
           </div>
         </div>
         {showQr && payment && (
-          <div className="qr-overlay" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+          <div
+            className="qr-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qr-title"
+          >
             <div className="qr-dialog">
               <h2 id="qr-title">Thanh toán {payment.tenPhuongThuc}</h2>
               <p>Quét mã mô phỏng, rồi chọn kết quả.</p>
@@ -653,23 +476,57 @@ function Checkout() {
         <h2>Xác nhận Đơn hàng</h2>
         {donDaTao && (
           <p className="checkout-promotion-message">
-            Thanh toán đơn {donDaTao.maDonHangHienThi} thất bại. Địa chỉ, món và mã giảm giá giữ nguyên. Hãy chọn phương thức thanh toán khác.
+            Thanh toán đơn {donDaTao.maDonHangHienThi} thất bại. Địa chỉ, món và
+            mã giảm giá giữ nguyên. Hãy chọn phương thức thanh toán khác.
           </p>
         )}
 
-        <div className="checkout-section">
-          <h3>🍜 Món đặt tạm</h3>
-          {monTam && (
-            <>
-              <div className="summary-row">
-                <span>{monTam.tenMonAn} x1</span>
-                <span>{monTam.gia.toLocaleString()} đ</span>
-              </div>
-              {tenNhaHang && (
-                <p style={{ margin: 0, color: "#666" }}>{tenNhaHang}</p>
-              )}
-            </>
+        <div className="checkout-section checkout-shop-sheet">
+          {tenNhaHang && (
+            <div className="checkout-shop-row">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9.5 12 4l8 5.5V20a1 1 0 0 1-1 1h-5.2v-5.2H10.2V21H5a1 1 0 0 1-1-1V9.5Z" />
+              </svg>
+              <strong>{tenNhaHang}</strong>
+            </div>
           )}
+          {dongGio.map((line, index) => (
+            <article
+              key={`${line.tenMonAn}-${index}`}
+              className="checkout-dish-row"
+            >
+              <div className="checkout-dish-thumb">
+                {line.hinhAnh && (
+                  <img
+                    src={line.hinhAnh}
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.remove();
+                    }}
+                  />
+                )}
+              </div>
+              <div className="checkout-dish-body">
+                <div className="checkout-dish-top">
+                  <p className="checkout-dish-name">{line.tenMonAn}</p>
+                  <p className="checkout-dish-price">
+                    {line.thanhTien.toLocaleString("vi-VN")} đ
+                  </p>
+                </div>
+                {line.toppings.length > 0 && (
+                  <div className="checkout-dish-toppings">
+                    {line.toppings.map((tp, tpIndex) => (
+                      <p key={tpIndex} className="checkout-dish-variant">
+                        <span>+ {tp.tenTopping}</span>
+                        <span>{tp.giaThem.toLocaleString("vi-VN")} đ</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="checkout-dish-qty">x{line.soLuong}</p>
+              </div>
+            </article>
+          ))}
         </div>
 
         <div className="checkout-section">
@@ -806,16 +663,6 @@ function Checkout() {
           )}
         </div>
 
-        {/* KHOI PHUC KHI GIO HANG DAY DU
-        <button
-          className="menu-button"
-          onClick={handlePlaceOrder}
-          disabled={placingOrder || promoBusy || addresses.length === 0}
-          style={{ width: "100%", marginTop: 20 }}
-        >
-          {placingOrder ? "Đang xử lý..." : "XÁC NHẬN ĐẶT HÀNG"}
-        </button>
-        */}
         <button
           className="menu-button"
           type="button"

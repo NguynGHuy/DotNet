@@ -6,11 +6,9 @@ import PaymentQr from "../components/PaymentQr";
 import { getRestaurantById } from "../services/restaurantService";
 import {
     changePaymentMethod,
-    docDonDangThanhToan,
     getPaymentMethods,
     getPaymentsByOrder,
     simulatePayment,
-    xoaDonDangThanhToan,
 } from "../services/paymentService";
 import type {
     OrderDetails,
@@ -168,9 +166,6 @@ function OrderDetail() {
             const newPaymentId = Number(created.maThanhToanMoi);
 
             if (method.tenPhuongThuc === "COD") {
-                if (docDonDangThanhToan()?.maDonHang === order.maDonHang) {
-                    xoaDonDangThanhToan();
-                }
                 setShowRetry(false);
                 setPaymentVersion((current) => current + 1);
                 return;
@@ -191,9 +186,6 @@ function OrderDetail() {
         try {
             setQrBusy(true);
             await simulatePayment(qrPaymentId, "ThanhCong");
-            if (order && docDonDangThanhToan()?.maDonHang === order.maDonHang) {
-                xoaDonDangThanhToan();
-            }
             setShowQr(false);
             setShowRetry(false);
             setPaymentVersion((current) => current + 1);

@@ -46,51 +46,10 @@ export async function changePaymentMethod(id: number, maPhuongThuc: number) {
   });
 }
 
-const KHOA_DON_DANG_THANH_TOAN = "don-thanh-toan-dang-do";
-
-export interface DonDangThanhToan {
-  maDonHang: number;
-  maDonHangHienThi: string;
-  maThanhToan: number;
-  maPhuongThuc: number;
-  tenPhuongThuc: string;
-  maDiaChi: number;
-  ghiChu: string;
-  maCode: string;
-  promotionId: number | null;
-  tongTienHang: number;
-  phiShip: number;
-  soTienGiam: number;
-  thanhTien: number;
-  maMonAn: number;
+export interface DongMonNho {
   tenMonAn: string;
-  gia: number;
-  tenNhaHang: string;
-}
-
-export function docDonDangThanhToan(): DonDangThanhToan | null {
-  const raw = sessionStorage.getItem(KHOA_DON_DANG_THANH_TOAN);
-  if (!raw) return null;
-
-  try {
-    const data = JSON.parse(raw) as DonDangThanhToan;
-    if (
-      !data ||
-      typeof data.maDonHang !== "number" ||
-      typeof data.maThanhToan !== "number"
-    ) {
-      return null;
-    }
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-export function ghiDonDangThanhToan(data: DonDangThanhToan) {
-  sessionStorage.setItem(KHOA_DON_DANG_THANH_TOAN, JSON.stringify(data));
-}
-
-export function xoaDonDangThanhToan() {
-  sessionStorage.removeItem(KHOA_DON_DANG_THANH_TOAN);
+  hinhAnh: string | null;
+  soLuong: number;
+  thanhTien: number;
+  toppings: { tenTopping: string; giaThem: number }[];
 }
