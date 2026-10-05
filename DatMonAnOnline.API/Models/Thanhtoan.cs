@@ -19,6 +19,8 @@ public partial class Thanhtoan
 
     public DateTime? ThoiGianThanhToan { get; set; }
 
+    public virtual ICollection<Hoantien> Hoantiens { get; set; } = new List<Hoantien>();
+
     public virtual Donhang MaDonHangNavigation { get; set; } = null!;
 
     public virtual Phuongthucthanhtoan MaPhuongThucNavigation { get; set; } = null!;

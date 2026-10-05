@@ -1,20 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
 namespace DatMonAnOnline.API.Models;
 
 public partial class DatMonAnOnlineContext : DbContext
 {
-    public DatMonAnOnlineContext()
-    {
-    }
-
     public DatMonAnOnlineContext(DbContextOptions<DatMonAnOnlineContext> options)
         : base(options)
     {
     }
+
+    public virtual DbSet<Chitietdoisoat> Chitietdoisoats { get; set; }
 
     public virtual DbSet<Chitietdonhang> Chitietdonhangs { get; set; }
 
@@ -32,9 +29,15 @@ public partial class DatMonAnOnlineContext : DbContext
 
     public virtual DbSet<Diachi> Diachis { get; set; }
 
+    public virtual DbSet<Doisoatnhahang> Doisoatnhahangs { get; set; }
+
     public virtual DbSet<Donhang> Donhangs { get; set; }
 
     public virtual DbSet<Giohang> Giohangs { get; set; }
+
+    public virtual DbSet<Hoantien> Hoantiens { get; set; }
+
+    public virtual DbSet<Hopdongnhahang> Hopdongnhahangs { get; set; }
 
     public virtual DbSet<Khachhang> Khachhangs { get; set; }
 
@@ -62,14 +65,52 @@ public partial class DatMonAnOnlineContext : DbContext
 
     public virtual DbSet<Trangthaidonhang> Trangthaidonhangs { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseMySql("name=ConnectionStrings:DefaultConnection", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.45-mysql"));
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
             .UseCollation("utf8mb4_unicode_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<Chitietdoisoat>(entity =>
+        {
+            entity.HasKey(e => e.MaChiTietDoiSoat).HasName("PRIMARY");
+
+            entity.ToTable("chitietdoisoat");
+
+            entity.HasIndex(e => new { e.MaDonHang, e.MaNhaHang }, "IX_ChiTietDoiSoat_DonHang_NhaHang");
+
+            entity.HasIndex(e => new { e.MaDoiSoat, e.MaNhaHang }, "IX_ChiTietDoiSoat_Ky_NhaHang");
+
+            entity.HasIndex(e => e.MaDonHang, "UQ_ChiTietDoiSoat_DonHang").IsUnique();
+
+            entity.Property(e => e.GiamGiaHeThong).HasPrecision(18);
+            entity.Property(e => e.GiamGiaNhaHang).HasPrecision(18);
+            entity.Property(e => e.NgayThem)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.PhiNenTang).HasPrecision(18);
+            entity.Property(e => e.PhiShip).HasPrecision(18);
+            entity.Property(e => e.SoTienCanDoiSoat)
+                .HasPrecision(18)
+                .HasComputedColumnSql("`SoTienNhaHangNhan` - `TienNhaHangDaThu`", true);
+            entity.Property(e => e.SoTienHoan).HasPrecision(18);
+            entity.Property(e => e.SoTienNhaHangNhan).HasPrecision(18);
+            entity.Property(e => e.TienNhaHangDaThu).HasPrecision(18);
+            entity.Property(e => e.TongTienHang).HasPrecision(18);
+            entity.Property(e => e.TyLePhiNenTang).HasPrecision(5, 2);
+
+            entity.HasOne(d => d.Doisoatnhahang).WithMany(p => p.Chitietdoisoats)
+                .HasPrincipalKey(p => new { p.MaDoiSoat, p.MaNhaHang })
+                .HasForeignKey(d => new { d.MaDoiSoat, d.MaNhaHang })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ChiTietDoiSoat_Ky_NhaHang");
+
+            entity.HasOne(d => d.Donhang).WithMany(p => p.Chitietdoisoats)
+                .HasPrincipalKey(p => new { p.MaDonHang, p.MaNhaHang })
+                .HasForeignKey(d => new { d.MaDonHang, d.MaNhaHang })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ChiTietDoiSoat_DonHang_NhaHang");
+        });
 
         modelBuilder.Entity<Chitietdonhang>(entity =>
         {
@@ -270,6 +311,52 @@ public partial class DatMonAnOnlineContext : DbContext
                 .HasConstraintName("FK_DiaChi_KhachHang");
         });
 
+        modelBuilder.Entity<Doisoatnhahang>(entity =>
+        {
+            entity.HasKey(e => e.MaDoiSoat).HasName("PRIMARY");
+
+            entity.ToTable("doisoatnhahang");
+
+            entity.HasIndex(e => e.MaTaiKhoanDuyet, "FK_DoiSoat_NguoiDuyet");
+
+            entity.HasIndex(e => new { e.MaNhaHang, e.TrangThai }, "IX_DoiSoat_NhaHang_TrangThai");
+
+            entity.HasIndex(e => new { e.MaNhaHang, e.TuNgay, e.DenNgay }, "UQ_DoiSoat_Ky").IsUnique();
+
+            entity.HasIndex(e => new { e.MaDoiSoat, e.MaNhaHang }, "UQ_DoiSoat_Ma_NhaHang").IsUnique();
+
+            entity.Property(e => e.GhiChu).HasMaxLength(500);
+            entity.Property(e => e.MaGiaoDichDoiSoat).HasMaxLength(100);
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.NgayThanhToan).HasColumnType("datetime");
+            entity.Property(e => e.NgayXacNhan).HasColumnType("datetime");
+            entity.Property(e => e.SoTienCanDoiSoat)
+                .HasPrecision(18)
+                .HasComputedColumnSql("`TongTienNhaHangNhan` - `TongTienNhaHangDaThu`", true);
+            entity.Property(e => e.TongGiamGiaHeThong).HasPrecision(18);
+            entity.Property(e => e.TongGiamGiaNhaHang).HasPrecision(18);
+            entity.Property(e => e.TongPhiNenTang).HasPrecision(18);
+            entity.Property(e => e.TongPhiShip).HasPrecision(18);
+            entity.Property(e => e.TongTienHang).HasPrecision(18);
+            entity.Property(e => e.TongTienHoan).HasPrecision(18);
+            entity.Property(e => e.TongTienNhaHangDaThu).HasPrecision(18);
+            entity.Property(e => e.TongTienNhaHangNhan).HasPrecision(18);
+            entity.Property(e => e.TrangThai)
+                .HasDefaultValueSql("'MoiTao'")
+                .HasColumnType("enum('MoiTao','ChoXacNhan','DaXacNhan','DaThanhToan','TranhChap')");
+
+            entity.HasOne(d => d.MaNhaHangNavigation).WithMany(p => p.Doisoatnhahangs)
+                .HasForeignKey(d => d.MaNhaHang)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DoiSoat_NhaHang");
+
+            entity.HasOne(d => d.MaTaiKhoanDuyetNavigation).WithMany(p => p.Doisoatnhahangs)
+                .HasForeignKey(d => d.MaTaiKhoanDuyet)
+                .HasConstraintName("FK_DoiSoat_NguoiDuyet");
+        });
+
         modelBuilder.Entity<Donhang>(entity =>
         {
             entity.HasKey(e => e.MaDonHang).HasName("PRIMARY");
@@ -286,15 +373,23 @@ public partial class DatMonAnOnlineContext : DbContext
 
             entity.HasIndex(e => e.MaTrangThai, "FK_DonHang_TrangThai");
 
+            entity.HasIndex(e => new { e.MaHopDong, e.MaNhaHang }, "IX_DonHang_HopDong_NhaHang");
+
             entity.HasIndex(e => e.MaDonHangHienThi, "MaDonHangHienThi").IsUnique();
+
+            entity.HasIndex(e => new { e.MaDonHang, e.MaNhaHang }, "UQ_DonHang_Ma_NhaHang").IsUnique();
 
             entity.Property(e => e.DiaChiGiaoHang).HasMaxLength(255);
             entity.Property(e => e.GhiChu).HasMaxLength(300);
+            entity.Property(e => e.GiamGiaHeThong).HasPrecision(18);
+            entity.Property(e => e.GiamGiaNhaHang).HasPrecision(18);
             entity.Property(e => e.LyDoHuy).HasMaxLength(500);
             entity.Property(e => e.MaDonHangHienThi).HasMaxLength(50);
+            entity.Property(e => e.PhiNenTang).HasPrecision(18);
             entity.Property(e => e.PhiShip).HasPrecision(18);
             entity.Property(e => e.SoDienThoaiNhan).HasMaxLength(15);
             entity.Property(e => e.SoTienGiam).HasPrecision(18);
+            entity.Property(e => e.SoTienNhaHangNhan).HasPrecision(18);
             entity.Property(e => e.TenNguoiNhan).HasMaxLength(100);
             entity.Property(e => e.ThanhTien).HasPrecision(18);
             entity.Property(e => e.ThoiGianDat)
@@ -303,6 +398,7 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.Property(e => e.ThoiGianGiaoDuKien).HasColumnType("datetime");
             entity.Property(e => e.ThoiGianGiaoThucTe).HasColumnType("datetime");
             entity.Property(e => e.TongTienHang).HasPrecision(18);
+            entity.Property(e => e.TyLePhiNenTang).HasPrecision(5, 2);
 
             entity.HasOne(d => d.MaDiaChiNavigation).WithMany(p => p.Donhangs)
                 .HasForeignKey(d => d.MaDiaChi)
@@ -327,6 +423,11 @@ public partial class DatMonAnOnlineContext : DbContext
                 .HasForeignKey(d => d.MaTrangThai)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_DonHang_TrangThai");
+
+            entity.HasOne(d => d.Hopdongnhahang).WithMany(p => p.Donhangs)
+                .HasPrincipalKey(p => new { p.MaHopDong, p.MaNhaHang })
+                .HasForeignKey(d => new { d.MaHopDong, d.MaNhaHang })
+                .HasConstraintName("FK_DonHang_HopDong_NhaHang");
         });
 
         modelBuilder.Entity<Giohang>(entity =>
@@ -335,16 +436,135 @@ public partial class DatMonAnOnlineContext : DbContext
 
             entity.ToTable("giohang");
 
-            entity.HasIndex(e => e.MaKhachHang, "MaKhachHang").IsUnique();
+            entity.HasIndex(e => e.MaNhaHang, "FK_GioHang_NhaHang");
+
+            entity.HasIndex(e => new { e.MaKhachHang, e.MaNhaHang }, "UQ_GioHang_KhachHang_NhaHang").IsUnique();
 
             entity.Property(e => e.NgayCapNhat)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
 
-            entity.HasOne(d => d.MaKhachHangNavigation).WithOne(p => p.Giohang)
-                .HasForeignKey<Giohang>(d => d.MaKhachHang)
+            entity.HasOne(d => d.MaKhachHangNavigation).WithMany(p => p.Giohangs)
+                .HasForeignKey(d => d.MaKhachHang)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_GioHang_KhachHang");
+
+            entity.HasOne(d => d.MaNhaHangNavigation).WithMany(p => p.Giohangs)
+                .HasForeignKey(d => d.MaNhaHang)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_GioHang_NhaHang");
+        });
+
+        modelBuilder.Entity<Hoantien>(entity =>
+        {
+            entity.HasKey(e => e.MaHoanTien).HasName("PRIMARY");
+
+            entity.ToTable("hoantien");
+
+            entity.HasIndex(e => e.MaTaiKhoanXuLy, "FK_HoanTien_NguoiXuLy");
+
+            entity.HasIndex(e => e.MaTaiKhoanYeuCau, "FK_HoanTien_NguoiYeuCau");
+
+            entity.HasIndex(e => new { e.MaThanhToan, e.MaDonHang }, "FK_HoanTien_ThanhToan_DonHang");
+
+            entity.HasIndex(e => e.MaDonHang, "IX_HoanTien_DonHang");
+
+            entity.HasIndex(e => e.TrangThai, "IX_HoanTien_TrangThai");
+
+            entity.HasIndex(e => new { e.KenhHoanTien, e.MaGiaoDichHoan }, "UQ_HoanTien_Kenh_MaGiaoDich").IsUnique();
+
+            entity.HasIndex(e => e.MaYeuCauHoan, "UQ_HoanTien_MaYeuCau").IsUnique();
+
+            entity.HasIndex(e => e.MaThanhToan, "UQ_HoanTien_ThanhToan").IsUnique();
+
+            entity.Property(e => e.KenhHoanTien).HasColumnType("enum('MoMo','ZaloPay','VNPay','ChuyenKhoan','ThuCong')");
+            entity.Property(e => e.LyDoHoan).HasMaxLength(500);
+            entity.Property(e => e.MaGiaoDichHoan).HasMaxLength(100);
+            entity.Property(e => e.MaYeuCauHoan).HasMaxLength(100);
+            entity.Property(e => e.NgayCapNhat)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.NoiDungLoi).HasMaxLength(500);
+            entity.Property(e => e.SoTienHoan).HasPrecision(18);
+            entity.Property(e => e.ThoiGianHoanThanh).HasColumnType("datetime");
+            entity.Property(e => e.ThoiGianXuLy).HasColumnType("datetime");
+            entity.Property(e => e.ThoiGianYeuCau)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.TrangThai)
+                .HasDefaultValueSql("'ChoXuLy'")
+                .HasColumnType("enum('ChoXuLy','DangXuLy','ThanhCong','ThatBai')");
+
+            entity.HasOne(d => d.MaTaiKhoanXuLyNavigation).WithMany(p => p.HoantienMaTaiKhoanXuLyNavigations)
+                .HasForeignKey(d => d.MaTaiKhoanXuLy)
+                .HasConstraintName("FK_HoanTien_NguoiXuLy");
+
+            entity.HasOne(d => d.MaTaiKhoanYeuCauNavigation).WithMany(p => p.HoantienMaTaiKhoanYeuCauNavigations)
+                .HasForeignKey(d => d.MaTaiKhoanYeuCau)
+                .HasConstraintName("FK_HoanTien_NguoiYeuCau");
+
+            entity.HasOne(d => d.Thanhtoan).WithMany(p => p.Hoantiens)
+                .HasPrincipalKey(p => new { p.MaThanhToan, p.MaDonHang })
+                .HasForeignKey(d => new { d.MaThanhToan, d.MaDonHang })
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HoanTien_ThanhToan_DonHang");
+        });
+
+        modelBuilder.Entity<Hopdongnhahang>(entity =>
+        {
+            entity.HasKey(e => e.MaHopDong).HasName("PRIMARY");
+
+            entity.ToTable("hopdongnhahang");
+
+            entity.HasIndex(e => e.MaTaiKhoanDuyet, "FK_HopDongNhaHang_NguoiDuyet");
+
+            entity.HasIndex(e => e.NgayKetThuc, "IX_HopDong_NgayKetThuc");
+
+            entity.HasIndex(e => new { e.MaNhaHang, e.TrangThai }, "IX_HopDong_NhaHang_TrangThai");
+
+            entity.HasIndex(e => new { e.MaHopDong, e.MaNhaHang }, "UQ_HopDong_Ma_NhaHang").IsUnique();
+
+            entity.HasIndex(e => e.SoHopDong, "UQ_HopDong_SoHopDong").IsUnique();
+
+            entity.Property(e => e.ChucVuNguoiDaiDien).HasMaxLength(100);
+            entity.Property(e => e.FileGiayPhepKinhDoanh).HasMaxLength(500);
+            entity.Property(e => e.FileGiayToNguoiDaiDien).HasMaxLength(500);
+            entity.Property(e => e.FileHopDong).HasMaxLength(500);
+            entity.Property(e => e.LyDoChamDut).HasMaxLength(500);
+            entity.Property(e => e.LyDoTuChoi).HasMaxLength(500);
+            entity.Property(e => e.MaSoThue).HasMaxLength(30);
+            entity.Property(e => e.NgayCapNhat)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.NguoiDaiDien).HasMaxLength(100);
+            entity.Property(e => e.PhienBanDieuKhoan)
+                .HasMaxLength(50)
+                .HasDefaultValueSql("'1.0'");
+            entity.Property(e => e.SoGiayPhepKinhDoanh).HasMaxLength(50);
+            entity.Property(e => e.SoGiayToNguoiDaiDien).HasMaxLength(30);
+            entity.Property(e => e.SoHopDong).HasMaxLength(50);
+            entity.Property(e => e.ThoiGianDuyet).HasColumnType("datetime");
+            entity.Property(e => e.ThoiGianKy).HasColumnType("datetime");
+            entity.Property(e => e.TrangThai)
+                .HasDefaultValueSql("'Nhap'")
+                .HasColumnType("enum('Nhap','ChoKy','ChoDuyet','HieuLuc','HetHan','TuChoi','ChamDut')");
+            entity.Property(e => e.TyLePhiNenTang)
+                .HasPrecision(5, 2)
+                .HasDefaultValueSql("'5.00'");
+
+            entity.HasOne(d => d.MaNhaHangNavigation).WithMany(p => p.Hopdongnhahangs)
+                .HasForeignKey(d => d.MaNhaHang)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HopDongNhaHang_NhaHang");
+
+            entity.HasOne(d => d.MaTaiKhoanDuyetNavigation).WithMany(p => p.Hopdongnhahangs)
+                .HasForeignKey(d => d.MaTaiKhoanDuyet)
+                .HasConstraintName("FK_HopDongNhaHang_NguoiDuyet");
         });
 
         modelBuilder.Entity<Khachhang>(entity =>
@@ -482,6 +702,9 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.HasIndex(e => e.MaTaiKhoan, "MaTaiKhoan").IsUnique();
 
             entity.Property(e => e.AnhBia).HasMaxLength(255);
+            entity.Property(e => e.CheDoHoatDong)
+                .HasDefaultValueSql("'TuDong'")
+                .HasColumnType("enum('TuDong','MoThuCong','TamNgung')");
             entity.Property(e => e.DiaChiQuan).HasMaxLength(255);
             entity.Property(e => e.GioDongCua).HasColumnType("time");
             entity.Property(e => e.GioMoCua).HasColumnType("time");
@@ -583,6 +806,8 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.HasIndex(e => e.MaDonHang, "FK_ThanhToan_DonHang");
 
             entity.HasIndex(e => e.MaPhuongThuc, "FK_ThanhToan_PhuongThuc");
+
+            entity.HasIndex(e => new { e.MaThanhToan, e.MaDonHang }, "UQ_ThanhToan_Ma_DonHang").IsUnique();
 
             entity.Property(e => e.MaGiaoDich).HasMaxLength(100);
             entity.Property(e => e.SoTien).HasPrecision(18);

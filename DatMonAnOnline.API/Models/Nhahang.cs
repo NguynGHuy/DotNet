@@ -25,6 +25,8 @@ public partial class Nhahang
 
     public string TrangThaiHoatDong { get; set; } = null!;
 
+    public string CheDoHoatDong { get; set; } = null!;
+
     public float DanhGiaTrungBinh { get; set; }
 
     public decimal PhiShipMacDinh { get; set; }
@@ -33,7 +35,13 @@ public partial class Nhahang
 
     public virtual ICollection<Danhmuc> Danhmucs { get; set; } = new List<Danhmuc>();
 
+    public virtual ICollection<Doisoatnhahang> Doisoatnhahangs { get; set; } = new List<Doisoatnhahang>();
+
     public virtual ICollection<Donhang> Donhangs { get; set; } = new List<Donhang>();
+
+    public virtual ICollection<Giohang> Giohangs { get; set; } = new List<Giohang>();
+
+    public virtual ICollection<Hopdongnhahang> Hopdongnhahangs { get; set; } = new List<Hopdongnhahang>();
 
     public virtual ICollection<Khuyenmai> Khuyenmais { get; set; } = new List<Khuyenmai>();
 

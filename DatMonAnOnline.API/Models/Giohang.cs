@@ -11,7 +11,11 @@ public partial class Giohang
 
     public DateTime NgayCapNhat { get; set; }
 
+    public int MaNhaHang { get; set; }
+
     public virtual ICollection<Chitietgiohang> Chitietgiohangs { get; set; } = new List<Chitietgiohang>();
 
     public virtual Khachhang MaKhachHangNavigation { get; set; } = null!;
+
+    public virtual Nhahang MaNhaHangNavigation { get; set; } = null!;
 }

@@ -25,7 +25,7 @@ public partial class Khachhang
 
     public virtual ICollection<Donhang> Donhangs { get; set; } = new List<Donhang>();
 
-    public virtual Giohang? Giohang { get; set; }
+    public virtual ICollection<Giohang> Giohangs { get; set; } = new List<Giohang>();
 
     public virtual Taikhoan MaTaiKhoanNavigation { get; set; } = null!;
 }

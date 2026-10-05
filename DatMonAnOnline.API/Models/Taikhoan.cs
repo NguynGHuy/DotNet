@@ -23,6 +23,14 @@ public partial class Taikhoan
 
     public string? AnhDaiDien { get; set; }
 
+    public virtual ICollection<Doisoatnhahang> Doisoatnhahangs { get; set; } = new List<Doisoatnhahang>();
+
+    public virtual ICollection<Hoantien> HoantienMaTaiKhoanXuLyNavigations { get; set; } = new List<Hoantien>();
+
+    public virtual ICollection<Hoantien> HoantienMaTaiKhoanYeuCauNavigations { get; set; } = new List<Hoantien>();
+
+    public virtual ICollection<Hopdongnhahang> Hopdongnhahangs { get; set; } = new List<Hopdongnhahang>();
+
     public virtual Khachhang? Khachhang { get; set; }
 
     public virtual ICollection<Lichsutrangthaidonhang> Lichsutrangthaidonhangs { get; set; } = new List<Lichsutrangthaidonhang>();

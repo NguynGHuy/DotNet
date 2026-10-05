@@ -43,11 +43,27 @@ public partial class Donhang
 
     public string? LyDoHuy { get; set; }
 
+    public int? MaHopDong { get; set; }
+
+    public decimal TyLePhiNenTang { get; set; }
+
+    public decimal GiamGiaNhaHang { get; set; }
+
+    public decimal GiamGiaHeThong { get; set; }
+
+    public decimal PhiNenTang { get; set; }
+
+    public decimal SoTienNhaHangNhan { get; set; }
+
+    public virtual ICollection<Chitietdoisoat> Chitietdoisoats { get; set; } = new List<Chitietdoisoat>();
+
     public virtual ICollection<Chitietdonhang> Chitietdonhangs { get; set; } = new List<Chitietdonhang>();
 
     public virtual ICollection<Danhgiamonan> Danhgiamonans { get; set; } = new List<Danhgiamonan>();
 
     public virtual ICollection<Danhgianhahang> Danhgianhahangs { get; set; } = new List<Danhgianhahang>();
+
+    public virtual Hopdongnhahang? Hopdongnhahang { get; set; }
 
     public virtual ICollection<Lichsutrangthaidonhang> Lichsutrangthaidonhangs { get; set; } = new List<Lichsutrangthaidonhang>();
 
