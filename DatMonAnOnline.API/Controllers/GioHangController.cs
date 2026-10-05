@@ -132,7 +132,6 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
-            // EF lưu món và toàn bộ topping cùng một lần, tránh để lại món bị lưu dở.
             _context.Chitietgiohangs.Add(chiTietMoi);
             gioHang.NgayCapNhat = DateTime.Now;
             await _context.SaveChangesAsync();
@@ -141,22 +140,55 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpPut("chi-tiet/{id}")]
-        public async Task<IActionResult> SuaSoLuong(int id, [FromBody] SuaSoLuongYeuCau request)
+        public async Task<IActionResult> CapNhatChiTiet(int id, [FromBody] CapNhatChiTietYeuCau request)
         {
             var maKhachHang = await LayMaKhachHang();
             if (maKhachHang == null) return Unauthorized();
 
             var chiTiet = await _context.Chitietgiohangs
                 .Include(ct => ct.MaGioHangNavigation)
+                .Include(ct => ct.ChitietgiohangToppings)
+                .Include(ct => ct.MaMonAnNavigation)
+                    .ThenInclude(m => m.MaNhomToppings)
+                    .ThenInclude(nhom => nhom.Toppings)
                 .FirstOrDefaultAsync(ct => ct.MaChiTietGioHang == id && ct.MaGioHangNavigation.MaKhachHang == maKhachHang);
 
             if (chiTiet == null) return NotFound("Không tìm thấy chi tiết giỏ hàng.");
 
+            // Kiểm tra topping hợp lệ nếu có gửi danh sách topping lên
+            if (request.DanhSachMaTopping != null)
+            {
+                var loiTopping = ToppingValidator.KiemTra(chiTiet.MaMonAnNavigation, request.DanhSachMaTopping);
+                if (loiTopping != null)
+                    return BadRequest(new { message = loiTopping });
+
+                // Xóa topping cũ
+                _context.ChitietgiohangToppings.RemoveRange(chiTiet.ChitietgiohangToppings);
+
+                // Thêm topping mới
+                var maToppingDaChon = request.DanhSachMaTopping.ToHashSet();
+                foreach (var topping in chiTiet.MaMonAnNavigation.MaNhomToppings
+                    .SelectMany(nhom => nhom.Toppings)
+                    .Where(topping => maToppingDaChon.Contains(topping.MaTopping)))
+                {
+                    chiTiet.ChitietgiohangToppings.Add(new ChitietgiohangTopping
+                    {
+                        MaChiTietGioHang = chiTiet.MaChiTietGioHang,
+                        MaTopping = topping.MaTopping,
+                        SoLuong = 1,
+                        GiaThem = topping.GiaThem
+                    });
+                }
+            }
+
             chiTiet.SoLuong = request.SoLuong;
+            if (request.GhiChu != null) 
+                chiTiet.GhiChu = request.GhiChu;
+
             chiTiet.MaGioHangNavigation.NgayCapNhat = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Cập nhật số lượng thành công." });
+            return Ok(new { Message = "Cập nhật chi tiết giỏ hàng thành công." });
         }
 
         [HttpDelete("chi-tiet/{id}")]
@@ -216,8 +248,10 @@ namespace DatMonAnOnline.API.Controllers
         public List<int>? DanhSachMaTopping { get; set; }
     }
 
-    public class SuaSoLuongYeuCau
+    public class CapNhatChiTietYeuCau
     {
         [Required] [Range(1, 100)] public int SoLuong { get; set; }
+        public string? GhiChu { get; set; }
+        public List<int>? DanhSachMaTopping { get; set; }
     }
 }

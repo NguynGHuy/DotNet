@@ -78,7 +78,7 @@ namespace DatMonAnOnline.API.Controllers
             var diaChi = await _context.Diachis.FirstOrDefaultAsync(d => d.MaDiaChi == request.MaDiaChi && d.MaKhachHang == khachHang.MaKhachHang);
             if (diaChi == null) return BadRequest(new { Message = "Địa chỉ giao hàng không hợp lệ." });
 
-            // 2. Tính toán tiền an toàn từ DB
+            // 2. Tính toán tiền an toàn từ DB (Validate cực nghiêm ngặt)
             var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(khachHang.MaKhachHang, request.MaKhuyenMai);
             if (loi != null) return BadRequest(new { Message = loi });
 
@@ -94,7 +94,7 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     MaDonHangHienThi = maDonHienThi,
                     MaKhachHang = khachHang.MaKhachHang,
-                    MaNhaHang = maNhaHang!.Value, // Thêm ! để báo compiler biết maNhaHang chắc chắn khác null
+                    MaNhaHang = maNhaHang!.Value, 
                     MaDiaChi = diaChi.MaDiaChi,
                     MaTrangThai = 1, // 1 = ChoXacNhan
                     MaKhuyenMai = request.MaKhuyenMai,
@@ -111,9 +111,10 @@ namespace DatMonAnOnline.API.Controllers
                 _context.Donhangs.Add(donHang);
                 await _context.SaveChangesAsync();
 
-                // 4. Snapshot Chi Tiết Đơn Hàng từ Giỏ Hàng
+                // 4. Snapshot Chi Tiết Đơn Hàng từ Giỏ Hàng (Dùng giá Thực Tế, không dùng giá lưu trong giỏ)
                 var gioHang = await _context.Giohangs
                     .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.MaMonAnNavigation)
+                        .ThenInclude(m => m.MaNhomToppings).ThenInclude(nhom => nhom.Toppings)
                     .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.ChitietgiohangToppings)
                     .FirstAsync(g => g.MaKhachHang == khachHang.MaKhachHang);
 
@@ -125,24 +126,32 @@ namespace DatMonAnOnline.API.Controllers
                         MaMonAn = ctGio.MaMonAn,
                         SoLuong = ctGio.SoLuong,
                         DonGia = ctGio.MaMonAnNavigation.Gia,
-                        ThanhTien = ctGio.MaMonAnNavigation.Gia * ctGio.SoLuong,
+                        ThanhTien = 0, // Tính ở dưới
                         GhiChu = ctGio.GhiChu
                     };
                     _context.Chitietdonhangs.Add(ctDon);
                     await _context.SaveChangesAsync();
 
+                    decimal tongTien1Mon = ctGio.MaMonAnNavigation.Gia;
+                    var toppingThucTeCuaMon = ctGio.MaMonAnNavigation.MaNhomToppings.SelectMany(n => n.Toppings).ToList();
+
                     foreach (var ctTopping in ctGio.ChitietgiohangToppings)
                     {
+                        // LẤY GIÁ THỰC TẾ TỪ DB TẠI THỜI ĐIỂM ĐẶT (Chống Hacker sửa giá giỏ hàng)
+                        var toppingReal = toppingThucTeCuaMon.First(t => t.MaTopping == ctTopping.MaTopping);
+
                         var ctDonTopping = new ChitietdonhangTopping
                         {
                             MaChiTietDonHang = ctDon.MaChiTietDonHang,
                             MaTopping = ctTopping.MaTopping,
                             SoLuong = ctTopping.SoLuong,
-                            GiaThemLucDat = ctTopping.GiaThem
+                            GiaThemLucDat = toppingReal.GiaThem // SNAPSHOT GIÁ THỰC TẾ
                         };
                         _context.ChitietdonhangToppings.Add(ctDonTopping);
-                        ctDon.ThanhTien += (ctTopping.GiaThem * ctTopping.SoLuong) * ctGio.SoLuong;
+                        tongTien1Mon += (toppingReal.GiaThem * ctTopping.SoLuong);
                     }
+                    
+                    ctDon.ThanhTien = tongTien1Mon * ctGio.SoLuong;
                 }
                 
                 await _context.SaveChangesAsync();
@@ -228,8 +237,8 @@ namespace DatMonAnOnline.API.Controllers
                     d.MaDonHang,
                     d.MaDonHangHienThi,
                     d.ThoiGianDat,
-                    TenNhaHang = d.MaNhaHangNavigation!.TenNhaHang, // Thêm !
-                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai, // Thêm !
+                    TenNhaHang = d.MaNhaHangNavigation!.TenNhaHang, 
+                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai, 
                     ThanhTien = d.ThanhTien
                 })
                 .ToListAsync();
@@ -429,6 +438,7 @@ namespace DatMonAnOnline.API.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Huỷ đơn hàng thành công." });
         }
+        
         [HttpGet("~/api/trang-thai-don-hang")]
         [Authorize]
         public async Task<IActionResult> GetDanhSachTrangThaiDonHang()
@@ -640,8 +650,23 @@ namespace DatMonAnOnline.API.Controllers
                 if (loiTopping != null)
                     return (0, 0, 0, null, $"Món {ct.MaMonAnNavigation.TenMonAn}: {loiTopping} Vui lòng xóa món khỏi giỏ và chọn lại.");
 
-                decimal giaTopping = ct.ChitietgiohangToppings.Sum(tp => tp.GiaThem * tp.SoLuong);
-                tongTienHang += (ct.MaMonAnNavigation.Gia + giaTopping) * ct.SoLuong;
+                // LẤY GIÁ THỰC TẾ (Chống Hack)
+                decimal giaToppingThucTe = 0;
+                var maToppingsTrongGio = ct.ChitietgiohangToppings.Select(t => t.MaTopping).ToList();
+                var toppingsThucTe = ct.MaMonAnNavigation.MaNhomToppings
+                    .SelectMany(n => n.Toppings)
+                    .Where(t => maToppingsTrongGio.Contains(t.MaTopping))
+                    .ToList();
+
+                foreach(var tp in ct.ChitietgiohangToppings)
+                {
+                    var realTp = toppingsThucTe.FirstOrDefault(t => t.MaTopping == tp.MaTopping);
+                    if (realTp != null) {
+                        giaToppingThucTe += realTp.GiaThem * tp.SoLuong; 
+                    }
+                }
+
+                tongTienHang += (ct.MaMonAnNavigation.Gia + giaToppingThucTe) * ct.SoLuong;
             }
 
             decimal phiShip = nhaHang.PhiShipMacDinh;

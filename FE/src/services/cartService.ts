@@ -7,6 +7,12 @@ export interface ThemMonRequest {
     danhSachMaTopping?: number[];
 }
 
+export interface CapNhatMonRequest {
+    soLuong: number;
+    ghiChu?: string;
+    danhSachMaTopping?: number[];
+}
+
 export async function getCart() {
     const token = localStorage.getItem("token");
     return apiFetch("/gio-hang", {
@@ -24,12 +30,12 @@ export async function addToCart(data: ThemMonRequest) {
     });
 }
 
-export async function updateCartItemQty(id: number, soLuong: number) {
+export async function updateCartItem(id: number, data: CapNhatMonRequest) {
     const token = localStorage.getItem("token");
     return apiFetch(`/gio-hang/chi-tiet/${id}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ soLuong }),
+        body: JSON.stringify(data),
     });
 }
 

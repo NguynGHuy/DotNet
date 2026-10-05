@@ -27,7 +27,7 @@ import {
     type NhomToppingMonAn,
 } from "../services/menuService";
 
-import { addToCart } from "../services/cartService";
+import { addToCart, clearCart } from "../services/cartService"; // Đã thêm clearCart
 
 import RestaurantReviews from "../components/RestaurantReviews";
 import FoodReviews from "../components/FoodReviews";
@@ -194,6 +194,10 @@ function RestaurantDetail() {
     const [addingToCart, setAddingToCart] =
         useState(false);
 
+    /* STATE XỬ LÝ TRÙNG QUÁN TRONG GIỎ HÀNG */
+    const [conflictDialog, setConflictDialog] = useState(false);
+    const [isClearing, setIsClearing] = useState(false);
+
     /* =========================
        TIME
     ========================= */
@@ -332,11 +336,6 @@ function RestaurantDetail() {
             clearInterval(timer);
     }, []);
 
-    /*
-        currentTime được dùng để component
-        render lại mỗi 30 giây và tính
-        trạng thái mở/đóng lại.
-    */
     void currentTime;
 
     /* =========================================================
@@ -406,6 +405,7 @@ function RestaurantDetail() {
         setNote("");
         setFoodActionError("");
         setFoodSuccess("");
+        setConflictDialog(false);
     }, [addingToCart]);
 
     const handleOpenFood = async (item: MonAn) => {
@@ -416,6 +416,7 @@ function RestaurantDetail() {
         setNote("");
         setFoodActionError("");
         setFoodSuccess("");
+        setConflictDialog(false);
 
         try {
             setFoodLoading(true);
@@ -475,6 +476,7 @@ function RestaurantDetail() {
         setSelectedToppingIds((current) => [...current, toppingId]);
     };
 
+    // Hàm gọi khi bấm Thêm vào giỏ
     const handleAddToCart = async () => {
         if (!selectedFood) return;
 
@@ -484,9 +486,7 @@ function RestaurantDetail() {
         }
 
         if (!restaurant || !isRestaurantOpen(restaurant)) {
-            setFoodActionError(
-                "Nhà hàng đang đóng cửa nên chưa thể nhận đơn."
-            );
+            setFoodActionError("Nhà hàng đang đóng cửa nên chưa thể nhận đơn.");
             return;
         }
 
@@ -520,35 +520,68 @@ function RestaurantDetail() {
             setFoodSuccess("Đã thêm món vào giỏ hàng.");
             window.dispatchEvent(new Event("cart-updated"));
         } catch (err) {
-            setFoodActionError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể thêm món vào giỏ hàng."
-            );
+            const errMsg = err instanceof Error ? err.message : "Lỗi không xác định";
+            // Bắt lỗi trùng quán từ Backend để bật hộp thoại thay vì báo dòng chữ đỏ
+            if (errMsg.includes("quán khác")) {
+                setConflictDialog(true);
+            } else {
+                setFoodActionError(errMsg);
+            }
         } finally {
             setAddingToCart(false);
         }
     };
 
-    useEffect(() => {
-        if (!foodDialogOpen) return;
+    // Xử lý khi user bấm nút "Xóa giỏ và thêm món mới"
+    const handleConfirmClearAndAdd = async () => {
+        if (!selectedFood) return;
+        try {
+            setIsClearing(true);
+            await clearCart(); // Xóa sạch giỏ cũ
+            
+            // Gọi lại API thêm món
+            await addToCart({
+                maMonAn: selectedFood.maMonAn,
+                soLuong: quantity,
+                ghiChu: note.trim() || undefined,
+                danhSachMaTopping: selectedToppingIds,
+            });
+            
+            setConflictDialog(false); // Đóng popup hỏi
+            setFoodSuccess("Đã xóa giỏ hàng cũ và thêm món thành công.");
+            window.dispatchEvent(new Event("cart-updated"));
+        } catch (err) {
+            setFoodActionError(err instanceof Error ? err.message : "Lỗi khi thêm món.");
+            setConflictDialog(false);
+        } finally {
+            setIsClearing(false);
+        }
+    };
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+    useEffect(() => {
+        // Chỉ khóa scroll khi có popup hiện lên
+        if (foodDialogOpen || conflictDialog) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "auto";
+        }
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
-                closeFoodDialog();
+                if (conflictDialog) {
+                    setConflictDialog(false);
+                } else if (foodDialogOpen) {
+                    closeFoodDialog();
+                }
             }
         };
 
         window.addEventListener("keydown", handleEscape);
-
         return () => {
-            document.body.style.overflow = previousOverflow;
+            document.body.style.overflow = "auto";
             window.removeEventListener("keydown", handleEscape);
         };
-    }, [foodDialogOpen, closeFoodDialog]);
+    }, [foodDialogOpen, conflictDialog, closeFoodDialog]);
 
     /* =========================================================
        LOADING
@@ -1154,7 +1187,7 @@ function RestaurantDetail() {
                                 type="button"
                                 className="food-order-close"
                                 aria-label="Đóng"
-                                disabled={addingToCart}
+                                disabled={addingToCart || isClearing}
                                 onClick={closeFoodDialog}
                             >
                                 ×
@@ -1317,7 +1350,7 @@ function RestaurantDetail() {
                                             </div>
                                         </div>
 
-                                        {foodActionError && (
+                                        {foodActionError && !conflictDialog && (
                                             <p className="food-order-message error">
                                                 {foodActionError}
                                             </p>
@@ -1344,7 +1377,7 @@ function RestaurantDetail() {
                                                 type="button"
                                                 className="food-order-submit"
                                                 disabled={
-                                                    addingToCart || !isOpen
+                                                    addingToCart || !isOpen || isClearing
                                                 }
                                                 onClick={handleAddToCart}
                                             >
@@ -1368,6 +1401,32 @@ function RestaurantDetail() {
                                 </>
                             )}
                         </section>
+
+                        {/* HỘP THOẠI XÁC NHẬN KHI BỊ TRÙNG QUÁN TRONG GIỎ HÀNG */}
+                        {conflictDialog && (
+                            <div className="conflict-overlay">
+                                <div className="conflict-dialog">
+                                    <h3>Tạo giỏ hàng mới?</h3>
+                                    <p>Giỏ hàng của bạn đang có món từ quán khác. Để thêm món từ <strong>{restaurant.tenNhaHang}</strong>, các món trong giỏ hiện tại sẽ bị xóa.</p>
+                                    <div className="conflict-actions">
+                                        <button 
+                                            className="conflict-btn-cancel" 
+                                            disabled={isClearing} 
+                                            onClick={() => setConflictDialog(false)}
+                                        >
+                                            Giữ giỏ hiện tại
+                                        </button>
+                                        <button 
+                                            className="conflict-btn-confirm" 
+                                            disabled={isClearing} 
+                                            onClick={handleConfirmClearAndAdd}
+                                        >
+                                            {isClearing ? "Đang xử lý..." : "Xóa giỏ và thêm món mới"}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
