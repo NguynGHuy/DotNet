@@ -1,6 +1,6 @@
 import {
-    useCallback,
     useEffect,
+    useCallback,
     useMemo,
     useRef,
     useState,
@@ -20,29 +20,63 @@ import {
 } from "../services/categoryService";
 
 import {
-    getMonAn,
     getMonAns,
+    getMonAn,
     type MonAn,
     type MonAnChiTiet,
-    type NhomToppingMonAn,
 } from "../services/menuService";
 
-import { addToCart, clearCart } from "../services/cartService"; // Đã thêm clearCart
+import {
+    addToCart,
+    getRestaurantCart,
+    type RestaurantCart,
+} from "../services/cartService";
 
 import RestaurantReviews from "../components/RestaurantReviews";
 import FoodReviews from "../components/FoodReviews";
-
+import {
+    ArrowLeft,
+    Bike,
+    ChevronDown,
+    CircleAlert,
+    Clock3,
+    MapPin,
+    MessageSquareText,
+    Minus,
+    Plus,
+    Search,
+    SearchX,
+    ShoppingBag,
+    ChevronRight,
+    ShoppingCart,
+    Star,
+    UtensilsCrossed,
+    X,
+} from "lucide-react";
 interface Restaurant {
     maNhaHang: number;
     tenNhaHang: string;
     moTa?: string;
     diaChiQuan?: string;
     anhBia?: string | null;
+
     danhGiaTrungBinh?: number;
     phiShipMacDinh?: number;
-    gioMoCua?: string;
-    gioDongCua?: string;
+
+    gioMoCua?: string | null;
+    gioDongCua?: string | null;
+
+    // Giữ tạm để tương thích dữ liệu cũ
     trangThaiHoatDong?: string;
+
+    // Dữ liệu trạng thái mới từ backend
+    cheDoHoatDong?:
+        | "TuDong"
+        | "MoThuCong"
+        | "TamNgung";
+
+    dangMoCua: boolean;
+    trangThaiHienThi: string;
 }
 
 /* =========================================================
@@ -52,57 +86,7 @@ interface Restaurant {
 function isRestaurantOpen(
     restaurant: Restaurant
 ): boolean {
-    if (
-        restaurant.trangThaiHoatDong !==
-        "MoCua"
-    ) {
-        return false;
-    }
-
-    if (
-        !restaurant.gioMoCua ||
-        !restaurant.gioDongCua
-    ) {
-        return true;
-    }
-
-    const now = new Date();
-
-    const currentMinutes =
-        now.getHours() * 60 +
-        now.getMinutes();
-
-    const [openHour, openMinute] =
-        restaurant.gioMoCua
-            .slice(0, 5)
-            .split(":")
-            .map(Number);
-
-    const [closeHour, closeMinute] =
-        restaurant.gioDongCua
-            .slice(0, 5)
-            .split(":")
-            .map(Number);
-
-    const openMinutes =
-        openHour * 60 + openMinute;
-
-    const closeMinutes =
-        closeHour * 60 + closeMinute;
-
-    // Trường hợp mở và đóng trong cùng ngày
-    if (openMinutes <= closeMinutes) {
-        return (
-            currentMinutes >= openMinutes &&
-            currentMinutes < closeMinutes
-        );
-    }
-
-    // Trường hợp mở xuyên đêm
-    return (
-        currentMinutes >= openMinutes ||
-        currentMinutes < closeMinutes
-    );
+    return restaurant.dangMoCua;
 }
 
 /* =========================================================
@@ -121,7 +105,6 @@ function formatMoney(value: number) {
 
 function RestaurantDetail() {
     const navigate = useNavigate();
-
     const { id } =
         useParams<{ id: string }>();
 
@@ -136,12 +119,10 @@ function RestaurantDetail() {
         useState<Restaurant | null>(null);
 
     const [loading, setLoading] =
-        useState(Boolean(id));
+        useState(true);
 
     const [error, setError] =
-        useState(
-            id ? "" : "Mã nhà hàng không hợp lệ."
-        );
+        useState("");
 
     /* =========================
        MENU
@@ -167,22 +148,17 @@ function RestaurantDetail() {
     const [searchTerm, setSearchTerm] =
         useState("");
 
-    const [foodDialogOpen, setFoodDialogOpen] =
-        useState(false);
+    /* =========================
+       GIỎ HÀNG CỦA QUÁN
+    ========================= */
+
+    const [cart, setCart] =
+        useState<RestaurantCart | null>(null);
 
     const [selectedFood, setSelectedFood] =
         useState<MonAnChiTiet | null>(null);
 
-    const [foodLoading, setFoodLoading] =
-        useState(false);
-
-    const [foodActionError, setFoodActionError] =
-        useState("");
-
-    const [foodSuccess, setFoodSuccess] =
-        useState("");
-
-    const [selectedToppingIds, setSelectedToppingIds] =
+    const [selectedToppings, setSelectedToppings] =
         useState<number[]>([]);
 
     const [quantity, setQuantity] =
@@ -191,19 +167,14 @@ function RestaurantDetail() {
     const [note, setNote] =
         useState("");
 
+    const [foodModalLoading, setFoodModalLoading] =
+        useState(false);
+
     const [addingToCart, setAddingToCart] =
         useState(false);
 
-    /* STATE XỬ LÝ TRÙNG QUÁN TRONG GIỎ HÀNG */
-    const [conflictDialog, setConflictDialog] = useState(false);
-    const [isClearing, setIsClearing] = useState(false);
-
-    /* =========================
-       TIME
-    ========================= */
-
-    const [currentTime, setCurrentTime] =
-        useState(new Date());
+    const [cartError, setCartError] =
+        useState("");
 
     /* =========================================================
        LOAD NHÀ HÀNG
@@ -214,36 +185,56 @@ function RestaurantDetail() {
             return;
         }
 
-        const loadRestaurant = async () => {
+        let cancelled = false;
+
+        const loadRestaurant = async (showLoading = false) => {
             try {
-                setLoading(true);
-                setError("");
+                if (showLoading) {
+                    setLoading(true);
+                    setError("");
+                }
 
                 const data =
                     await apiFetch(
-                        `/nha-hang/${id}`
+                        `/nha-hang/${id}`,
+                        { cache: "no-store" }
                     );
 
-                setRestaurant(data);
+                if (!cancelled) {
+                    setRestaurant(data);
+                    setError("");
+                }
             } catch (err) {
                 console.error(
                     "Lỗi tải nhà hàng:",
                     err
                 );
 
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Không thể tải thông tin nhà hàng."
-                );
-
-                setRestaurant(null);
+                if (!cancelled && showLoading) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Không thể tải thông tin nhà hàng."
+                    );
+                    setRestaurant(null);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled && showLoading) {
+                    setLoading(false);
+                }
             }
         };
 
-        loadRestaurant();
+        void loadRestaurant(true);
+        const timer = window.setInterval(() => void loadRestaurant(), 15000);
+        const refresh = () => void loadRestaurant();
+        window.addEventListener("focus", refresh);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+            window.removeEventListener("focus", refresh);
+        };
     }, [id]);
 
     /* =========================================================
@@ -323,20 +314,33 @@ function RestaurantDetail() {
         loadMenu();
     }, [restaurant?.maNhaHang]);
 
-    /* =========================================================
-       CẬP NHẬT GIỜ
-    ========================================================= */
+    const currentRestaurantId = restaurant?.maNhaHang;
+
+    const loadCurrentRestaurantCart = useCallback(async () => {
+        if (!currentRestaurantId || !localStorage.getItem("token")) {
+            setCart(null);
+            return;
+        }
+
+        try {
+            const data = await getRestaurantCart(currentRestaurantId);
+            setCart(data);
+        } catch (err) {
+            console.error("Lỗi tải giỏ hàng của quán:", err);
+        }
+    }, [currentRestaurantId]);
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentTime(new Date());
-        }, 30000);
+        const timer = window.setTimeout(() => void loadCurrentRestaurantCart(), 0);
 
-        return () =>
-            clearInterval(timer);
-    }, []);
+        const refreshCart = () => void loadCurrentRestaurantCart();
+        window.addEventListener("cart-updated", refreshCart);
 
-    void currentTime;
+        return () => {
+            window.clearTimeout(timer);
+            window.removeEventListener("cart-updated", refreshCart);
+        };
+    }, [loadCurrentRestaurantCart]);
 
     /* =========================================================
        FILTER MENU
@@ -395,193 +399,101 @@ function RestaurantDetail() {
         });
     };
 
-    const closeFoodDialog = useCallback(() => {
-        if (addingToCart) return;
-
-        setFoodDialogOpen(false);
-        setSelectedFood(null);
-        setSelectedToppingIds([]);
-        setQuantity(1);
-        setNote("");
-        setFoodActionError("");
-        setFoodSuccess("");
-        setConflictDialog(false);
-    }, [addingToCart]);
-
-    const handleOpenFood = async (item: MonAn) => {
-        setFoodDialogOpen(true);
-        setSelectedFood(null);
-        setSelectedToppingIds([]);
-        setQuantity(1);
-        setNote("");
-        setFoodActionError("");
-        setFoodSuccess("");
-        setConflictDialog(false);
-
-        try {
-            setFoodLoading(true);
-            const detail = await getMonAn(item.maMonAn);
-            setSelectedFood(detail);
-        } catch (err) {
-            setFoodActionError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể tải thông tin món ăn."
-            );
-        } finally {
-            setFoodLoading(false);
-        }
-    };
-
-    const handleToggleTopping = (
-        group: NhomToppingMonAn,
-        toppingId: number
-    ) => {
-        setFoodActionError("");
-        setFoodSuccess("");
-
-        if (selectedToppingIds.includes(toppingId)) {
-            setSelectedToppingIds((current) =>
-                current.filter((id) => id !== toppingId)
-            );
-            return;
-        }
-
-        const idsInGroup = new Set(
-            group.toppings.map((topping) => topping.maTopping)
-        );
-
-        const selectedInGroup = selectedToppingIds.filter((id) =>
-            idsInGroup.has(id)
-        );
-
-        if (group.chonToiDa === 1) {
-            setSelectedToppingIds((current) => [
-                ...current.filter((id) => !idsInGroup.has(id)),
-                toppingId,
-            ]);
-            return;
-        }
-
-        if (
-            group.chonToiDa !== null &&
-            selectedInGroup.length >= group.chonToiDa
-        ) {
-            setFoodActionError(
-                `Nhóm “${group.tenNhom}” chỉ được chọn tối đa ${group.chonToiDa} lựa chọn.`
-            );
-            return;
-        }
-
-        setSelectedToppingIds((current) => [...current, toppingId]);
-    };
-
-    // Hàm gọi khi bấm Thêm vào giỏ
-    const handleAddToCart = async () => {
-        if (!selectedFood) return;
-
+    const openFoodModal = async (maMonAn: number) => {
         if (!localStorage.getItem("token")) {
+            alert("Vui lòng đăng nhập để thêm món vào giỏ hàng.");
             navigate("/dang-nhap");
             return;
         }
 
-        if (!restaurant || !isRestaurantOpen(restaurant)) {
-            setFoodActionError("Nhà hàng đang đóng cửa nên chưa thể nhận đơn.");
-            return;
+        try {
+            setFoodModalLoading(true);
+            setCartError("");
+            const food = await getMonAn(maMonAn);
+            setSelectedFood(food);
+            setSelectedToppings([]);
+            setQuantity(1);
+            setNote("");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Không thể tải chi tiết món.");
+        } finally {
+            setFoodModalLoading(false);
         }
+    };
 
-        const missingRequiredGroup = selectedFood.nhomToppings.find(
-            (group) =>
-                group.batBuocChon &&
-                !group.toppings.some((topping) =>
-                    selectedToppingIds.includes(topping.maTopping)
-                )
-        );
+    const closeFoodModal = () => {
+        if (addingToCart) return;
+        setSelectedFood(null);
+        setSelectedToppings([]);
+        setCartError("");
+    };
 
-        if (missingRequiredGroup) {
-            setFoodActionError(
-                `Vui lòng chọn ít nhất một lựa chọn trong nhóm “${missingRequiredGroup.tenNhom}”.`
-            );
-            return;
+    const toggleTopping = (
+        maTopping: number,
+        group: MonAnChiTiet["nhomToppings"][number]
+    ) => {
+        setCartError("");
+        setSelectedToppings((current) => {
+            if (current.includes(maTopping)) {
+                return current.filter((id) => id !== maTopping);
+            }
+
+            const groupIds = group.toppings.map((tp) => tp.maTopping);
+            const selectedInGroup = current.filter((id) => groupIds.includes(id));
+
+            if (group.chonToiDa === 1) {
+                return [...current.filter((id) => !groupIds.includes(id)), maTopping];
+            }
+
+            if (group.chonToiDa && selectedInGroup.length >= group.chonToiDa) {
+                setCartError(`Nhóm ${group.tenNhom} chỉ được chọn tối đa ${group.chonToiDa} topping.`);
+                return current;
+            }
+
+            return [...current, maTopping];
+        });
+    };
+
+    const handleAddToCart = async () => {
+        if (!selectedFood || addingToCart) return;
+
+        for (const group of selectedFood.nhomToppings) {
+            const groupIds = group.toppings.map((tp) => tp.maTopping);
+            const count = selectedToppings.filter((id) => groupIds.includes(id)).length;
+
+            if (group.batBuocChon && count === 0) {
+                setCartError(`Vui lòng chọn topping cho nhóm ${group.tenNhom}.`);
+                return;
+            }
         }
 
         try {
             setAddingToCart(true);
-            setFoodActionError("");
-            setFoodSuccess("");
-
+            setCartError("");
             await addToCart({
                 maMonAn: selectedFood.maMonAn,
                 soLuong: quantity,
                 ghiChu: note.trim() || undefined,
-                danhSachMaTopping: selectedToppingIds,
+                danhSachMaTopping: selectedToppings,
             });
-
-            setFoodSuccess("Đã thêm món vào giỏ hàng.");
+            await loadCurrentRestaurantCart();
             window.dispatchEvent(new Event("cart-updated"));
+            setSelectedFood(null);
         } catch (err) {
-            const errMsg = err instanceof Error ? err.message : "Lỗi không xác định";
-            // Bắt lỗi trùng quán từ Backend để bật hộp thoại thay vì báo dòng chữ đỏ
-            if (errMsg.includes("quán khác")) {
-                setConflictDialog(true);
-            } else {
-                setFoodActionError(errMsg);
-            }
+            setCartError(err instanceof Error ? err.message : "Không thể thêm món vào giỏ.");
         } finally {
             setAddingToCart(false);
         }
     };
 
-    // Xử lý khi user bấm nút "Xóa giỏ và thêm món mới"
-    const handleConfirmClearAndAdd = async () => {
-        if (!selectedFood) return;
-        try {
-            setIsClearing(true);
-            await clearCart(); // Xóa sạch giỏ cũ
-            
-            // Gọi lại API thêm món
-            await addToCart({
-                maMonAn: selectedFood.maMonAn,
-                soLuong: quantity,
-                ghiChu: note.trim() || undefined,
-                danhSachMaTopping: selectedToppingIds,
-            });
-            
-            setConflictDialog(false); // Đóng popup hỏi
-            setFoodSuccess("Đã xóa giỏ hàng cũ và thêm món thành công.");
-            window.dispatchEvent(new Event("cart-updated"));
-        } catch (err) {
-            setFoodActionError(err instanceof Error ? err.message : "Lỗi khi thêm món.");
-            setConflictDialog(false);
-        } finally {
-            setIsClearing(false);
+    const openRestaurantCart = () => {
+        if (!localStorage.getItem("token")) {
+            navigate("/dang-nhap");
+            return;
         }
+
+        navigate(`/gio-hang?maNhaHang=${restaurant?.maNhaHang}`);
     };
-
-    useEffect(() => {
-        // Chỉ khóa scroll khi có popup hiện lên
-        if (foodDialogOpen || conflictDialog) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "auto";
-        }
-
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                if (conflictDialog) {
-                    setConflictDialog(false);
-                } else if (foodDialogOpen) {
-                    closeFoodDialog();
-                }
-            }
-        };
-
-        window.addEventListener("keydown", handleEscape);
-        return () => {
-            document.body.style.overflow = "auto";
-            window.removeEventListener("keydown", handleEscape);
-        };
-    }, [foodDialogOpen, conflictDialog, closeFoodDialog]);
 
     /* =========================================================
        LOADING
@@ -640,21 +552,16 @@ function RestaurantDetail() {
     const isOpen =
         isRestaurantOpen(restaurant);
 
-    const selectedToppingsPrice =
-        selectedFood?.nhomToppings
-            .flatMap((group) => group.toppings)
-            .filter((topping) =>
-                selectedToppingIds.includes(topping.maTopping)
-            )
-            .reduce((total, topping) => total + topping.giaThem, 0) ?? 0;
-
-    const selectedFoodTotal = selectedFood
-        ? (selectedFood.gia + selectedToppingsPrice) * quantity
-        : 0;
-
     const rating =
         restaurant.danhGiaTrungBinh ??
         0;
+
+    const selectedToppingTotal = selectedFood
+        ? selectedFood.nhomToppings
+              .flatMap((group) => group.toppings)
+              .filter((tp) => selectedToppings.includes(tp.maTopping))
+              .reduce((sum, tp) => sum + tp.giaThem, 0)
+        : 0;
 
     /* =========================================================
        RENDER
@@ -666,223 +573,150 @@ function RestaurantDetail() {
                 {/* =========================
                     BACK
                 ========================= */}
-
                 <Link
-                    to="/nha-hang"
-                    className="restaurant-detail-back"
-                >
-                    <span>←</span>
-                    Tất cả nhà hàng
-                </Link>
+    to="/nha-hang"
+    className="restaurant-detail-back"
+>
+    <ArrowLeft size={16} />
+    <span>Tất cả nhà hàng</span>
+</Link>
 
-                {/* =========================
-                    HERO
-                ========================= */}
+<section className="restaurant-detail-hero">
+    <div className="restaurant-detail-image">
+        {restaurant.anhBia ? (
+            <img
+                src={restaurant.anhBia}
+                alt={restaurant.tenNhaHang}
+            />
+        ) : (
+            <div className="restaurant-detail-placeholder">
+                <UtensilsCrossed size={64} strokeWidth={1.5} />
+            </div>
+        )}
 
-                <section className="restaurant-detail-hero">
-                    {/* IMAGE */}
+        <div
+            className={
+                isOpen
+                    ? "restaurant-detail-status open"
+                    : "restaurant-detail-status closed"
+            }
+        >
+            <span className="restaurant-status-dot" />
 
-                    <div className="restaurant-detail-image">
-                        {restaurant.anhBia ? (
-                            <img
-                                src={
-                                    restaurant.anhBia
-                                }
-                                alt={
-                                    restaurant.tenNhaHang
-                                }
-                            />
-                        ) : (
-                            <div className="restaurant-detail-placeholder">
-                                <span>
-                                    🍽️
-                                </span>
-                            </div>
+            {restaurant.trangThaiHienThi ||
+                (isOpen ? "Đang mở cửa" : "Đã đóng cửa")}
+        </div>
+    </div>
+
+    <div className="restaurant-detail-main">
+        <div className="restaurant-detail-heading">
+            <div className="restaurant-detail-title">
+                <span className="restaurant-detail-eyebrow">
+                    Nhà hàng đối tác
+                </span>
+
+                <h1>{restaurant.tenNhaHang}</h1>
+            </div>
+
+            <div className="restaurant-detail-rating">
+                <Star size={16} fill="currentColor" />
+
+                <strong>
+                    {rating > 0
+                        ? rating.toFixed(1)
+                        : "—"}
+                </strong>
+
+                <span>
+                    {rating > 0
+                        ? "Đánh giá"
+                        : "Chưa có đánh giá"}
+                </span>
+            </div>
+        </div>
+
+        <p className="restaurant-detail-summary">
+            {restaurant.moTa ||
+                "Nhà hàng chưa cập nhật thông tin giới thiệu."}
+        </p>
+
+        <div className="restaurant-detail-quick-info">
+            <div className="restaurant-quick-item">
+                <div className="restaurant-quick-icon">
+                    <MapPin size={18} />
+                </div>
+
+                <div>
+                    <span>Địa chỉ</span>
+
+                    <strong>
+                        {restaurant.diaChiQuan ||
+                            "Chưa cập nhật địa chỉ"}
+                    </strong>
+                </div>
+            </div>
+
+            <div className="restaurant-quick-item">
+                <div className="restaurant-quick-icon">
+                    <Clock3 size={18} />
+                </div>
+
+                <div>
+                    <span>Giờ hoạt động</span>
+
+                    <strong>
+                        {restaurant.gioMoCua
+                            ? restaurant.gioMoCua.slice(0, 5)
+                            : "--:--"}
+
+                        {" – "}
+
+                        {restaurant.gioDongCua
+                            ? restaurant.gioDongCua.slice(0, 5)
+                            : "--:--"}
+                    </strong>
+                </div>
+            </div>
+
+            <div className="restaurant-quick-item">
+                <div className="restaurant-quick-icon">
+                    <Bike size={18} />
+                </div>
+
+                <div>
+                    <span>Phí giao hàng</span>
+
+                    <strong>
+                        {formatMoney(
+                            restaurant.phiShipMacDinh ?? 0
                         )}
+                    </strong>
+                </div>
+            </div>
+        </div>
 
-                        <div
-                            className={
-                                isOpen
-                                    ? "restaurant-detail-status open"
-                                    : "restaurant-detail-status closed"
-                            }
-                        >
-                            <span>
-                                ●
-                            </span>
+        <div className="restaurant-detail-action">
+            <button
+                type="button"
+                className="restaurant-detail-menu-button"
+                onClick={handleViewMenu}
+            >
+                <UtensilsCrossed size={17} />
+                <span>Xem thực đơn</span>
+                <ChevronDown size={17} />
+            </button>
 
-                            {isOpen
-                                ? "Đang mở cửa"
-                                : "Đóng cửa"}
-                        </div>
-                    </div>
+            {!isOpen && (
+                <p className="customer-menu-closed-note">
+                    Nhà hàng đang đóng cửa. Bạn vẫn có thể
+                    xem thực đơn nhưng hiện chưa thể đặt món.
+                </p>
+            )}
+        </div>
+    </div>
+</section>
+                
 
-                    {/* =========================
-                        INFO
-                    ========================= */}
-
-                    <div className="restaurant-detail-main">
-                        <div className="restaurant-detail-heading">
-                            <div>
-                                <span className="restaurant-detail-eyebrow">
-                                    NHÀ HÀNG
-                                </span>
-
-                                <h1>
-                                    {
-                                        restaurant.tenNhaHang
-                                    }
-                                </h1>
-                            </div>
-
-                            <div className="restaurant-detail-rating">
-                                <span className="rating-star">
-                                    ★
-                                </span>
-
-                                <strong>
-                                    {rating >
-                                    0
-                                        ? rating.toFixed(
-                                              1
-                                          )
-                                        : "—"}
-                                </strong>
-
-                                <span>
-                                    {rating >
-                                    0
-                                        ? "Đánh giá"
-                                        : "Chưa có đánh giá"}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* =========================
-                            QUICK INFO
-                        ========================= */}
-
-                        <div className="restaurant-detail-quick-info">
-                            <div className="restaurant-quick-item">
-                                <div className="restaurant-quick-icon">
-                                    📍
-                                </div>
-
-                                <div>
-                                    <span>
-                                        Địa chỉ
-                                    </span>
-
-                                    <strong>
-                                        {restaurant.diaChiQuan ||
-                                            "Chưa có địa chỉ"}
-                                    </strong>
-                                </div>
-                            </div>
-
-                            <div className="restaurant-quick-item">
-                                <div className="restaurant-quick-icon">
-                                    🕐
-                                </div>
-
-                                <div>
-                                    <span>
-                                        Giờ hoạt động
-                                    </span>
-
-                                    <strong>
-                                        {restaurant.gioMoCua
-                                            ? restaurant.gioMoCua.slice(
-                                                  0,
-                                                  5
-                                              )
-                                            : "--:--"}
-
-                                        {" – "}
-
-                                        {restaurant.gioDongCua
-                                            ? restaurant.gioDongCua.slice(
-                                                  0,
-                                                  5
-                                              )
-                                            : "--:--"}
-                                    </strong>
-                                </div>
-                            </div>
-
-                            <div className="restaurant-quick-item">
-                                <div className="restaurant-quick-icon">
-                                    🛵
-                                </div>
-
-                                <div>
-                                    <span>
-                                        Phí giao hàng
-                                    </span>
-
-                                    <strong>
-                                        {formatMoney(
-                                            restaurant.phiShipMacDinh ??
-                                                0
-                                        )}
-                                    </strong>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* =========================
-                            DESCRIPTION
-                        ========================= */}
-
-                        <div className="restaurant-detail-description">
-                            <h2>
-                                Về nhà hàng
-                            </h2>
-
-                            <p>
-                                {restaurant.moTa ||
-                                    "Nhà hàng chưa cập nhật mô tả."}
-                            </p>
-                        </div>
-
-                        {/* =========================
-                            ACTION
-                        ========================= */}
-
-                        <div className="restaurant-detail-action">
-                            <button
-                                type="button"
-                                className="restaurant-detail-menu-button"
-                                onClick={
-                                    handleViewMenu
-                                }
-                            >
-                                <span>
-                                    🍽️
-                                </span>
-
-                                <span>
-                                    Xem thực đơn
-                                </span>
-
-                                <span className="menu-arrow">
-                                    ↓
-                                </span>
-                            </button>
-
-                            {!isOpen && (
-                                <p className="customer-menu-closed-note">
-                                    Nhà hàng đang
-                                    đóng cửa. Bạn
-                                    vẫn có thể xem
-                                    thực đơn nhưng
-                                    hiện chưa thể
-                                    đặt món.
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </section>
 
                 {/* =================================================
                     MENU KHÁCH HÀNG
@@ -892,94 +726,60 @@ function RestaurantDetail() {
                     ref={menuRef}
                     className="customer-menu-section"
                 >
-                    {/* TITLE */}
-
                     <div className="customer-menu-heading">
                         <div>
                             <span className="customer-menu-eyebrow">
-                                THỰC ĐƠN
+                                Thực đơn
                             </span>
 
                             <h2>
-                                Món ăn của{" "}
-                                {
-                                    restaurant.tenNhaHang
-                                }
+                                Món ngon tại {restaurant.tenNhaHang}
                             </h2>
 
                             <p>
-                                Khám phá các món
-                                đang được phục vụ
-                                tại nhà hàng.
+                                Chọn món yêu thích và tùy chỉnh topping
+                                theo khẩu vị của bạn.
                             </p>
                         </div>
 
                         <div className="customer-menu-count">
-                            {
-                                filteredFoods.length
-                            }{" "}
-                            món
+                            {filteredFoods.length} món
                         </div>
                     </div>
 
-                    {/* =========================
-                        SEARCH
-                    ========================= */}
-
-                    <div className="customer-menu-toolbar">
+                    <div className="customer-menu-controls">
                         <div className="customer-menu-search">
-                            <span>
-                                🔍
-                            </span>
+                            <Search size={18} />
 
                             <input
                                 type="text"
-                                placeholder="Tìm món ăn..."
-                                value={
-                                    searchTerm
-                                }
-                                onChange={(e) =>
-                                    setSearchTerm(
-                                        e.target
-                                            .value
-                                    )
+                                placeholder="Tìm kiếm món ăn..."
+                                value={searchTerm}
+                                onChange={(event) =>
+                                    setSearchTerm(event.target.value)
                                 }
                             />
                         </div>
-                    </div>
 
-                    {/* =========================
-                        CATEGORY
-                    ========================= */}
+                        <div className="customer-menu-categories">
+                            <button
+                                type="button"
+                                className={
+                                    selectedCategory === 0
+                                        ? "customer-category-button active"
+                                        : "customer-category-button"
+                                }
+                                onClick={() => setSelectedCategory(0)}
+                            >
+                                Tất cả
+                            </button>
 
-                    <div className="customer-menu-categories">
-                        <button
-                            type="button"
-                            className={
-                                selectedCategory ===
-                                0
-                                    ? "customer-category-button active"
-                                    : "customer-category-button"
-                            }
-                            onClick={() =>
-                                setSelectedCategory(
-                                    0
-                                )
-                            }
-                        >
-                            Tất cả
-                        </button>
-
-                        {danhMucs.map(
-                            (category) => (
+                            {danhMucs.map((category) => (
                                 <button
                                     type="button"
-                                    key={
-                                        category.maDanhMuc
-                                    }
+                                    key={category.maDanhMuc}
                                     className={
-                                        selectedCategory ===
-                                        category.maDanhMuc
+                                        selectedCategory === category.maDanhMuc
                                             ? "customer-category-button active"
                                             : "customer-category-button"
                                     }
@@ -989,168 +789,141 @@ function RestaurantDetail() {
                                         )
                                     }
                                 >
-                                    {
-                                        category.tenDanhMuc
-                                    }
+                                    {category.tenDanhMuc}
                                 </button>
-                            )
-                        )}
+                            ))}
+                        </div>
                     </div>
-
-                    {/* =========================
-                        CONTENT
-                    ========================= */}
 
                     {menuLoading ? (
                         <div className="customer-menu-state">
                             <div className="loading-spinner" />
 
-                            <p>
-                                Đang tải thực
-                                đơn...
-                            </p>
+                            <h3>Đang chuẩn bị thực đơn</h3>
+                            <p>Vui lòng chờ trong giây lát.</p>
                         </div>
                     ) : menuError ? (
                         <div className="customer-menu-state error">
-                            <div>
-                                ⚠️
+                            <div className="customer-menu-empty-icon">
+                                <CircleAlert size={28} />
                             </div>
 
-                            <h3>
-                                Không thể tải
-                                thực đơn
-                            </h3>
-
-                            <p>
-                                {menuError}
-                            </p>
+                            <h3>Không thể tải thực đơn</h3>
+                            <p>{menuError}</p>
                         </div>
-                    ) : monAns.length ===
-                      0 ? (
+                    ) : monAns.length === 0 ? (
                         <div className="customer-menu-state">
                             <div className="customer-menu-empty-icon">
-                                🍽️
+                                <UtensilsCrossed size={28} />
                             </div>
 
-                            <h3>
-                                Nhà hàng chưa có
-                                món ăn
-                            </h3>
-
-                            <p>
-                                Thực đơn đang được
-                                cập nhật.
-                            </p>
+                            <h3>Nhà hàng chưa có món ăn</h3>
+                            <p>Thực đơn đang được cập nhật.</p>
                         </div>
-                    ) : filteredFoods.length ===
-                      0 ? (
+                    ) : filteredFoods.length === 0 ? (
                         <div className="customer-menu-state">
                             <div className="customer-menu-empty-icon">
-                                🔎
+                                <SearchX size={28} />
                             </div>
 
-                            <h3>
-                                Không tìm thấy món
-                            </h3>
+                            <h3>Không tìm thấy món phù hợp</h3>
 
                             <p>
-                                Hãy thử danh mục
-                                hoặc từ khóa khác.
+                                Hãy thử từ khóa hoặc danh mục khác.
                             </p>
                         </div>
                     ) : (
                         <div className="customer-menu-grid">
-                            {filteredFoods.map(
-                                (item) => (
-                                    <article
-                                        key={
-                                            item.maMonAn
-                                        }
-                                        className="customer-food-card"
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-haspopup="dialog"
-                                        onClick={() =>
-                                            handleOpenFood(item)
-                                        }
-                                        onKeyDown={(event) => {
-                                            if (
-                                                event.key === "Enter" ||
-                                                event.key === " "
-                                            ) {
-                                                event.preventDefault();
-                                                handleOpenFood(item);
-                                            }
-                                        }}
-                                    >
-                                        {/* IMAGE */}
-
-                                        <div className="customer-food-image">
-                                            {item.hinhAnh ? (
-                                                <img
-                                                    src={
-                                                        item.hinhAnh
-                                                    }
-                                                    alt={
-                                                        item.tenMonAn
-                                                    }
-                                                    loading="lazy"
+                            {filteredFoods.map((item) => (
+                                <article
+                                    key={item.maMonAn}
+                                    className="customer-food-card"
+                                >
+                                    <div className="customer-food-image">
+                                        {item.hinhAnh ? (
+                                            <img
+                                                src={item.hinhAnh}
+                                                alt={item.tenMonAn}
+                                                loading="lazy"
+                                            />
+                                        ) : (
+                                            <div className="customer-food-placeholder">
+                                                <UtensilsCrossed
+                                                    size={40}
+                                                    strokeWidth={1.4}
                                                 />
-                                            ) : (
-                                                <div className="customer-food-placeholder">
-                                                    🍜
-                                                </div>
-                                            )}
+                                            </div>
+                                        )}
 
+                                        {item.tenDanhMuc && (
                                             <span className="customer-food-category">
-                                                {
-                                                    item.tenDanhMuc
-                                                }
+                                                {item.tenDanhMuc}
                                             </span>
-                                        </div>
+                                        )}
+                                    </div>
 
-                                        {/* BODY */}
+                                    <div className="customer-food-content">
+                                        <div className="customer-food-top">
+                                            <h3>{item.tenMonAn}</h3>
 
-                                        <div className="customer-food-content">
-                                            <div className="customer-food-top">
-                                                <h3>
-                                                    {
-                                                        item.tenMonAn
-                                                    }
-                                                </h3>
+                                            {item.danhGiaTrungBinh > 0 && (
+                                                <span className="customer-food-rating">
+                                                    <Star
+                                                        size={13}
+                                                        fill="currentColor"
+                                                    />
 
-                                                {item.danhGiaTrungBinh >
-                                                    0 && (
-                                                    <span className="customer-food-rating">
-                                                        ★{" "}
-                                                        {item.danhGiaTrungBinh.toFixed(
-                                                            1
-                                                        )}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <p className="customer-food-description">
-                                                {item.moTa ||
-                                                    "Món ăn của nhà hàng."}
-                                            </p>
-
-                                            <div className="customer-food-bottom">
-                                                <strong className="customer-food-price">
-                                                    {formatMoney(
-                                                        item.gia
-                                                    )}
-                                                </strong>
-
-                                                <span className="customer-food-available">
-                                                    ● Đang bán
+                                                    {item.danhGiaTrungBinh.toFixed(1)}
                                                 </span>
-                                            </div>
-                                            <FoodReviews maMonAn={item.maMonAn} />
+                                            )}
                                         </div>
-                                    </article>
-                                )
-                            )}
+
+                                        <p className="customer-food-description">
+                                            {item.moTa ||
+                                                "Món ngon được chế biến tại nhà hàng."}
+                                        </p>
+
+                                        <div className="customer-food-bottom">
+                                            <div>
+                                                <span className="customer-food-price-label">
+                                                    Giá món
+                                                </span>
+
+                                                <strong className="customer-food-price">
+                                                    {formatMoney(item.gia)}
+                                                </strong>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="customer-add-cart-button"
+                                                disabled={
+                                                    !isOpen ||
+                                                    foodModalLoading
+                                                }
+                                                onClick={() =>
+                                                    openFoodModal(item.maMonAn)
+                                                }
+                                            >
+                                                {foodModalLoading ? (
+                                                    "Đang mở..."
+                                                ) : !isOpen ? (
+                                                    "Đóng cửa"
+                                                ) : (
+                                                    <>
+                                                        <Plus size={16} />
+                                                        <span>Thêm</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        <FoodReviews
+                                            maMonAn={item.maMonAn}
+                                        />
+                                    </div>
+                                </article>
+                            ))}
                         </div>
                     )}
                 </section>
@@ -1166,270 +939,265 @@ function RestaurantDetail() {
                         }
                     />
                 </section>
+            </div>
 
-                {foodDialogOpen && (
-                    <div
-                        className="food-order-overlay"
-                        role="presentation"
-                        onMouseDown={(event) => {
-                            if (event.target === event.currentTarget) {
-                                closeFoodDialog();
-                            }
-                        }}
-                    >
-                        <section
-                            className="food-order-dialog"
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="food-order-title"
+            {selectedFood && (
+    <div
+        className="food-option-overlay"
+        onMouseDown={closeFoodModal}
+    >
+        <section
+            className="food-option-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="food-option-title"
+            onMouseDown={(event) =>
+                event.stopPropagation()
+            }
+        >
+            <button
+                type="button"
+                className="food-option-close"
+                aria-label="Đóng form chọn món"
+                onClick={closeFoodModal}
+            >
+                <X size={18} />
+            </button>
+
+            <div className="food-option-header">
+                <span className="food-option-eyebrow">
+                    Tùy chọn món
+                </span>
+
+                <h2 id="food-option-title">
+                    {selectedFood.tenMonAn}
+                </h2>
+
+                <p>
+                    {selectedFood.moTa ||
+                        "Tùy chỉnh món ăn theo sở thích của bạn."}
+                </p>
+
+                <div className="food-option-price">
+                    {formatMoney(selectedFood.gia)}
+                </div>
+            </div>
+
+            <div className="food-option-body">
+                {selectedFood.nhomToppings.map(
+                    (group) => (
+                        <div
+                            key={group.maNhomTopping}
+                            className="topping-group"
                         >
-                            <button
-                                type="button"
-                                className="food-order-close"
-                                aria-label="Đóng"
-                                disabled={addingToCart || isClearing}
-                                onClick={closeFoodDialog}
-                            >
-                                ×
-                            </button>
+                            <div className="topping-group-title">
+                                <div>
+                                    <h3>{group.tenNhom}</h3>
 
-                            {foodLoading ? (
-                                <div className="food-order-state">
-                                    <div className="loading-spinner" />
-                                    <p>Đang tải thông tin món...</p>
+                                    {group.chonToiDa ? (
+                                        <p>
+                                            Chọn tối đa{" "}
+                                            {group.chonToiDa} lựa chọn
+                                        </p>
+                                    ) : (
+                                        <p>
+                                            Chọn topping bạn muốn
+                                        </p>
+                                    )}
                                 </div>
-                            ) : !selectedFood ? (
-                                <div className="food-order-state error">
-                                    <strong>Không thể mở món ăn</strong>
-                                    <p>
-                                        {foodActionError ||
-                                            "Món ăn không tồn tại hoặc đã ngừng bán."}
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="food-order-hero">
-                                        <div className="food-order-image">
-                                            {selectedFood.hinhAnh ? (
-                                                <img
-                                                    src={selectedFood.hinhAnh}
-                                                    alt={selectedFood.tenMonAn}
-                                                />
-                                            ) : (
-                                                <div>🍜</div>
-                                            )}
-                                        </div>
 
-                                        <div className="food-order-summary">
-                                            <span>{selectedFood.tenDanhMuc}</span>
-                                            <h2 id="food-order-title">
-                                                {selectedFood.tenMonAn}
-                                            </h2>
-                                            <p>
-                                                {selectedFood.moTa ||
-                                                    "Món ăn của nhà hàng."}
-                                            </p>
-                                            <strong>
-                                                {formatMoney(selectedFood.gia)}
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="food-order-body">
-                                        {selectedFood.nhomToppings.map(
-                                            (group) => (
-                                                <fieldset
-                                                    className="food-topping-group"
-                                                    key={group.maNhomTopping}
-                                                >
-                                                    <legend>
-                                                        <span>
-                                                            {group.tenNhom}
-                                                            {group.batBuocChon && (
-                                                                <b> Bắt buộc</b>
-                                                            )}
-                                                        </span>
-                                                        <small>
-                                                            {group.chonToiDa === null
-                                                                ? "Chọn tùy thích"
-                                                                : `Chọn tối đa ${group.chonToiDa}`}
-                                                        </small>
-                                                    </legend>
-
-                                                    {group.toppings.length === 0 ? (
-                                                        <p className="food-topping-empty">
-                                                            Nhóm này chưa có lựa chọn khả dụng.
-                                                        </p>
-                                                    ) : (
-                                                        <div className="food-topping-list">
-                                                            {group.toppings.map(
-                                                                (topping) => (
-                                                                    <label
-                                                                        className="food-topping-option"
-                                                                        key={topping.maTopping}
-                                                                    >
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={selectedToppingIds.includes(
-                                                                                topping.maTopping
-                                                                            )}
-                                                                            onChange={() =>
-                                                                                handleToggleTopping(
-                                                                                    group,
-                                                                                    topping.maTopping
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                        <span>
-                                                                            {topping.tenTopping}
-                                                                        </span>
-                                                                        <strong>
-                                                                            {topping.giaThem > 0
-                                                                                ? `+${formatMoney(
-                                                                                      topping.giaThem
-                                                                                  )}`
-                                                                                : "Miễn phí"}
-                                                                        </strong>
-                                                                    </label>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </fieldset>
-                                            )
-                                        )}
-
-                                        <div className="food-order-note">
-                                            <label htmlFor="food-note">
-                                                Ghi chú cho quán
-                                            </label>
-                                            <textarea
-                                                id="food-note"
-                                                maxLength={200}
-                                                rows={3}
-                                                value={note}
-                                                placeholder="Ví dụ: ít cay, không hành..."
-                                                onChange={(event) => {
-                                                    setNote(event.target.value);
-                                                    setFoodSuccess("");
-                                                }}
-                                            />
-                                            <small>{note.length}/200</small>
-                                        </div>
-
-                                        <div className="food-order-quantity-row">
-                                            <span>Số lượng</span>
-                                            <div className="food-order-quantity">
-                                                <button
-                                                    type="button"
-                                                    aria-label="Giảm số lượng"
-                                                    disabled={quantity <= 1}
-                                                    onClick={() => {
-                                                        setQuantity((value) =>
-                                                            Math.max(1, value - 1)
-                                                        );
-                                                        setFoodSuccess("");
-                                                    }}
-                                                >
-                                                    −
-                                                </button>
-                                                <strong>{quantity}</strong>
-                                                <button
-                                                    type="button"
-                                                    aria-label="Tăng số lượng"
-                                                    disabled={quantity >= 100}
-                                                    onClick={() => {
-                                                        setQuantity((value) =>
-                                                            Math.min(100, value + 1)
-                                                        );
-                                                        setFoodSuccess("");
-                                                    }}
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {foodActionError && !conflictDialog && (
-                                            <p className="food-order-message error">
-                                                {foodActionError}
-                                            </p>
-                                        )}
-
-                                        {foodSuccess && (
-                                            <p className="food-order-message success">
-                                                {foodSuccess}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="food-order-footer">
-                                        {foodSuccess ? (
-                                            <button
-                                                type="button"
-                                                className="food-order-cart-link"
-                                                onClick={() => navigate("/gio-hang")}
-                                            >
-                                                Xem giỏ hàng
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="food-order-submit"
-                                                disabled={
-                                                    addingToCart || !isOpen || isClearing
-                                                }
-                                                onClick={handleAddToCart}
-                                            >
-                                                <span>
-                                                    {addingToCart
-                                                        ? "Đang thêm..."
-                                                        : isOpen
-                                                          ? "Thêm vào giỏ"
-                                                          : "Nhà hàng đang đóng cửa"}
-                                                </span>
-                                                {isOpen && !addingToCart && (
-                                                    <strong>
-                                                        {formatMoney(
-                                                            selectedFoodTotal
-                                                        )}
-                                                    </strong>
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </section>
-
-                        {/* HỘP THOẠI XÁC NHẬN KHI BỊ TRÙNG QUÁN TRONG GIỎ HÀNG */}
-                        {conflictDialog && (
-                            <div className="conflict-overlay">
-                                <div className="conflict-dialog">
-                                    <h3>Tạo giỏ hàng mới?</h3>
-                                    <p>Giỏ hàng của bạn đang có món từ quán khác. Để thêm món từ <strong>{restaurant.tenNhaHang}</strong>, các món trong giỏ hiện tại sẽ bị xóa.</p>
-                                    <div className="conflict-actions">
-                                        <button 
-                                            className="conflict-btn-cancel" 
-                                            disabled={isClearing} 
-                                            onClick={() => setConflictDialog(false)}
-                                        >
-                                            Giữ giỏ hiện tại
-                                        </button>
-                                        <button 
-                                            className="conflict-btn-confirm" 
-                                            disabled={isClearing} 
-                                            onClick={handleConfirmClearAndAdd}
-                                        >
-                                            {isClearing ? "Đang xử lý..." : "Xóa giỏ và thêm món mới"}
-                                        </button>
-                                    </div>
-                                </div>
+                                <span
+                                    className={
+                                        group.batBuocChon
+                                            ? "required"
+                                            : "optional"
+                                    }
+                                >
+                                    {group.batBuocChon
+                                        ? "Bắt buộc"
+                                        : "Tùy chọn"}
+                                </span>
                             </div>
-                        )}
+
+                            <div className="topping-options">
+                                {group.toppings.map(
+                                    (topping) => (
+                                        <label
+                                            key={
+                                                topping.maTopping
+                                            }
+                                            className="topping-option"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedToppings.includes(
+                                                    topping.maTopping
+                                                )}
+                                                onChange={() =>
+                                                    toggleTopping(
+                                                        topping.maTopping,
+                                                        group
+                                                    )
+                                                }
+                                            />
+
+                                            <span className="topping-option-name">
+                                                {
+                                                    topping.tenTopping
+                                                }
+                                            </span>
+
+                                            <strong>
+                                                +
+                                                {formatMoney(
+                                                    topping.giaThem
+                                                )}
+                                            </strong>
+                                        </label>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                    )
+                )}
+
+                <label className="food-note-field">
+                    <div className="food-note-heading">
+                        <span>
+                            <MessageSquareText size={16} />
+                            Ghi chú cho quán
+                        </span>
+
+                        <small>{note.length}/300</small>
                     </div>
+
+                    <textarea
+                        value={note}
+                        maxLength={300}
+                        rows={3}
+                        placeholder="Ví dụ: ít cay, không hành, để sốt riêng..."
+                        onChange={(event) =>
+                            setNote(event.target.value)
+                        }
+                    />
+                </label>
+
+                {cartError && (
+                    <p className="food-option-error">
+                        <CircleAlert size={15} />
+                        <span>{cartError}</span>
+                    </p>
                 )}
             </div>
+
+            <div className="food-option-footer">
+                <div className="food-quantity-wrapper">
+                    <span>Số lượng</span>
+
+                    <div className="food-quantity-control">
+                        <button
+                            type="button"
+                            aria-label="Giảm số lượng"
+                            onClick={() =>
+                                setQuantity((value) =>
+                                    Math.max(1, value - 1)
+                                )
+                            }
+                        >
+                            <Minus size={16} />
+                        </button>
+
+                        <strong>{quantity}</strong>
+
+                        <button
+                            type="button"
+                            aria-label="Tăng số lượng"
+                            onClick={() =>
+                                setQuantity((value) =>
+                                    Math.min(100, value + 1)
+                                )
+                            }
+                        >
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    className="food-add-confirm"
+                    disabled={addingToCart}
+                    onClick={handleAddToCart}
+                >
+                    <ShoppingBag size={17} />
+
+                    <span>
+                        {addingToCart
+                            ? "Đang thêm..."
+                            : "Thêm vào giỏ"}
+                    </span>
+
+                    {!addingToCart && (
+                        <strong>
+                            {formatMoney(
+                                (selectedFood.gia +
+                                    selectedToppingTotal) *
+                                    quantity
+                            )}
+                        </strong>
+                    )}
+                </button>
+            </div>
+        </section>
+    </div>
+)}
+
+            <button
+    type="button"
+    className={`restaurant-floating-cart ${
+        (cart?.soLuongMon ?? 0) > 0
+            ? "has-items"
+            : "empty"
+    }`}
+    aria-label={`Mở giỏ hàng của ${restaurant.tenNhaHang}`}
+    onClick={openRestaurantCart}
+>
+    <span className="floating-cart-icon">
+        <ShoppingCart size={21} />
+
+        {(cart?.soLuongMon ?? 0) > 0 && (
+            <b>{cart?.soLuongMon}</b>
+        )}
+    </span>
+
+    <span className="floating-cart-info">
+        <small>Giỏ hàng tại</small>
+
+        <strong>{restaurant.tenNhaHang}</strong>
+    </span>
+
+    {(cart?.soLuongMon ?? 0) > 0 ? (
+        <span className="floating-cart-summary">
+            <small>
+                {cart?.soLuongMon} món
+            </small>
+
+            <strong>
+                {formatMoney(
+                    cart?.tongTienTamTinh ?? 0
+                )}
+            </strong>
+        </span>
+    ) : (
+        <span className="floating-cart-empty-text">
+            Chưa có món
+        </span>
+    )}
+
+    <span className="floating-cart-arrow">
+        <ChevronRight size={18} />
+    </span>
+</button>
         </main>
     );
 }

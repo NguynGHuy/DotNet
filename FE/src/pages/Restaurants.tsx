@@ -2,7 +2,19 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getRestaurants } from "../services/restaurantService";
 import type { Restaurant } from "../services/restaurantService";
-
+import {
+    CircleDot,
+    Search,
+    SearchX,
+    ArrowRight,
+    Bike,
+    ImageIcon,
+    MapPin,
+    SlidersHorizontal,
+    Star,
+    Store,
+    X,
+} from "lucide-react";
 // interface Restaurant {
 //     maNhaHang: number;
 //     tenNhaHang: string;
@@ -16,46 +28,38 @@ import type { Restaurant } from "../services/restaurantService";
 //     trangThaiHoatDong?: string;
 // }
 
-function isRestaurantOpen(restaurant: Restaurant): boolean {
-    if (restaurant.trangThaiHoatDong !== "MoCua") {
-        return false;
-    }
-
-    if (!restaurant.gioMoCua || !restaurant.gioDongCua) {
-        return true;
-    }
-
-    const now = new Date();
-
-    const currentMinutes =
-        now.getHours() * 60 + now.getMinutes();
-
-    const [openHour, openMinute] = restaurant.gioMoCua
-        .slice(0, 5)
-        .split(":")
-        .map(Number);
-
-    const [closeHour, closeMinute] = restaurant.gioDongCua
-        .slice(0, 5)
-        .split(":")
-        .map(Number);
-
-    const openMinutes = openHour * 60 + openMinute;
-    const closeMinutes = closeHour * 60 + closeMinute;
-
-    if (openMinutes <= closeMinutes) {
-        return (
-            currentMinutes >= openMinutes &&
-            currentMinutes < closeMinutes
-        );
-    }
-
-    return (
-        currentMinutes >= openMinutes ||
-        currentMinutes < closeMinutes
-    );
+function isRestaurantOpen(
+    restaurant: Restaurant
+): boolean {
+    return restaurant.dangMoCua;
 }
+function getRestaurantStatusLabel(
+    restaurant: Restaurant
+): string {
+    if (restaurant.dangMoCua) {
+        return "Đang mở";
+    }
 
+    if (
+        restaurant.cheDoHoatDong ===
+        "TamNgung"
+    ) {
+        return "Tạm ngưng";
+    }
+
+    if (
+        restaurant.cheDoHoatDong ===
+            "TuDong" &&
+        restaurant.gioMoCua
+    ) {
+        return `Mở lúc ${restaurant.gioMoCua.slice(
+            0,
+            5
+        )}`;
+    }
+
+    return "Đã đóng";
+}
 function Restaurants() {
     const [restaurants, setRestaurants] =
         useState<Restaurant[]>([]);
@@ -72,32 +76,39 @@ function Restaurants() {
     const [filter, setFilter] =
         useState<"all" | "open" | "rating">("all");
 
-    const [currentTime, setCurrentTime] =
-        useState(new Date());
-
     useEffect(() => {
-        getRestaurants()
-            .then((data) => {
+        let cancelled = false;
+
+        const loadRestaurants = async () => {
+            try {
+                const data = await getRestaurants();
+                if (cancelled) return;
+
                 console.log("Danh sách nhà hàng:", data);
                 setRestaurants(data);
-            })
-            .catch((error) => {
+                setError("");
+            } catch (error) {
+                if (cancelled) return;
                 console.error(error);
                 setError(
                     "Không thể tải danh sách nhà hàng."
                 );
-            })
-            .finally(() => {
+            } finally {
+                if (cancelled) return;
                 setLoading(false);
-            });
-    }, []);
+            }
+        };
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentTime(new Date());
-        }, 30000);
+        void loadRestaurants();
+        const timer = window.setInterval(() => void loadRestaurants(), 15000);
+        const refresh = () => void loadRestaurants();
+        window.addEventListener("focus", refresh);
 
-        return () => clearInterval(timer);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+            window.removeEventListener("focus", refresh);
+        };
     }, []);
 
     const filteredRestaurants = restaurants
@@ -135,80 +146,69 @@ function Restaurants() {
             return 0;
         });
 
-    void currentTime;
-
     return (
         <main className="restaurants-page">
 
             {/* HERO */}
             <section className="restaurants-hero">
-                <div className="restaurants-hero-content">
+    <div className="restaurants-hero-content">
+        <div className="restaurants-eyebrow">
+            <Store
+                size={16}
+                strokeWidth={2}
+            />
 
-                    <span className="restaurants-eyebrow">
-                        KHÁM PHÁ ẨM THỰC
-                    </span>
+            <span>
+                Khám phá nhà hàng
+            </span>
+        </div>
 
-                    <h1>
-                        Tìm nhà hàng
-                        <br />
-                        bạn yêu thích
-                    </h1>
+        <h1>
+            Hôm nay bạn muốn ăn gì?
+        </h1>
 
-                    <p>
-                        Khám phá những địa điểm ăn uống
-                        hấp dẫn và đặt món yêu thích
-                        ngay hôm nay.
-                    </p>
+        <p>
+            Tìm kiếm nhà hàng yêu thích
+            theo tên hoặc địa chỉ và bắt đầu
+            đặt món.
+        </p>
 
-                    <div className="restaurants-search">
+        <div className="restaurants-search">
+            <Search
+                size={20}
+                strokeWidth={2}
+                className="restaurants-search-icon"
+            />
 
-                        <span className="restaurants-search-icon">
-                            🔍
-                        </span>
+            <input
+                type="text"
+                placeholder="Tìm tên nhà hàng hoặc địa chỉ..."
+                value={search}
+                onChange={(event) =>
+                    setSearch(
+                        event.target.value
+                    )
+                }
+            />
 
-                        <input
-                            type="text"
-                            placeholder="Tìm nhà hàng hoặc địa chỉ..."
-                            value={search}
-                            onChange={(e) =>
-                                setSearch(e.target.value)
-                            }
-                        />
-
-                        {search && (
-                            <button
-                                type="button"
-                                className="restaurants-search-clear"
-                                onClick={() =>
-                                    setSearch("")
-                                }
-                            >
-                                ×
-                            </button>
-                        )}
-
-                    </div>
-
-                </div>
-
-                <div className="restaurants-hero-decoration">
-                    <div className="food-circle food-circle-one">
-                        🍜
-                    </div>
-
-                    <div className="food-circle food-circle-two">
-                        🍕
-                    </div>
-
-                    <div className="food-circle food-circle-three">
-                        🍔
-                    </div>
-
-                    <div className="food-circle food-circle-main">
-                        🍱
-                    </div>
-                </div>
-            </section>
+            {search && (
+                <button
+                    type="button"
+                    className="restaurants-search-clear"
+                    onClick={() =>
+                        setSearch("")
+                    }
+                    aria-label="Xóa từ khóa tìm kiếm"
+                >
+                    <X
+                        size={17}
+                        strokeWidth={2}
+                    />
+                </button>
+            )}
+        </div>
+    </div>
+</section>
 
 
             {/* CONTENT */}
@@ -234,53 +234,63 @@ function Restaurants() {
                         )}
                     </div>
 
-                    <div className="restaurant-filters">
-
+                   <div className="restaurant-filters">
                         <button
                             type="button"
-                            className={
+                            className={`restaurant-filter ${
                                 filter === "all"
-                                    ? "restaurant-filter active"
-                                    : "restaurant-filter"
-                            }
+                                    ? "active"
+                                    : ""
+                            }`}
                             onClick={() =>
                                 setFilter("all")
                             }
                         >
-                            Tất cả
+                            <SlidersHorizontal
+                                size={15}
+                                strokeWidth={2}
+                            />
+
+                            <span>Tất cả</span>
                         </button>
 
                         <button
                             type="button"
-                            className={
+                            className={`restaurant-filter ${
                                 filter === "open"
-                                    ? "restaurant-filter active"
-                                    : "restaurant-filter"
-                            }
+                                    ? "active"
+                                    : ""
+                            }`}
                             onClick={() =>
                                 setFilter("open")
                             }
                         >
-                            <span className="filter-dot">
-                                ●
-                            </span>
-                            Đang mở
+                            <CircleDot
+                                size={15}
+                                strokeWidth={2}
+                            />
+
+                            <span>Đang mở</span>
                         </button>
 
                         <button
                             type="button"
-                            className={
+                            className={`restaurant-filter ${
                                 filter === "rating"
-                                    ? "restaurant-filter active"
-                                    : "restaurant-filter"
-                            }
+                                    ? "active"
+                                    : ""
+                            }`}
                             onClick={() =>
                                 setFilter("rating")
                             }
                         >
-                            ★ Đánh giá cao
-                        </button>
+                            <Star
+                                size={15}
+                                strokeWidth={2}
+                            />
 
+                            <span>Đánh giá cao</span>
+                        </button>
                     </div>
 
                 </div>
@@ -322,7 +332,10 @@ function Restaurants() {
                         <div className="restaurants-empty">
 
                             <div className="restaurants-empty-icon">
-                                🔎
+                                <SearchX
+                                    size={28}
+                                    strokeWidth={1.8}
+                                />
                             </div>
 
                             <h3>
@@ -357,16 +370,24 @@ function Restaurants() {
 
                         <div className="restaurants-grid">
 
-                            {filteredRestaurants.map(
+                           {filteredRestaurants.map(
                                 (restaurant) => {
-
                                     const isOpen =
                                         isRestaurantOpen(
                                             restaurant
                                         );
 
+                                    const statusLabel =
+                                        getRestaurantStatusLabel(
+                                            restaurant
+                                        );
+
                                     const rating =
                                         restaurant.danhGiaTrungBinh ??
+                                        0;
+
+                                    const shippingFee =
+                                        restaurant.phiShipMacDinh ??
                                         0;
 
                                     return (
@@ -377,10 +398,9 @@ function Restaurants() {
                                             to={`/nha-hang/${restaurant.maNhaHang}`}
                                             className="restaurant-modern-card"
                                         >
-
                                             {/* IMAGE */}
-                                            <div className="restaurant-card-image">
 
+                                            <div className="restaurant-card-image">
                                                 {restaurant.anhBia ? (
                                                     <img
                                                         src={
@@ -392,8 +412,13 @@ function Restaurants() {
                                                     />
                                                 ) : (
                                                     <div className="restaurant-card-placeholder">
+                                                        <ImageIcon
+                                                            size={48}
+                                                            strokeWidth={1.3}
+                                                        />
+
                                                         <span>
-                                                            🍽️
+                                                            Chưa có ảnh
                                                         </span>
                                                     </div>
                                                 )}
@@ -405,28 +430,26 @@ function Restaurants() {
                                                             : "restaurant-closed-badge"
                                                     }
                                                 >
-                                                    <span>
-                                                        ●
-                                                    </span>
+                                                    <span className="restaurant-status-dot" />
 
-                                                    {isOpen
-                                                        ? "Đang mở"
-                                                        : "Đóng cửa"}
+                                                    {statusLabel}
                                                 </div>
 
                                                 <div className="restaurant-rating-badge">
-                                                    ★{" "}
+                                                    <Star
+                                                        size={15}
+                                                        fill="currentColor"
+                                                        strokeWidth={1.8}
+                                                    />
+
                                                     {rating.toFixed(1)}
                                                 </div>
-
                                             </div>
 
-
                                             {/* INFO */}
+
                                             <div className="restaurant-card-info">
-
                                                 <div className="restaurant-card-title-row">
-
                                                     <h3>
                                                         {
                                                             restaurant.tenNhaHang
@@ -434,73 +457,59 @@ function Restaurants() {
                                                     </h3>
 
                                                     <span className="restaurant-arrow">
-                                                        →
+                                                        <ArrowRight
+                                                            size={16}
+                                                            strokeWidth={2}
+                                                        />
                                                     </span>
-
                                                 </div>
-
 
                                                 {restaurant.moTa && (
                                                     <p className="restaurant-card-description">
-                                                        {
-                                                            restaurant.moTa
-                                                        }
+                                                        {restaurant.moTa}
                                                     </p>
                                                 )}
 
-
                                                 <div className="restaurant-card-meta">
-
-                                                    {restaurant.diaChiQuan && (
-                                                        <div className="restaurant-meta-item">
-                                                            <span>
-                                                                📍
-                                                            </span>
-
-                                                            <span className="restaurant-meta-text">
-                                                                {
-                                                                    restaurant.diaChiQuan
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )}
-
                                                     <div className="restaurant-meta-item">
+                                                        <MapPin
+                                                            size={16}
+                                                            strokeWidth={1.9}
+                                                        />
 
-                                                        <span>
-                                                            🚚
+                                                        <span className="restaurant-meta-text">
+                                                            {restaurant.diaChiQuan ||
+                                                                "Chưa cập nhật địa chỉ"}
                                                         </span>
-
-                                                        <span>
-                                                            Từ{" "}
-                                                            {(
-                                                                restaurant.phiShipMacDinh ??
-                                                                0
-                                                            ).toLocaleString(
-                                                                "vi-VN"
-                                                            )}
-                                                            đ
-                                                        </span>
-
                                                     </div>
 
-                                                </div>
+                                                    <div className="restaurant-meta-item">
+                                                        <Bike
+                                                            size={17}
+                                                            strokeWidth={1.9}
+                                                        />
 
+                                                        <span>
+                                                            {shippingFee > 0
+                                                                ? `Phí giao hàng ${shippingFee.toLocaleString(
+                                                                    "vi-VN"
+                                                                )}đ`
+                                                                : "Miễn phí giao hàng"}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
                                                 <div className="restaurant-card-footer">
-
                                                     <span>
-                                                        🍴 Đặt món ngay
+                                                        Xem thực đơn
                                                     </span>
 
-                                                    <span className="restaurant-card-footer-arrow">
-                                                        →
-                                                    </span>
-
+                                                    <ArrowRight
+                                                        size={16}
+                                                        strokeWidth={2}
+                                                    />
                                                 </div>
-
                                             </div>
-
                                         </Link>
                                     );
                                 }

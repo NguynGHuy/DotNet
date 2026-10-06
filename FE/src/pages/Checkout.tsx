@@ -1,9 +1,37 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { getAddresses } from "../services/addressService";
-import type { Address } from "../services/addressService";
-import { checkPreCheckout, placeOrder } from "../services/orderService";
-import type { TienDonHang } from "../services/orderService";
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Banknote,
+  CircleCheck,
+  CircleX,
+  PencilLine,
+  QrCode,
+  ReceiptText,
+  CheckCircle2,
+  MapPin,
+  MessageSquareText,
+  ShieldCheck,
+  Smartphone,
+  Store,
+  TicketPercent,
+  UtensilsCrossed,
+} from "lucide-react";
+
+import {
+  getAddresses,
+  type Address,
+} from "../services/addressService";
+import {
+  checkPreCheckout,
+  placeOrder,
+  type TienDonHang,
+} from "../services/orderService";
 import { getCart } from "../services/cartService";
 import { checkPromotion } from "../services/promotionService";
 import { getRestaurantById } from "../services/restaurantService";
@@ -27,13 +55,15 @@ interface PhuongThucThanhToan {
   tenPhuongThuc: string;
 }
 
-// Một dòng món trong giỏ: tên, ảnh, số lượng, tiền và topping để trang xác nhận vẽ ra.
 interface GioHangDong {
   tenMonAn: string;
   hinhAnh?: string | null;
   soLuong: number;
   thanhTien: number;
-  toppings?: { tenTopping?: string; giaThem?: number }[];
+  toppings?: {
+    tenTopping?: string;
+    giaThem?: number;
+  }[];
 }
 
 interface GioHang {
@@ -56,182 +86,403 @@ function soTien(raw: TienDonHang): CheckoutData {
   };
 }
 
-function mapDong(chiTiet: GioHangDong[]): DongMonNho[] {
+function mapDong(
+  chiTiet: GioHangDong[],
+): DongMonNho[] {
   return chiTiet.map((item) => ({
     tenMonAn: item.tenMonAn,
     hinhAnh: item.hinhAnh?.trim() || null,
     soLuong: item.soLuong,
     thanhTien: item.thanhTien,
-    toppings: (item.toppings ?? []).map((tp) => ({
-      tenTopping: tp.tenTopping ?? "",
-      giaThem: tp.giaThem ?? 0,
-    })),
+    toppings: (item.toppings ?? []).map(
+      (topping) => ({
+        tenTopping:
+          topping.tenTopping ?? "",
+        giaThem:
+          topping.giaThem ?? 0,
+      }),
+    ),
   }));
+}
+
+function formatCurrency(value: number) {
+  return `${Number(value || 0).toLocaleString(
+    "vi-VN",
+  )} đ`;
 }
 
 function Checkout() {
   const navigate = useNavigate();
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(
-    null,
+  const [searchParams] = useSearchParams();
+
+  const maGioHang = Number(
+    searchParams.get("maGioHang"),
   );
-  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
-  const [ghiChu, setGhiChu] = useState("");
 
-  const [maCode, setMaCode] = useState("");
-  const [promotionId, setPromotionId] = useState<number | null>(null);
-  const [restaurantId, setRestaurantId] = useState<number | null>(null);
-  const [promoMessage, setPromoMessage] = useState("");
-  const [promoBusy, setPromoBusy] = useState(false);
+  const [addresses, setAddresses] =
+    useState<Address[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [confirming, setConfirming] = useState(false);
-  const [paying, setPaying] = useState(false);
-  const [showBill, setShowBill] = useState(false);
-  const [showQr, setShowQr] = useState(false);
-  const [qrBusy, setQrBusy] = useState(false);
-  const [donDaTao, setDonDaTao] = useState<DonTamDaTao | null>(null);
-  const [dongGio, setDongGio] = useState<DongMonNho[]>([]);
-  const [tenNhaHang, setTenNhaHang] = useState("");
-  const [phuongThucList, setPhuongThucList] = useState<PhuongThucThanhToan[]>(
+  const [
+    selectedAddressId,
+    setSelectedAddressId,
+  ] = useState<number | null>(null);
+
+  const [
+    checkoutData,
+    setCheckoutData,
+  ] = useState<CheckoutData | null>(null);
+
+  const [ghiChu, setGhiChu] =
+    useState("");
+
+  const [maCode, setMaCode] =
+    useState("");
+
+  const [
+    promotionId,
+    setPromotionId,
+  ] = useState<number | null>(null);
+
+  const [
+    restaurantId,
+    setRestaurantId,
+  ] = useState<number | null>(null);
+
+  const [
+    promoMessage,
+    setPromoMessage,
+  ] = useState("");
+
+  const [promoBusy, setPromoBusy] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [confirming, setConfirming] =
+    useState(false);
+
+  const [paying, setPaying] =
+    useState(false);
+
+  const [showBill, setShowBill] =
+    useState(false);
+
+  const [showQr, setShowQr] =
+    useState(false);
+
+  const [qrBusy, setQrBusy] =
+    useState(false);
+
+  const [donDaTao, setDonDaTao] =
+    useState<DonTamDaTao | null>(null);
+
+  const [dongGio, setDongGio] =
+    useState<DongMonNho[]>([]);
+
+  const [tenNhaHang, setTenNhaHang] =
+    useState("");
+
+  const [
+    phuongThucList,
+    setPhuongThucList,
+  ] = useState<PhuongThucThanhToan[]>(
     [],
   );
-  const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(
-    null,
-  );
+
+  const [
+    selectedPaymentId,
+    setSelectedPaymentId,
+  ] = useState<number | null>(null);
 
   useEffect(() => {
     const initCheckout = async () => {
       try {
-        const [addrData, phuongThuc, cart] = await Promise.all([
-          getAddresses(),
-          getPaymentMethods(),
-          getCart() as Promise<GioHang>,
-        ]);
-        setAddresses(addrData);
-        setPhuongThucList(phuongThuc);
-        const defaultAddr =
-          addrData.find((a: Address) => a.macDinh) || addrData[0];
-        if (defaultAddr) setSelectedAddressId(defaultAddr.maDiaChi);
-
-        if (!cart?.chiTiet?.length || cart.maNhaHang == null) {
-          throw new Error("Giỏ hàng trống.");
+        if (
+          !Number.isInteger(maGioHang) ||
+          maGioHang <= 0
+        ) {
+          throw new Error(
+            "Không xác định được giỏ hàng cần thanh toán.",
+          );
         }
 
-        const nhaHang = await getRestaurantById(cart.maNhaHang);
-        const money = await checkPreCheckout(null);
-        setRestaurantId(cart.maNhaHang);
-        setTenNhaHang(nhaHang.tenNhaHang);
-        setDongGio(mapDong(cart.chiTiet));
-        setCheckoutData(soTien(money));
-        const macDinh =
-          phuongThuc.find(
-            (item: PhuongThucThanhToan) => item.tenPhuongThuc === "COD",
-          ) ?? phuongThuc[0];
-        setSelectedPaymentId(macDinh ? macDinh.maPhuongThuc : null);
+        const [
+          addressData,
+          paymentData,
+          cart,
+        ] = await Promise.all([
+          getAddresses(),
+          getPaymentMethods(),
+          getCart(
+            maGioHang,
+          ) as Promise<GioHang>,
+        ]);
+
+        setAddresses(addressData);
+        setPhuongThucList(paymentData);
+
+        const defaultAddress =
+          addressData.find(
+            (address: Address) =>
+              address.macDinh,
+          ) ?? addressData[0];
+
+        if (defaultAddress) {
+          setSelectedAddressId(
+            defaultAddress.maDiaChi,
+          );
+        }
+
+        if (
+          !cart?.chiTiet?.length ||
+          cart.maNhaHang === null
+        ) {
+          throw new Error(
+            "Giỏ hàng trống.",
+          );
+        }
+
+        const restaurant =
+          await getRestaurantById(
+            cart.maNhaHang,
+          );
+
+        const money =
+          await checkPreCheckout(
+            maGioHang,
+            null,
+          );
+
+        setRestaurantId(
+          cart.maNhaHang,
+        );
+
+        setTenNhaHang(
+          restaurant.tenNhaHang,
+        );
+
+        setDongGio(
+          mapDong(cart.chiTiet),
+        );
+
+        setCheckoutData(
+          soTien(money),
+        );
+
+        const defaultPayment =
+          paymentData.find(
+            (
+              item: PhuongThucThanhToan,
+            ) =>
+              item.tenPhuongThuc ===
+              "COD",
+          ) ?? paymentData[0];
+
+        setSelectedPaymentId(
+          defaultPayment
+            ? defaultPayment.maPhuongThuc
+            : null,
+        );
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Có lỗi xảy ra";
+          error instanceof Error
+            ? error.message
+            : "Có lỗi xảy ra.";
+
         alert(message);
-        navigate("/gio-hang");
+        navigate("/nha-hang");
       } finally {
         setLoading(false);
       }
     };
-    initCheckout();
-  }, [navigate]);
 
-  const handleApplyPromotion = async () => {
-    if (!maCode.trim() || restaurantId === null || !checkoutData) return;
+    void initCheckout();
+  }, [maGioHang, navigate]);
 
-    try {
-      setPromoBusy(true);
-      setPromoMessage("");
+  const handleApplyPromotion =
+    async () => {
+      if (
+        !maCode.trim() ||
+        restaurantId === null ||
+        !checkoutData
+      ) {
+        return;
+      }
 
-      const result = await checkPromotion(
-        maCode.trim(),
-        restaurantId,
-        checkoutData.tongTienHang,
+      try {
+        setPromoBusy(true);
+        setPromoMessage("");
+
+        const result =
+          await checkPromotion(
+            maCode.trim(),
+            restaurantId,
+            checkoutData.tongTienHang,
+          );
+
+        const money =
+          await checkPreCheckout(
+            maGioHang,
+            result.maKhuyenMai,
+          );
+
+        setCheckoutData(
+          soTien(money),
+        );
+
+        setPromotionId(
+          result.maKhuyenMai,
+        );
+
+        setPromoMessage(
+          "Áp dụng mã thành công.",
+        );
+      } catch (error) {
+        setPromoMessage(
+          error instanceof Error
+            ? error.message
+            : "Không thể áp dụng mã khuyến mãi.",
+        );
+      } finally {
+        setPromoBusy(false);
+      }
+    };
+
+  const handleRemovePromotion =
+    async () => {
+      try {
+        setPromoBusy(true);
+
+        const money =
+          await checkPreCheckout(
+            maGioHang,
+            null,
+          );
+
+        setCheckoutData(
+          soTien(money),
+        );
+
+        setPromotionId(null);
+        setMaCode("");
+        setPromoMessage("");
+      } catch (error) {
+        setPromoMessage(
+          error instanceof Error
+            ? error.message
+            : "Không thể bỏ mã khuyến mãi.",
+        );
+      } finally {
+        setPromoBusy(false);
+      }
+    };
+
+  const recheckBeforeOrder =
+    async () => {
+      if (restaurantId === null) {
+        throw new Error(
+          "Giỏ hàng trống.",
+        );
+      }
+
+      const [cart, money] =
+        await Promise.all([
+          getCart(
+            maGioHang,
+          ) as Promise<GioHang>,
+
+          checkPreCheckout(
+            maGioHang,
+            promotionId,
+          ),
+        ]);
+
+      if (!cart?.chiTiet?.length) {
+        throw new Error(
+          "Giỏ hàng trống.",
+        );
+      }
+
+      const lines = mapDong(
+        cart.chiTiet,
       );
-      const money = await checkPreCheckout(result.maKhuyenMai);
-      setCheckoutData(soTien(money));
-      setPromotionId(result.maKhuyenMai);
-      setPromoMessage("Áp dụng mã thành công.");
-    } catch (err) {
-      setPromoMessage((err as Error).message);
-    } finally {
-      setPromoBusy(false);
-    }
-  };
 
-  const handleRemovePromotion = async () => {
-    try {
-      setPromoBusy(true);
-      const money = await checkPreCheckout(null);
-      setCheckoutData(soTien(money));
-      setPromotionId(null);
-      setMaCode("");
-      setPromoMessage("");
-    } catch (err) {
-      setPromoMessage((err as Error).message);
-    } finally {
-      setPromoBusy(false);
-    }
-  };
+      const moneyData =
+        soTien(money);
 
-  const recheckBeforeOrder = async () => {
-    if (restaurantId === null) {
-      throw new Error("Giỏ hàng trống.");
-    }
+      setDongGio(lines);
+      setCheckoutData(moneyData);
 
-    const [cart, money] = await Promise.all([
-      getCart() as Promise<GioHang>,
-      checkPreCheckout(promotionId),
-    ]);
-    if (!cart?.chiTiet?.length) {
-      throw new Error("Giỏ hàng trống.");
-    }
-
-    const lines = mapDong(cart.chiTiet);
-    const tien = soTien(money);
-    setDongGio(lines);
-    setCheckoutData(tien);
-    return { lines, tien };
-  };
+      return {
+        lines,
+        tien: moneyData,
+      };
+    };
 
   const handleConfirm = async () => {
     if (donDaTao) {
-      if (selectedPaymentId === null) {
-        alert("Vui lòng chọn phương thức thanh toán!");
+      if (
+        selectedPaymentId === null
+      ) {
+        alert(
+          "Vui lòng chọn phương thức thanh toán!",
+        );
+
         return;
       }
+
       setShowBill(true);
       return;
     }
 
     if (!selectedAddressId) {
-      alert("Vui lòng chọn địa chỉ giao hàng!");
-      return;
-    }
-    if (selectedPaymentId === null) {
-      alert("Vui lòng chọn phương thức thanh toán!");
-      return;
-    }
-    if (!checkoutData || restaurantId === null || dongGio.length === 0) return;
+      alert(
+        "Vui lòng chọn địa chỉ giao hàng!",
+      );
 
-    if (maCode.trim() && promotionId === null) {
+      return;
+    }
+
+    if (selectedPaymentId === null) {
+      alert(
+        "Vui lòng chọn phương thức thanh toán!",
+      );
+
+      return;
+    }
+
+    if (
+      !checkoutData ||
+      restaurantId === null ||
+      dongGio.length === 0
+    ) {
+      return;
+    }
+
+    if (
+      maCode.trim() &&
+      promotionId === null
+    ) {
       alert(
         "Bạn đã nhập mã giảm giá nhưng chưa áp dụng. Hãy áp dụng hoặc xóa mã.",
       );
+
       return;
     }
 
     try {
       setConfirming(true);
+
       await recheckBeforeOrder();
+
       setShowBill(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra.";
+
       alert(message);
     } finally {
       setConfirming(false);
@@ -239,439 +490,1179 @@ function Checkout() {
   };
 
   const handlePay = async () => {
-    const payment = phuongThucList.find(
-      (item) => item.maPhuongThuc === selectedPaymentId,
-    );
-    if (!payment || selectedAddressId === null || restaurantId === null) return;
+    const payment =
+      phuongThucList.find(
+        (item) =>
+          item.maPhuongThuc ===
+          selectedPaymentId,
+      );
+
+    if (
+      !payment ||
+      selectedAddressId === null ||
+      restaurantId === null
+    ) {
+      return;
+    }
 
     try {
       setPaying(true);
 
       if (donDaTao) {
-        const nhaHang = await getRestaurantById(restaurantId);
-        if (nhaHang.trangThaiHoatDong !== "MoCua") {
-          alert("Nhà hàng hiện đang tạm ngưng nhận đơn.");
+        const restaurant =
+          await getRestaurantById(
+            restaurantId,
+          );
+
+        if (!restaurant.dangMoCua) {
+          alert(
+            "Nhà hàng hiện đang tạm ngưng nhận đơn.",
+          );
+
           return;
         }
 
-        const created = (await changePaymentMethod(
-          donDaTao.maThanhToan,
-          payment.maPhuongThuc,
-        )) as { maThanhToanMoi: number };
-        const nextPaymentId = Number(created.maThanhToanMoi);
-        const donMoi = { ...donDaTao, maThanhToan: nextPaymentId };
-        setDonDaTao(donMoi);
-        if (payment.tenPhuongThuc === "COD") {
-          navigate(`/don-hang/${donDaTao.maDonHang}`);
+        const changed =
+          (await changePaymentMethod(
+            donDaTao.maThanhToan,
+            payment.maPhuongThuc,
+          )) as {
+            maThanhToanMoi: number;
+          };
+
+        const nextPaymentId =
+          Number(
+            changed.maThanhToanMoi,
+          );
+
+        setDonDaTao({
+          ...donDaTao,
+          maThanhToan:
+            nextPaymentId,
+        });
+
+        if (
+          payment.tenPhuongThuc ===
+          "COD"
+        ) {
+          navigate(
+            `/don-hang/${donDaTao.maDonHang}`,
+          );
+
           return;
         }
+
         setShowQr(true);
         return;
       }
 
       await recheckBeforeOrder();
-      const res = await placeOrder({
-        maDiaChi: selectedAddressId,
-        maPhuongThuc: payment.maPhuongThuc,
-        maKhuyenMai: promotionId,
-        ghiChu,
-      });
-      if (payment.tenPhuongThuc === "COD") {
-        navigate(`/don-hang/${res.maDonHang}`);
+
+      const response =
+        await placeOrder({
+          maGioHang,
+          maDiaChi:
+            selectedAddressId,
+          maPhuongThuc:
+            payment.maPhuongThuc,
+          maKhuyenMai:
+            promotionId,
+          ghiChu,
+        });
+
+      if (
+        payment.tenPhuongThuc ===
+        "COD"
+      ) {
+        navigate(
+          `/don-hang/${response.maDonHang}`,
+        );
+
         return;
       }
-      const donMoi = {
-        maDonHang: res.maDonHang,
-        maDonHangHienThi: res.maDonHangHienThi,
-        maThanhToan: res.maThanhToan,
-      };
-      setDonDaTao(donMoi);
+
+      setDonDaTao({
+        maDonHang:
+          response.maDonHang,
+
+        maDonHangHienThi:
+          response.maDonHangHienThi,
+
+        maThanhToan:
+          response.maThanhToan,
+      });
+
       setShowQr(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra.";
+
       alert(message);
     } finally {
       setPaying(false);
     }
   };
 
-  const handleQrSuccess = async () => {
-    if (!donDaTao) return;
-    try {
-      setQrBusy(true);
-      await simulatePayment(donDaTao.maThanhToan, "ThanhCong");
-      navigate(`/don-hang/${donDaTao.maDonHang}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
-      alert(message);
-    } finally {
-      setQrBusy(false);
-    }
-  };
+  const handleQrSuccess =
+    async () => {
+      if (!donDaTao) {
+        return;
+      }
+
+      try {
+        setQrBusy(true);
+
+        await simulatePayment(
+          donDaTao.maThanhToan,
+          "ThanhCong",
+        );
+
+        navigate(
+          `/don-hang/${donDaTao.maDonHang}`,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Có lỗi xảy ra.";
+
+        alert(message);
+      } finally {
+        setQrBusy(false);
+      }
+    };
 
   const handleQrFail = async () => {
-    if (!donDaTao) return;
+    if (!donDaTao) {
+      return;
+    }
+
     try {
       setQrBusy(true);
-      await simulatePayment(donDaTao.maThanhToan, "ThatBai");
+
+      await simulatePayment(
+        donDaTao.maThanhToan,
+        "ThatBai",
+      );
+
       setShowQr(false);
       setShowBill(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra.";
+
       alert(message);
     } finally {
       setQrBusy(false);
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="loading-spinner" style={{ margin: "100px auto" }}></div>
-    );
+      <main className="checkout-page checkout-loading-page">
+        <div className="loading-spinner" />
 
-  if (showBill && dongGio.length > 0 && checkoutData) {
-    const address = addresses.find(
-      (item) => item.maDiaChi === selectedAddressId,
-    );
-    const payment = phuongThucList.find(
-      (item) => item.maPhuongThuc === selectedPaymentId,
-    );
-    const formatMoney = (value: number) => `${value.toLocaleString("vi-VN")} đ`;
-
-    return (
-      <main className="checkout-page">
-        <div className="invoice-sheet">
-          <div className="invoice-track">
-            <h1>Hóa đơn</h1>
-            <p>
-              {donDaTao
-                ? `Đơn ${donDaTao.maDonHangHienThi} đã được tạo. Chỉ đổi được phương thức thanh toán.`
-                : "Xem lại thông tin truoc khi thanh toán."}
-            </p>
-          </div>
-
-          <section className="invoice-block">
-            <h2>{tenNhaHang}</h2>
-          </section>
-
-          <section className="invoice-block">
-            {dongGio.map((line, index) => (
-              <div key={`${line.tenMonAn}-${index}`} className="invoice-item">
-                <div className="invoice-line">
-                  <strong>
-                    {line.tenMonAn} x{line.soLuong}
-                  </strong>
-                  <span>{formatMoney(line.thanhTien)}</span>
-                </div>
-                {line.toppings.map((tp, tpIndex) => (
-                  <div key={tpIndex} className="invoice-line invoice-topping">
-                    <span>+ {tp.tenTopping}</span>
-                    <span>{formatMoney(tp.giaThem)}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </section>
-
-          <section className="invoice-block invoice-money">
-            <div className="invoice-line">
-              <span>Tổng tiền món</span>
-              <span>{formatMoney(checkoutData.tongTienHang)}</span>
-            </div>
-            <div className="invoice-line">
-              <span>Phí giao hàng</span>
-              <span>{formatMoney(checkoutData.phiShip)}</span>
-            </div>
-            <div className="invoice-line">
-              <span>Giảm giá</span>
-              <span>-{formatMoney(checkoutData.soTienGiam)}</span>
-            </div>
-            {promotionId !== null && maCode.trim() && (
-              <p className="invoice-muted">Mã: {maCode.trim()}</p>
-            )}
-            <div className="invoice-line invoice-total">
-              <span>Thành tiền</span>
-              <span>{formatMoney(checkoutData.thanhTien)}</span>
-            </div>
-          </section>
-
-          <section className="invoice-block">
-            {address && (
-              <>
-                <p className="invoice-receiver">
-                  {address.tenNguoiNhan} · {address.soDienThoaiNhan}
-                </p>
-                <p className="invoice-muted">{address.diaChiCuThe}</p>
-              </>
-            )}
-            {ghiChu.trim() && (
-              <p className="invoice-muted">Ghi chú: {ghiChu.trim()}</p>
-            )}
-            {payment && (
-              <p className="invoice-muted">
-                Thanh toán: {payment.tenPhuongThuc}
-              </p>
-            )}
-          </section>
-
-          <div className="checkout-bill-actions">
-            <button
-              type="button"
-              className="menu-button checkout-secondary"
-              onClick={() => setShowBill(false)}
-              disabled={paying || showQr}
-            >
-              Sửa lại
-            </button>
-            <button
-              type="button"
-              className="menu-button"
-              onClick={handlePay}
-              disabled={paying || showQr}
-            >
-              {paying ? "Đang tạo đơn..." : "Thanh toán"}
-            </button>
-          </div>
-        </div>
-        {showQr && payment && (
-          <div
-            className="qr-overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="qr-title"
-          >
-            <div className="qr-dialog">
-              <h2 id="qr-title">Thanh toán {payment.tenPhuongThuc}</h2>
-              <p>Quét mã mô phỏng, rồi chọn kết quả.</p>
-              <PaymentQr />
-              <p>{formatMoney(checkoutData.thanhTien)}</p>
-              <div className="qr-actions">
-                <button
-                  type="button"
-                  className="menu-button"
-                  onClick={handleQrSuccess}
-                  disabled={qrBusy}
-                >
-                  {qrBusy ? "Đang xử lý..." : "Tôi đã thanh toán"}
-                </button>
-                <button
-                  type="button"
-                  className="menu-button checkout-secondary"
-                  onClick={handleQrFail}
-                  disabled={qrBusy}
-                >
-                  Thanh toán thất bại
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <p>
+          Đang chuẩn bị đơn hàng...
+        </p>
       </main>
     );
   }
 
+  if (
+  showBill &&
+  dongGio.length > 0 &&
+  checkoutData
+) {
+  const address =
+    addresses.find(
+      (item) =>
+        item.maDiaChi ===
+        selectedAddressId,
+    );
+
+  const payment =
+    phuongThucList.find(
+      (item) =>
+        item.maPhuongThuc ===
+        selectedPaymentId,
+    );
+
+  const isCodPayment =
+    payment?.tenPhuongThuc
+      .toUpperCase()
+      .includes("COD") ?? false;
+
   return (
-    <main className="checkout-page">
-      <div className="checkout-container">
-        <h2>Xác nhận Đơn hàng</h2>
-        {donDaTao && (
-          <p className="checkout-promotion-message">
-            Thanh toán đơn {donDaTao.maDonHangHienThi} thất bại. Địa chỉ, món và
-            mã giảm giá giữ nguyên. Hãy chọn phương thức thanh toán khác.
-          </p>
-        )}
+    <main className="checkout-review-page">
+      <div className="checkout-review-container">
+        <header className="checkout-review-header">
+          <div className="checkout-review-title">
+            <span>
+              <ReceiptText size={21} />
+            </span>
 
-        <div className="checkout-section checkout-shop-sheet">
-          {tenNhaHang && (
-            <div className="checkout-shop-row">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 9.5 12 4l8 5.5V20a1 1 0 0 1-1 1h-5.2v-5.2H10.2V21H5a1 1 0 0 1-1-1V9.5Z" />
-              </svg>
-              <strong>{tenNhaHang}</strong>
+            <div>
+              <small>
+                Xác nhận lần cuối
+              </small>
+
+              <h1>
+                Kiểm tra đơn hàng
+              </h1>
+
+              <p>
+                Đảm bảo thông tin chính xác
+                trước khi tạo đơn.
+              </p>
             </div>
-          )}
-          {dongGio.map((line, index) => (
-            <article
-              key={`${line.tenMonAn}-${index}`}
-              className="checkout-dish-row"
-            >
-              <div className="checkout-dish-thumb">
-                {line.hinhAnh && (
-                  <img
-                    src={line.hinhAnh}
-                    alt=""
-                    onError={(event) => {
-                      event.currentTarget.remove();
-                    }}
-                  />
-                )}
-              </div>
-              <div className="checkout-dish-body">
-                <div className="checkout-dish-top">
-                  <p className="checkout-dish-name">{line.tenMonAn}</p>
-                  <p className="checkout-dish-price">
-                    {line.thanhTien.toLocaleString("vi-VN")} đ
-                  </p>
-                </div>
-                {line.toppings.length > 0 && (
-                  <div className="checkout-dish-toppings">
-                    {line.toppings.map((tp, tpIndex) => (
-                      <p key={tpIndex} className="checkout-dish-variant">
-                        <span>+ {tp.tenTopping}</span>
-                        <span>{tp.giaThem.toLocaleString("vi-VN")} đ</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-                <p className="checkout-dish-qty">x{line.soLuong}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="checkout-section">
-          <h3>📍 Giao đến</h3>
-          {addresses.length === 0 ? (
-            <p>
-              Bạn chưa có địa chỉ.{" "}
-              <Link to="/dia-chi" style={{ color: "#ff5a1f" }}>
-                Thêm địa chỉ ngay
-              </Link>
-            </p>
-          ) : (
-            <div className="address-options">
-              {addresses.map((a) => (
-                <label
-                  key={a.maDiaChi}
-                  className={`address-option ${selectedAddressId === a.maDiaChi ? "selected" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={selectedAddressId === a.maDiaChi}
-                    disabled={donDaTao !== null}
-                    onChange={() => setSelectedAddressId(a.maDiaChi)}
-                  />
-                  <div>
-                    <strong>
-                      {a.tenNguoiNhan} - {a.soDienThoaiNhan}
-                    </strong>
-                    <p>{a.diaChiCuThe}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="checkout-section">
-          <h3>📝 Ghi chú cho quán</h3>
-          <textarea
-            placeholder="Ví dụ: Ít cay, tới nơi gọi điện..."
-            value={ghiChu}
-            disabled={donDaTao !== null}
-            onChange={(e) => setGhiChu(e.target.value)}
-            rows={2}
-            className="checkout-note"
-          ></textarea>
-        </div>
-
-        <div className="checkout-section">
-          <h3>🎟️ Mã giảm giá</h3>
-
-          <div className="checkout-promotion">
-            <input
-              aria-label="Mã giảm giá"
-              placeholder="Nhập mã giảm giá"
-              value={maCode}
-              disabled={promotionId !== null || promoBusy || donDaTao !== null}
-              onChange={(e) => setMaCode(e.target.value)}
-            />
-
-            {promotionId === null ? (
-              <button
-                type="button"
-                onClick={handleApplyPromotion}
-                disabled={promoBusy || !maCode.trim() || donDaTao !== null}
-              >
-                {promoBusy ? "Đang kiểm tra..." : "Áp dụng"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRemovePromotion}
-                disabled={promoBusy || donDaTao !== null}
-              >
-                Bỏ mã
-              </button>
-            )}
           </div>
 
-          {promoMessage && (
-            <p className="checkout-promotion-message">{promoMessage}</p>
-          )}
-        </div>
+          <button
+            type="button"
+            className="checkout-review-edit"
+            disabled={paying || showQr}
+            onClick={() =>
+              setShowBill(false)
+            }
+          >
+            <PencilLine size={15} />
+            Sửa thông tin
+          </button>
+        </header>
 
-        <div className="checkout-section">
-          <h3>💳 Phương thức thanh toán</h3>
-          {phuongThucList.length === 0 ? (
-            <p>Chưa có phương thức thanh toán.</p>
-          ) : (
-            <div className="address-options">
-              {phuongThucList.map((item) => (
-                <label
-                  key={item.maPhuongThuc}
-                  className={`address-option ${selectedPaymentId === item.maPhuongThuc ? "selected" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={selectedPaymentId === item.maPhuongThuc}
-                    onChange={() => setSelectedPaymentId(item.maPhuongThuc)}
-                  />
-                  <div>
-                    <strong>{item.tenPhuongThuc}</strong>
-                  </div>
-                </label>
-              ))}
+        {donDaTao && (
+          <div className="checkout-review-created">
+            <CheckCircle2 size={18} />
+
+            <div>
+              <strong>
+                Đơn{" "}
+                {
+                  donDaTao.maDonHangHienThi
+                }{" "}
+                đã được tạo
+              </strong>
+
+              <p>
+                Địa chỉ, món ăn và mã
+                khuyến mãi được giữ nguyên.
+                Bạn đang đổi phương thức
+                thanh toán.
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="checkout-section summary-box">
-          <h3>💰 Tổng cộng</h3>
-          {checkoutData && (
-            <>
-              <div className="summary-row">
-                <span>Tổng tiền món:</span>
-                <span>{checkoutData.tongTienHang.toLocaleString()} đ</span>
-              </div>
-              <div className="summary-row">
-                <span>Phí giao hàng:</span>
-                <span>{checkoutData.phiShip.toLocaleString()} đ</span>
-              </div>
-              <div className="summary-row">
-                <span>Khuyến mãi:</span>
-                <span>- {checkoutData.soTienGiam.toLocaleString()} đ</span>
-              </div>
-              <hr />
-              <div className="summary-row total">
-                <span>Thanh toán:</span>
-                <span>{checkoutData.thanhTien.toLocaleString()} đ</span>
-              </div>
-            </>
-          )}
-        </div>
+        <div className="checkout-review-layout">
+          <section className="checkout-review-main">
+            <div className="checkout-review-restaurant">
+              <span>
+                <Store size={18} />
+              </span>
 
-        <button
-          className="menu-button"
-          type="button"
-          onClick={handleConfirm}
-          disabled={confirming || promoBusy || addresses.length === 0}
-          style={{ width: "100%", marginTop: 20 }}
+              <div>
+                <small>
+                  Nhà hàng
+                </small>
+
+                <h2>{tenNhaHang}</h2>
+              </div>
+
+              <strong>
+                {dongGio.length} loại món
+              </strong>
+            </div>
+
+            <div className="checkout-review-items">
+              {dongGio.map(
+                (line, index) => (
+                  <article
+                    key={`${line.tenMonAn}-${index}`}
+                    className="checkout-review-item"
+                  >
+                    <div className="checkout-review-item-image">
+                      {line.hinhAnh ? (
+                        <img
+                          src={
+                            line.hinhAnh
+                          }
+                          alt={
+                            line.tenMonAn
+                          }
+                          onError={(
+                            event,
+                          ) => {
+                            event.currentTarget.style.display =
+                              "none";
+                          }}
+                        />
+                      ) : (
+                        <UtensilsCrossed
+                          size={21}
+                        />
+                      )}
+                    </div>
+
+                    <div className="checkout-review-item-info">
+                      <div>
+                        <h3>
+                          {line.tenMonAn}
+                        </h3>
+
+                        <span>
+                          x{line.soLuong}
+                        </span>
+                      </div>
+
+                      {line.toppings.length >
+                        0 && (
+                        <p>
+                          {line.toppings
+                            .map(
+                              (
+                                topping,
+                              ) =>
+                                topping.tenTopping,
+                            )
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
+
+                    <strong>
+                      {formatCurrency(
+                        line.thanhTien,
+                      )}
+                    </strong>
+                  </article>
+                ),
+              )}
+            </div>
+
+            <div className="checkout-review-delivery">
+              <div className="checkout-review-section-title">
+                <MapPin size={17} />
+
+                <h3>
+                  Thông tin giao hàng
+                </h3>
+              </div>
+
+              {address ? (
+                <div className="checkout-review-address">
+                  <strong>
+                    {address.tenNguoiNhan}
+
+                    <span>
+                      {
+                        address.soDienThoaiNhan
+                      }
+                    </span>
+                  </strong>
+
+                  <p>
+                    {address.diaChiCuThe}
+                  </p>
+                </div>
+              ) : (
+                <p className="checkout-review-muted">
+                  Chưa có địa chỉ giao hàng.
+                </p>
+              )}
+
+              {ghiChu.trim() && (
+                <div className="checkout-review-note">
+                  <MessageSquareText
+                    size={14}
+                  />
+
+                  <span>
+                    {ghiChu.trim()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <aside className="checkout-review-summary">
+            <div className="checkout-review-summary-title">
+              <ReceiptText size={18} />
+
+              <h2>
+                Chi tiết thanh toán
+              </h2>
+            </div>
+
+            <div className="checkout-review-money">
+              <div>
+                <span>Tiền món</span>
+
+                <strong>
+                  {formatCurrency(
+                    checkoutData.tongTienHang,
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Phí giao hàng
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    checkoutData.phiShip,
+                  )}
+                </strong>
+              </div>
+
+              <div className="discount">
+                <span>Khuyến mãi</span>
+
+                <strong>
+                  -
+                  {formatCurrency(
+                    checkoutData.soTienGiam,
+                  )}
+                </strong>
+              </div>
+
+              {promotionId !== null &&
+                maCode.trim() && (
+                  <div className="checkout-review-code">
+                    <TicketPercent
+                      size={13}
+                    />
+
+                    <span>
+                      {maCode.trim()}
+                    </span>
+                  </div>
+                )}
+
+              <div className="total">
+                <span>
+                  Tổng thanh toán
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    checkoutData.thanhTien,
+                  )}
+                </strong>
+              </div>
+            </div>
+
+            {payment && (
+              <div className="checkout-review-payment">
+                <span>
+                  {isCodPayment ? (
+                    <Banknote size={18} />
+                  ) : (
+                    <Smartphone
+                      size={18}
+                    />
+                  )}
+                </span>
+
+                <div>
+                  <small>
+                    Phương thức thanh toán
+                  </small>
+
+                  <strong>
+                    {
+                      payment.tenPhuongThuc
+                    }
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="checkout-review-pay"
+              disabled={paying || showQr}
+              onClick={() =>
+                void handlePay()
+              }
+            >
+              {paying ? (
+                "Đang xử lý..."
+              ) : (
+                <>
+                  {isCodPayment ? (
+                    <Banknote size={17} />
+                  ) : (
+                    <QrCode size={17} />
+                  )}
+
+                  <span>
+                    {isCodPayment
+                      ? "Đặt đơn COD"
+                      : "Tiến hành thanh toán"}
+                  </span>
+
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="checkout-review-back"
+              disabled={paying || showQr}
+              onClick={() =>
+                setShowBill(false)
+              }
+            >
+              Quay lại chỉnh sửa
+            </button>
+
+            <div className="checkout-review-security">
+              <ShieldCheck size={14} />
+
+              <span>
+                Chỉ tạo đơn sau khi bạn xác
+                nhận bước này.
+              </span>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {showQr && payment && (
+        <div
+          className="qr-overlay qr-overlay-v2"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="qr-title"
         >
-          {confirming ? "Đang kiểm tra..." : "Xác nhận"}
-        </button>
+          <div className="qr-dialog qr-dialog-v2">
+            <div className="qr-dialog-icon">
+              <QrCode size={24} />
+            </div>
+
+            <span className="qr-dialog-eyebrow">
+              Thanh toán trực tuyến
+            </span>
+
+            <h2 id="qr-title">
+              {payment.tenPhuongThuc}
+            </h2>
+
+            <p className="qr-dialog-description">
+              Quét mã bằng ứng dụng thanh
+              toán, sau đó xác nhận kết quả.
+            </p>
+
+            <div className="qr-payment-amount">
+              <span>
+                Số tiền thanh toán
+              </span>
+
+              <strong>
+                {formatCurrency(
+                  checkoutData.thanhTien,
+                )}
+              </strong>
+            </div>
+
+            <div className="qr-code-frame">
+              <PaymentQr />
+            </div>
+
+            <p className="qr-demo-note">
+              Đây là chức năng thanh toán mô
+              phỏng dùng trong đồ án.
+            </p>
+
+            <div className="qr-actions qr-actions-v2">
+              <button
+                type="button"
+                className="qr-success-button"
+                disabled={qrBusy}
+                onClick={() =>
+                  void handleQrSuccess()
+                }
+              >
+                <CircleCheck size={17} />
+
+                {qrBusy
+                  ? "Đang xử lý..."
+                  : "Tôi đã thanh toán"}
+              </button>
+
+              <button
+                type="button"
+                className="qr-fail-button"
+                disabled={qrBusy}
+                onClick={() =>
+                  void handleQrFail()
+                }
+              >
+                <CircleX size={17} />
+                Thanh toán thất bại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+  const selectedCheckoutAddress =
+    addresses.find(
+      (address) =>
+        address.maDiaChi ===
+        selectedAddressId,
+    );
+
+  return (
+    <main className="checkout-page checkout-compact-page">
+      <div className="checkout-compact-container">
+        <header className="checkout-compact-header">
+          <Link
+            to={
+              restaurantId
+                ? `/gio-hang?maNhaHang=${restaurantId}`
+                : "/nha-hang"
+            }
+            className="checkout-back-link"
+          >
+            <ArrowLeft size={16} />
+            Quay lại giỏ hàng
+          </Link>
+
+          <span>
+            Xác nhận đơn hàng
+          </span>
+
+          <h1>Thanh toán</h1>
+
+          <p>
+            Hoàn tất thông tin để nhà
+            hàng chuẩn bị món cho bạn.
+          </p>
+        </header>
+
+        {donDaTao && (
+          <div className="checkout-retry-notice">
+            <CheckCircle2
+              size={18}
+            />
+
+            <div>
+              <strong>
+                Đơn{" "}
+                {
+                  donDaTao.maDonHangHienThi
+                }{" "}
+                đã được tạo
+              </strong>
+
+              <p>
+                Hãy chọn phương thức
+                thanh toán khác để
+                tiếp tục.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="checkout-compact-layout">
+          <div className="checkout-compact-main">
+            <section className="checkout-compact-card">
+              <div className="checkout-compact-card-title">
+                <span>
+                  <MapPin size={17} />
+                </span>
+
+                <div>
+                  <h2>
+                    Thông tin giao hàng
+                  </h2>
+
+                  <p>
+                    Địa chỉ nhận món và
+                    ghi chú giao hàng
+                  </p>
+                </div>
+              </div>
+
+              {addresses.length === 0 ? (
+                <div className="checkout-empty-address">
+                  Bạn chưa có địa chỉ
+                  giao hàng.{" "}
+
+                  <Link to="/dia-chi">
+                    Thêm địa chỉ ngay
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="checkout-address-select-row">
+                    <label htmlFor="checkout-address">
+                      Địa chỉ nhận món
+                    </label>
+
+                    <div className="checkout-address-select-wrap">
+                      <select
+                        id="checkout-address"
+                        value={
+                          selectedAddressId ??
+                          ""
+                        }
+                        disabled={
+                          donDaTao !== null
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          setSelectedAddressId(
+                            Number(
+                              event.target
+                                .value,
+                            ),
+                          )
+                        }
+                      >
+                        <option
+                          value=""
+                          disabled
+                        >
+                          Chọn địa chỉ
+                        </option>
+
+                        {addresses.map(
+                          (address) => (
+                            <option
+                              key={
+                                address.maDiaChi
+                              }
+                              value={
+                                address.maDiaChi
+                              }
+                            >
+                              {
+                                address.tenNguoiNhan
+                              }
+                              {" - "}
+                              {
+                                address.diaChiCuThe
+                              }
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {selectedCheckoutAddress && (
+                    <div className="checkout-selected-address">
+                      <MapPin size={16} />
+
+                      <div>
+                        <strong>
+                          {
+                            selectedCheckoutAddress.tenNguoiNhan
+                          }
+
+                          <span>
+                            {
+                              selectedCheckoutAddress.soDienThoaiNhan
+                            }
+                          </span>
+                        </strong>
+
+                        <p>
+                          {
+                            selectedCheckoutAddress.diaChiCuThe
+                          }
+                        </p>
+                      </div>
+
+                      <Link to="/dia-chi">
+                        Quản lý
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="checkout-compact-divider" />
+
+              <label className="checkout-compact-note">
+                <span>
+                  <MessageSquareText
+                    size={15}
+                  />
+                  Ghi chú cho nhà hàng
+                </span>
+
+                <textarea
+                  value={ghiChu}
+                  disabled={
+                    donDaTao !== null
+                  }
+                  maxLength={300}
+                  rows={2}
+                  placeholder="Ví dụ: tới nơi gọi điện, giao tại bảo vệ..."
+                  onChange={(event) =>
+                    setGhiChu(
+                      event.target.value,
+                    )
+                  }
+                />
+
+                <small>
+                  {ghiChu.length}/300
+                </small>
+              </label>
+            </section>
+
+            <section className="checkout-compact-card">
+              <div className="checkout-compact-card-title">
+                <span>
+                  <Banknote size={17} />
+                </span>
+
+                <div>
+                  <h2>
+                    Thanh toán và ưu đãi
+                  </h2>
+
+                  <p>
+                    Chọn phương thức thanh
+                    toán phù hợp
+                  </p>
+                </div>
+              </div>
+
+              <div className="checkout-compact-payment-options">
+                {phuongThucList.map(
+                  (item) => {
+                    const isCod =
+                      item.tenPhuongThuc
+                        .toUpperCase()
+                        .includes("COD");
+
+                    return (
+                      <label
+                        key={
+                          item.maPhuongThuc
+                        }
+                        className={`checkout-compact-payment ${
+                          selectedPaymentId ===
+                          item.maPhuongThuc
+                            ? "selected"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={
+                            selectedPaymentId ===
+                            item.maPhuongThuc
+                          }
+                          onChange={() =>
+                            setSelectedPaymentId(
+                              item.maPhuongThuc,
+                            )
+                          }
+                        />
+
+                        <span className="payment-compact-icon">
+                          {isCod ? (
+                            <Banknote
+                              size={18}
+                            />
+                          ) : (
+                            <Smartphone
+                              size={18}
+                            />
+                          )}
+                        </span>
+
+                        <span>
+                          <strong>
+                            {
+                              item.tenPhuongThuc
+                            }
+                          </strong>
+
+                          <small>
+                            {isCod
+                              ? "Khi nhận món"
+                              : "Quét mã QR"}
+                          </small>
+                        </span>
+                      </label>
+                    );
+                  },
+                )}
+              </div>
+
+              <div className="checkout-compact-divider" />
+
+              <div className="checkout-compact-promotion">
+                <div>
+                  <TicketPercent
+                    size={17}
+                  />
+
+                  <span>
+                    <strong>
+                      Mã khuyến mãi
+                    </strong>
+
+                    <small>
+                      Áp dụng ưu đãi của
+                      nhà hàng
+                    </small>
+                  </span>
+                </div>
+
+                <div className="checkout-promotion-inline">
+                  <input
+                    aria-label="Mã giảm giá"
+                    placeholder="Nhập mã"
+                    value={maCode}
+                    disabled={
+                      promotionId !==
+                        null ||
+                      promoBusy ||
+                      donDaTao !== null
+                    }
+                    onChange={(event) =>
+                      setMaCode(
+                        event.target.value.toUpperCase(),
+                      )
+                    }
+                  />
+
+                  {promotionId === null ? (
+                    <button
+                      type="button"
+                      disabled={
+                        promoBusy ||
+                        !maCode.trim() ||
+                        donDaTao !== null
+                      }
+                      onClick={() =>
+                        void handleApplyPromotion()
+                      }
+                    >
+                      {promoBusy
+                        ? "Đang kiểm tra"
+                        : "Áp dụng"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="remove"
+                      disabled={
+                        promoBusy ||
+                        donDaTao !== null
+                      }
+                      onClick={() =>
+                        void handleRemovePromotion()
+                      }
+                    >
+                      Bỏ mã
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {promoMessage && (
+                <p
+                  className={`checkout-promotion-message ${
+                    promotionId !== null
+                      ? "success"
+                      : "error"
+                  }`}
+                >
+                  {promoMessage}
+                </p>
+              )}
+            </section>
+          </div>
+
+          <aside className="checkout-compact-summary">
+            <div className="checkout-summary-restaurant">
+              <span>
+                <Store size={17} />
+              </span>
+
+              <div>
+                <small>
+                  Đơn hàng tại
+                </small>
+
+                <h2>{tenNhaHang}</h2>
+              </div>
+            </div>
+
+            <div className="checkout-compact-items">
+              {dongGio.map(
+                (line, index) => (
+                  <article
+                    key={`${line.tenMonAn}-${index}`}
+                    className="checkout-compact-item"
+                  >
+                    <div className="checkout-compact-item-image">
+                      {line.hinhAnh ? (
+                        <img
+                          src={
+                            line.hinhAnh
+                          }
+                          alt={
+                            line.tenMonAn
+                          }
+                          onError={(
+                            event,
+                          ) => {
+                            event.currentTarget.style.display =
+                              "none";
+                          }}
+                        />
+                      ) : (
+                        <UtensilsCrossed
+                          size={20}
+                        />
+                      )}
+                    </div>
+
+                    <div className="checkout-compact-item-info">
+                      <div>
+                        <h3>
+                          {line.tenMonAn}
+                        </h3>
+
+                        <span>
+                          x{line.soLuong}
+                        </span>
+                      </div>
+
+                      {line.toppings.length >
+                        0 && (
+                        <p>
+                          {line.toppings
+                            .map(
+                              (
+                                topping,
+                              ) =>
+                                topping.tenTopping,
+                            )
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
+
+                    <strong>
+                      {formatCurrency(
+                        line.thanhTien,
+                      )}
+                    </strong>
+                  </article>
+                ),
+              )}
+            </div>
+
+            {checkoutData && (
+              <div className="checkout-compact-money">
+                <div>
+                  <span>Tiền món</span>
+
+                  <strong>
+                    {formatCurrency(
+                      checkoutData.tongTienHang,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    Phí giao hàng
+                  </span>
+
+                  <strong>
+                    {formatCurrency(
+                      checkoutData.phiShip,
+                    )}
+                  </strong>
+                </div>
+
+                <div className="discount">
+                  <span>
+                    Khuyến mãi
+                  </span>
+
+                  <strong>
+                    -
+                    {formatCurrency(
+                      checkoutData.soTienGiam,
+                    )}
+                  </strong>
+                </div>
+
+                <div className="total">
+                  <span>
+                    Tổng thanh toán
+                  </span>
+
+                  <strong>
+                    {formatCurrency(
+                      checkoutData.thanhTien,
+                    )}
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="checkout-compact-submit"
+              disabled={
+                confirming ||
+                promoBusy ||
+                addresses.length === 0 ||
+                selectedPaymentId ===
+                  null
+              }
+              onClick={() =>
+                void handleConfirm()
+              }
+            >
+              <span>
+                {confirming
+                  ? "Đang kiểm tra..."
+                  : "Xác nhận đơn hàng"}
+              </span>
+
+              {!confirming && (
+                <ArrowRight size={17} />
+              )}
+            </button>
+
+            <div className="checkout-compact-security">
+              <ShieldCheck size={14} />
+
+              <span>
+                Thông tin của bạn được
+                bảo vệ an toàn.
+              </span>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   );

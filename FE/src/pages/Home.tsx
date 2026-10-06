@@ -2,7 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getRestaurants } from "../services/restaurantService";
 import type { Restaurant } from "../services/restaurantService";
-
+import {
+    ArrowRight,
+    Bike,
+    Clock3,
+    ImageIcon,
+    MapPin,
+    ShieldCheck,
+    Star,
+    UtensilsCrossed,
+} from "lucide-react";
 // interface Restaurant {
 //     maNhaHang: number;
 //     tenNhaHang: string;
@@ -16,55 +25,52 @@ import type { Restaurant } from "../services/restaurantService";
 //     trangThaiHoatDong?: string;
 // }
 
-function isRestaurantOpen(restaurant: Restaurant): boolean {
-    if (restaurant.trangThaiHoatDong !== "MoCua") {
-        return false;
+function isRestaurantOpen(
+    restaurant: Restaurant
+): boolean {
+    return restaurant.dangMoCua;
+}
+function getRestaurantStatusLabel(
+    restaurant: Restaurant
+): string {
+    if (restaurant.dangMoCua) {
+        return "Đang mở";
     }
 
-    if (!restaurant.gioMoCua || !restaurant.gioDongCua) {
-        return true;
+    if (
+        restaurant.cheDoHoatDong ===
+        "TamNgung"
+    ) {
+        return "Tạm ngưng";
     }
 
-    const now = new Date();
-    const currentMinutes =
-        now.getHours() * 60 + now.getMinutes();
-
-    const [openHour, openMinute] = restaurant.gioMoCua
-        .slice(0, 5)
-        .split(":")
-        .map(Number);
-
-    const [closeHour, closeMinute] = restaurant.gioDongCua
-        .slice(0, 5)
-        .split(":")
-        .map(Number);
-
-    const openMinutes = openHour * 60 + openMinute;
-    const closeMinutes = closeHour * 60 + closeMinute;
-
-    if (openMinutes <= closeMinutes) {
-        return (
-            currentMinutes >= openMinutes &&
-            currentMinutes < closeMinutes
-        );
+    if (
+        restaurant.cheDoHoatDong ===
+            "TuDong" &&
+        restaurant.gioMoCua
+    ) {
+        return `Mở lúc ${restaurant.gioMoCua.slice(
+            0,
+            5
+        )}`;
     }
 
-    // Trường hợp quán mở qua đêm
-    return (
-        currentMinutes >= openMinutes ||
-        currentMinutes < closeMinutes
-    );
+    return "Đã đóng";
 }
 
 function Home() {
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
-        getRestaurants()
-            .then((data) => {
+        let cancelled = false;
+
+        const loadRestaurants = async () => {
+            try {
+                const data = await getRestaurants();
+                if (cancelled) return;
+
                 console.log("Danh sách nhà hàng:", data);
 
                 // Sắp xếp theo đánh giá cao → thấp
@@ -78,30 +84,35 @@ function Home() {
                     .slice(0, 6);
 
                 setRestaurants(featuredRestaurants);
-            })
-            .catch((error) => {
+                setError("");
+            } catch (error) {
+                if (cancelled) return;
                 console.error(error);
                 setError(
                     "Không thể tải danh sách nhà hàng."
                 );
-            })
-            .finally(() => {
+            } finally {
+                if (cancelled) return;
                 setLoading(false);
-            });
-    }, []);
+            }
+        };
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentTime(new Date());
-        }, 30000);
+        void loadRestaurants();
+        const timer = window.setInterval(() => void loadRestaurants(), 15000);
+        const refresh = () => void loadRestaurants();
+        window.addEventListener("focus", refresh);
 
         return () => {
-            clearInterval(timer);
+            cancelled = true;
+            window.clearInterval(timer);
+            window.removeEventListener("focus", refresh);
         };
     }, []);
-
-    void currentTime;
-
+        const heroRestaurant =
+    restaurants.find(
+        (restaurant) =>
+            Boolean(restaurant.anhBia)
+    );
     return (
         <main className="home-page">
 
@@ -109,28 +120,133 @@ function Home() {
                 HERO
             ========================= */}
             <section className="home-hero">
-                <div className="home-hero-content">
+    {/* NỘI DUNG */}
 
-                    <h1>
-                        Đặt món ngon,
-                        <br />
-                        giao tận nơi 🍜
-                    </h1>
+    <div className="home-hero-content">
+        <div className="home-hero-eyebrow">
+            <UtensilsCrossed
+                size={16}
+                strokeWidth={2}
+            />
 
-                    <p>
-                        Khám phá những nhà hàng yêu thích
-                        và đặt món ăn ngay hôm nay.
-                    </p>
+            <span>
+                Món ngon quanh bạn
+            </span>
+        </div>
 
-                    <Link
-                        to="/nha-hang"
-                        className="hero-button"
-                    >
-                        Khám phá nhà hàng
-                    </Link>
+        <h1>
+            Đặt món yêu thích,
+            <span> giao tận nơi.</span>
+        </h1>
 
+        <p>
+            Khám phá nhà hàng gần bạn,
+            lựa chọn món ăn yêu thích và
+            đặt hàng chỉ trong vài phút.
+        </p>
+
+        <div className="home-hero-actions">
+            <Link
+                to="/nha-hang"
+                className="hero-button"
+            >
+                Khám phá nhà hàng
+
+                <ArrowRight
+                    size={18}
+                    strokeWidth={2}
+                />
+            </Link>
+        </div>
+
+        <div className="home-hero-benefits">
+            <div>
+                <Clock3
+                    size={18}
+                    strokeWidth={2}
+                />
+
+                <span>
+                    Giao hàng nhanh chóng
+                </span>
+            </div>
+
+            <div>
+                <ShieldCheck
+                    size={18}
+                    strokeWidth={2}
+                />
+
+                <span>
+                    Thanh toán an toàn
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {/* HÌNH ẢNH */}
+
+    <div className="home-hero-visual">
+        <div className="home-hero-image-card">
+            {heroRestaurant?.anhBia ? (
+                <img
+                    src={
+                        heroRestaurant.anhBia
+                    }
+                    alt={
+                        heroRestaurant.tenNhaHang
+                    }
+                />
+            ) : (
+                <div className="home-hero-placeholder">
+                    <UtensilsCrossed
+                        size={70}
+                        strokeWidth={1.25}
+                    />
+
+                    <span>
+                        Khám phá món ngon
+                    </span>
                 </div>
-            </section>
+            )}
+        </div>
+
+        <div className="hero-floating-card hero-rating-card">
+            <span className="hero-floating-icon rating">
+                <Star
+                    size={17}
+                    fill="currentColor"
+                />
+            </span>
+
+            <div>
+                <strong>
+                    Nhà hàng nổi bật
+                </strong>
+
+                <small>
+                    Được khách hàng yêu thích
+                </small>
+            </div>
+        </div>
+
+        <div className="hero-floating-card hero-time-card">
+            <span className="hero-floating-icon delivery">
+                <Clock3 size={18} />
+            </span>
+
+            <div>
+                <strong>
+                    Giao nhanh
+                </strong>
+
+                <small>
+                    Theo dõi đơn dễ dàng
+                </small>
+            </div>
+        </div>
+    </div>
+</section>
 
 
             {/* =========================
@@ -154,7 +270,12 @@ function Home() {
                         to="/nha-hang"
                         className="view-all-link"
                     >
-                        Xem tất cả →
+                        <span>Xem tất cả</span>
+
+                        <ArrowRight
+                            size={17}
+                            strokeWidth={2}
+                        />
                     </Link>
 
                 </div>
@@ -188,25 +309,32 @@ function Home() {
                     restaurants.length > 0 && (
 
                         <div className="restaurant-grid">
-
                             {restaurants.map((restaurant) => {
-
                                 const isOpen =
-                                    isRestaurantOpen(
+                                    isRestaurantOpen(restaurant);
+
+                                const statusLabel =
+                                    getRestaurantStatusLabel(
                                         restaurant
                                     );
 
+                                const rating =
+                                    restaurant.danhGiaTrungBinh ??
+                                    0;
+
+                                const shippingFee =
+                                    restaurant.phiShipMacDinh ??
+                                    0;
+
                                 return (
                                     <Link
-                                        key={
-                                            restaurant.maNhaHang
-                                        }
+                                        key={restaurant.maNhaHang}
                                         to={`/nha-hang/${restaurant.maNhaHang}`}
                                         className="restaurant-card"
                                     >
+                                        {/* ẢNH */}
 
                                         <div className="restaurant-image">
-
                                             {restaurant.anhBia ? (
                                                 <img
                                                     src={
@@ -218,75 +346,95 @@ function Home() {
                                                 />
                                             ) : (
                                                 <div className="restaurant-image-placeholder">
-                                                    🍽️
+                                                    <ImageIcon
+                                                        size={46}
+                                                        strokeWidth={1.35}
+                                                    />
+
+                                                    <span>
+                                                        Chưa có ảnh nhà hàng
+                                                    </span>
                                                 </div>
                                             )}
 
                                             <span
-                                                className={
+                                                className={`restaurant-status ${
                                                     isOpen
-                                                        ? "restaurant-status open"
-                                                        : "restaurant-status closed"
-                                                }
+                                                        ? "open"
+                                                        : "closed"
+                                                }`}
                                             >
-                                                {isOpen
-                                                    ? "● Đang mở cửa"
-                                                    : "● Đóng cửa"}
-                                            </span>
+                                                <span className="restaurant-status-dot" />
 
+                                                {statusLabel}
+                                            </span>
                                         </div>
 
+                                        {/* NỘI DUNG */}
 
                                         <div className="restaurant-card-content">
+                                            <div className="restaurant-card-title-row">
+                                                <h3>
+                                                    {restaurant.tenNhaHang}
+                                                </h3>
 
-                                            <h3>
-                                                {
-                                                    restaurant.tenNhaHang
-                                                }
-                                            </h3>
+                                                <span className="restaurant-card-rating">
+                                                    <Star
+                                                        size={15}
+                                                        fill="currentColor"
+                                                        strokeWidth={1.8}
+                                                    />
 
-                                            <div className="restaurant-rating">
-                                                ⭐{" "}
-                                                {(
-                                                    restaurant.danhGiaTrungBinh ??
-                                                    0
-                                                ).toFixed(1)}
+                                                    {rating.toFixed(1)}
+                                                </span>
                                             </div>
 
                                             {restaurant.moTa && (
                                                 <p className="restaurant-description">
-                                                    {
-                                                        restaurant.moTa
-                                                    }
+                                                    {restaurant.moTa}
                                                 </p>
                                             )}
 
-                                            {restaurant.diaChiQuan && (
-                                                <p className="restaurant-address">
-                                                    📍{" "}
-                                                    {
-                                                        restaurant.diaChiQuan
-                                                    }
-                                                </p>
-                                            )}
+                                            <div className="restaurant-card-address">
+                                                <MapPin
+                                                    size={16}
+                                                    strokeWidth={1.9}
+                                                />
 
-                                            <p className="restaurant-shipping">
-                                                🚚 Phí ship:{" "}
-                                                {(
-                                                    restaurant.phiShipMacDinh ??
-                                                    0
-                                                ).toLocaleString(
-                                                    "vi-VN"
-                                                )}
-                                                đ
-                                            </p>
+                                                <span>
+                                                    {restaurant.diaChiQuan ||
+                                                        "Chưa cập nhật địa chỉ"}
+                                                </span>
+                                            </div>
 
+                                            <div className="restaurant-card-footer">
+                                                <span className="restaurant-card-shipping">
+                                                    <Bike
+                                                        size={17}
+                                                        strokeWidth={1.9}
+                                                    />
+
+                                                    {shippingFee > 0
+                                                        ? `${shippingFee.toLocaleString(
+                                                            "vi-VN"
+                                                        )}đ`
+                                                        : "Miễn phí giao hàng"}
+                                                </span>
+
+                                                <span className="restaurant-card-action">
+                                                    Xem thực đơn
+
+                                                    <ArrowRight
+                                                        size={16}
+                                                        strokeWidth={2}
+                                                    />
+                                                </span>
+                                            </div>
                                         </div>
-
                                     </Link>
                                 );
                             })}
-
+                            
                         </div>
                     )}
 

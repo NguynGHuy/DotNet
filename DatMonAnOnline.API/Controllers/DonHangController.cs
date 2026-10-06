@@ -51,12 +51,17 @@ namespace DatMonAnOnline.API.Controllers
             var khachHang = await _context.Khachhangs.FirstOrDefaultAsync(k => k.MaTaiKhoan == maTaiKhoan);
             if (khachHang == null) return Unauthorized();
 
-            var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(khachHang.MaKhachHang, request.MaKhuyenMai);
+            var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(
+                khachHang.MaKhachHang,
+                request.MaGioHang,
+                request.MaKhuyenMai);
             
             if (loi != null) return BadRequest(new { Message = loi });
 
             return Ok(new
             {
+                request.MaGioHang,
+                MaNhaHang = maNhaHang,
                 TongTienHang = tongTienHang,
                 PhiShip = phiShip,
                 SoTienGiam = soTienGiam,
@@ -79,7 +84,10 @@ namespace DatMonAnOnline.API.Controllers
             if (diaChi == null) return BadRequest(new { Message = "Địa chỉ giao hàng không hợp lệ." });
 
             // 2. Tính toán tiền an toàn từ DB (Validate cực nghiêm ngặt)
-            var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(khachHang.MaKhachHang, request.MaKhuyenMai);
+            var (tongTienHang, phiShip, soTienGiam, maNhaHang, loi) = await TinhTienDonHang(
+                khachHang.MaKhachHang,
+                request.MaGioHang,
+                request.MaKhuyenMai);
             if (loi != null) return BadRequest(new { Message = loi });
 
             var thanhTien = tongTienHang + phiShip - soTienGiam;
@@ -116,7 +124,9 @@ namespace DatMonAnOnline.API.Controllers
                     .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.MaMonAnNavigation)
                         .ThenInclude(m => m.MaNhomToppings).ThenInclude(nhom => nhom.Toppings)
                     .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.ChitietgiohangToppings)
-                    .FirstAsync(g => g.MaKhachHang == khachHang.MaKhachHang);
+                    .FirstAsync(g =>
+                        g.MaGioHang == request.MaGioHang &&
+                        g.MaKhachHang == khachHang.MaKhachHang);
 
                 foreach (var ctGio in gioHang.Chitietgiohangs)
                 {
@@ -622,25 +632,60 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         // ---- HÀM HỖ TRỢ TÍNH TIỀN ----
-        private async Task<(decimal TongTien, decimal PhiShip, decimal Giam, int? MaNhaHang, string? Loi)> TinhTienDonHang(int maKhachHang, int? maKhuyenMai)
+        private async Task<(decimal TongTien, decimal PhiShip, decimal Giam, int? MaNhaHang, string? Loi)> TinhTienDonHang(
+            int maKhachHang,
+            int maGioHang,
+            int? maKhuyenMai)
         {
             var gioHang = await _context.Giohangs
                 .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.MaMonAnNavigation)
                     .ThenInclude(m => m.MaNhomToppings).ThenInclude(nhom => nhom.Toppings)
                 .Include(g => g.Chitietgiohangs).ThenInclude(ct => ct.ChitietgiohangToppings)
-                .FirstOrDefaultAsync(g => g.MaKhachHang == maKhachHang);
+                .FirstOrDefaultAsync(g =>
+                    g.MaGioHang == maGioHang &&
+                    g.MaKhachHang == maKhachHang);
 
             if (gioHang == null || !gioHang.Chitietgiohangs.Any())
                 return (0, 0, 0, null, "Giỏ hàng trống.");
 
-            var maNhaHang = gioHang.Chitietgiohangs.First().MaMonAnNavigation.MaNhaHang;
-            var nhaHang = await _context.Nhahangs.FindAsync(maNhaHang);
-            if (nhaHang == null || nhaHang.TrangThaiHoatDong != "MoCua")
-                return (0, 0, 0, null, "Nhà hàng hiện đang tạm ngưng nhận đơn.");
+            var maNhaHang =
+    gioHang.Chitietgiohangs.First()
+        .MaMonAnNavigation.MaNhaHang;
+
+var nhaHang =
+    await _context.Nhahangs.FindAsync(maNhaHang);
+
+if (nhaHang == null)
+{
+    return (
+        0,
+        0,
+        0,
+        null,
+        "Không tìm thấy nhà hàng."
+    );
+}
+
+var trangThaiNhaHang =
+    TrangThaiNhaHangHelper.KiemTra(nhaHang);
+
+if (!trangThaiNhaHang.DangMoCua)
+{
+    return (
+        0,
+        0,
+        0,
+        null,
+        trangThaiNhaHang.TrangThaiHienThi
+    );
+};
 
             decimal tongTienHang = 0;
             foreach (var ct in gioHang.Chitietgiohangs)
             {
+                if (ct.MaMonAnNavigation.MaNhaHang != maNhaHang)
+                    return (0, 0, 0, null, "Giỏ hàng có món không thuộc nhà hàng này.");
+
                 if(ct.MaMonAnNavigation.TrangThai == false) return (0,0,0,null, $"Món {ct.MaMonAnNavigation.TenMonAn} đã ngưng bán.");
                 if (ct.ChitietgiohangToppings.Any(tp => tp.SoLuong != 1))
                     return (0, 0, 0, null, "Số lượng topping trong giỏ không hợp lệ. Vui lòng xóa món và chọn lại.");
@@ -702,11 +747,13 @@ namespace DatMonAnOnline.API.Controllers
 
     public class KiemTraDonHangYeuCau
     {
+        [Range(1, int.MaxValue)] public int MaGioHang { get; set; }
         public int? MaKhuyenMai { get; set; }
     }
 
     public class DatHangYeuCau
     {
+        [Range(1, int.MaxValue)] public int MaGioHang { get; set; }
         [Required] public int MaDiaChi { get; set; }
         [Required] public int MaPhuongThuc { get; set; }
         public int? MaKhuyenMai { get; set; }

@@ -1,4 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import {
+    FolderOpen,
+    Hash,
+    Pencil,
+    Plus,
+    Save,
+    Trash2,
+    X,
+} from "lucide-react";
 import {
     createDanhMuc,
     deleteDanhMuc,
@@ -9,31 +18,32 @@ import {
 import { getCurrentUser } from "../services/userService";
 
 interface CurrentUser {
-    nhaHang?: {
-        maNhaHang: number;
-    };
+    nhaHang?: { maNhaHang: number };
 }
+
+interface CategoryForm {
+    tenDanhMuc: string;
+    thuTuHienThi: number;
+}
+
+const EMPTY_FORM: CategoryForm = {
+    tenDanhMuc: "",
+    thuTuHienThi: 0,
+};
 
 function RestaurantCategory() {
     const [danhMucs, setDanhMucs] = useState<DanhMuc[]>([]);
-
+    const [form, setForm] = useState<CategoryForm>(EMPTY_FORM);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editorOpen, setEditorOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const [showCreateForm, setShowCreateForm] = useState(false);
-
-    const [tenDanhMuc, setTenDanhMuc] = useState("");
-    const [thuTuHienThi, setThuTuHienThi] = useState(0);
-
-    const [editId, setEditId] = useState<number | null>(null);
-    const [editTenDanhMuc, setEditTenDanhMuc] = useState("");
-    const [editThuTuHienThi, setEditThuTuHienThi] = useState(0);
-
     const getRestaurantId = async () => {
         const user = (await getCurrentUser()) as CurrentUser;
-
         const maNhaHang = user.nhaHang?.maNhaHang;
 
         if (!maNhaHang) {
@@ -43,110 +53,78 @@ function RestaurantCategory() {
         return maNhaHang;
     };
 
-    const loadDanhMucs = async () => {
+    const loadDanhMucs = async (showLoading = true) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             setError("");
 
             const maNhaHang = await getRestaurantId();
-
             const data = await getDanhMucs(maNhaHang);
 
-            const sorted = [...data].sort(
-                (a, b) =>
-                    (a.thuTuHienThi ?? 0) -
-                    (b.thuTuHienThi ?? 0)
+            setDanhMucs(
+                [...data].sort(
+                    (a, b) =>
+                        (a.thuTuHienThi ?? 0) -
+                        (b.thuTuHienThi ?? 0)
+                )
             );
-
-            setDanhMucs(sorted);
         } catch (err) {
             console.error("Lỗi tải danh mục:", err);
-
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể tải danh mục."
             );
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadDanhMucs();
+        void loadDanhMucs();
     }, []);
 
-    const resetCreateForm = () => {
-        setTenDanhMuc("");
-        setThuTuHienThi(0);
-        setShowCreateForm(false);
+    const showMessage = (message: string) => {
+        setSuccess(message);
+        window.setTimeout(() => setSuccess(""), 3000);
     };
 
-    const resetEditForm = () => {
-        setEditId(null);
-        setEditTenDanhMuc("");
-        setEditThuTuHienThi(0);
-    };
-
-    const handleCreate = async () => {
-        if (!tenDanhMuc.trim()) {
-            setError("Vui lòng nhập tên danh mục.");
-            return;
-        }
-
-        if (thuTuHienThi < 0) {
-            setError("Thứ tự hiển thị không được nhỏ hơn 0.");
-            return;
-        }
-
-        try {
-            setSaving(true);
-            setError("");
-            setSuccess("");
-
-            await createDanhMuc(
-                tenDanhMuc.trim(),
-                thuTuHienThi
-            );
-
-            resetCreateForm();
-
-            setSuccess("Thêm danh mục thành công.");
-
-            await loadDanhMucs();
-        } catch (err) {
-            console.error("Lỗi tạo danh mục:", err);
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể tạo danh mục."
-            );
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const startEdit = (item: DanhMuc) => {
-        setEditId(item.maDanhMuc);
-        setEditTenDanhMuc(item.tenDanhMuc);
-        setEditThuTuHienThi(item.thuTuHienThi ?? 0);
-
+    const openCreate = () => {
+        setEditingId(null);
+        setForm(EMPTY_FORM);
+        setEditorOpen(true);
         setError("");
         setSuccess("");
     };
 
-    const handleUpdate = async () => {
-        if (editId === null) {
+    const openEdit = (item: DanhMuc) => {
+        setEditingId(item.maDanhMuc);
+        setForm({
+            tenDanhMuc: item.tenDanhMuc,
+            thuTuHienThi: item.thuTuHienThi ?? 0,
+        });
+        setEditorOpen(true);
+        setError("");
+        setSuccess("");
+    };
+
+    const closeEditor = () => {
+        if (saving) return;
+        setEditorOpen(false);
+        setEditingId(null);
+        setForm(EMPTY_FORM);
+        setError("");
+    };
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!form.tenDanhMuc.trim()) {
+            setError("Vui lòng nhập tên danh mục.");
             return;
         }
 
-        if (!editTenDanhMuc.trim()) {
-            setError("Tên danh mục không được để trống.");
-            return;
-        }
-
-        if (editThuTuHienThi < 0) {
+        if (form.thuTuHienThi < 0) {
             setError("Thứ tự hiển thị không được nhỏ hơn 0.");
             return;
         }
@@ -156,60 +134,68 @@ function RestaurantCategory() {
             setError("");
             setSuccess("");
 
-            await updateDanhMuc(
-                editId,
-                editTenDanhMuc.trim(),
-                editThuTuHienThi
-            );
+            if (editingId === null) {
+                await createDanhMuc(
+                    form.tenDanhMuc.trim(),
+                    form.thuTuHienThi
+                );
+                showMessage("Đã thêm danh mục mới.");
+            } else {
+                await updateDanhMuc(
+                    editingId,
+                    form.tenDanhMuc.trim(),
+                    form.thuTuHienThi
+                );
+                showMessage("Đã cập nhật danh mục.");
+            }
 
-            resetEditForm();
-
-            setSuccess("Cập nhật danh mục thành công.");
-
-            await loadDanhMucs();
+            setEditorOpen(false);
+            setEditingId(null);
+            setForm(EMPTY_FORM);
+            await loadDanhMucs(false);
         } catch (err) {
-            console.error("Lỗi cập nhật danh mục:", err);
-
+            console.error("Lỗi lưu danh mục:", err);
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Không thể cập nhật danh mục."
+                    : "Không thể lưu danh mục."
             );
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (item: DanhMuc) => {
         const confirmed = window.confirm(
-            "Bạn có chắc muốn xóa danh mục này không?"
+            `Bạn có chắc muốn xóa danh mục "${item.tenDanhMuc}" không?`
         );
 
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         try {
+            setDeletingId(item.maDanhMuc);
             setError("");
             setSuccess("");
 
-            await deleteDanhMuc(id);
+            await deleteDanhMuc(item.maDanhMuc);
 
-            setSuccess("Xóa danh mục thành công.");
-
-            if (editId === id) {
-                resetEditForm();
+            if (editingId === item.maDanhMuc) {
+                setEditorOpen(false);
+                setEditingId(null);
+                setForm(EMPTY_FORM);
             }
 
-            await loadDanhMucs();
+            showMessage("Đã xóa danh mục.");
+            await loadDanhMucs(false);
         } catch (err) {
             console.error("Lỗi xóa danh mục:", err);
-
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể xóa danh mục."
             );
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -222,250 +208,239 @@ function RestaurantCategory() {
     }
 
     return (
-        <div className="quan-dashboard">
-            <div className="quan-page-title">
+        <div className="merchant-category-page">
+            <header className="merchant-category-header">
                 <div>
+                    <span className="merchant-category-eyebrow">
+                        QUẢN LÝ THỰC ĐƠN
+                    </span>
                     <h1>Danh mục món ăn</h1>
                     <p>
-                        Quản lý các danh mục hiển thị trong
-                        thực đơn của nhà hàng.
+                        Sắp xếp các nhóm món được hiển thị trong thực đơn.
                     </p>
                 </div>
 
                 <button
                     type="button"
-                    className="quan-primary-button"
-                    onClick={() => {
-                        setShowCreateForm((prev) => !prev);
-                        resetEditForm();
-                        setError("");
-                        setSuccess("");
-                    }}
+                    className="merchant-category-add"
+                    onClick={openCreate}
                 >
-                    {showCreateForm
-                        ? "Đóng"
-                        : "+ Thêm danh mục"}
+                    <Plus size={16} />
+                    Thêm danh mục
                 </button>
-            </div>
+            </header>
 
-            {error && (
-                <div className="quan-error-message">
-                    ✕ {error}
+            {error && !editorOpen && (
+                <div className="merchant-category-notice error">
+                    {error}
                 </div>
             )}
 
             {success && (
-                <div className="quan-success-message">
+                <div className="merchant-category-notice success">
                     ✓ {success}
                 </div>
             )}
 
-            {showCreateForm && (
-                <div className="quan-section">
-                    <div className="quan-section-header">
-                        <div>
-                            <h2>Thêm danh mục</h2>
-                            <p>
-                                Tạo danh mục mới cho thực đơn.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="quan-form-grid">
-                        <div className="quan-form-group">
-                            <label>Tên danh mục</label>
-
-                            <input
-                                type="text"
-                                value={tenDanhMuc}
-                                placeholder="Ví dụ: Trà sữa"
-                                onChange={(e) =>
-                                    setTenDanhMuc(
-                                        e.target.value
-                                    )
-                                }
-                            />
-                        </div>
-
-                        <div className="quan-form-group">
-                            <label>Thứ tự hiển thị</label>
-
-                            <input
-                                type="number"
-                                min={0}
-                                value={thuTuHienThi}
-                                onChange={(e) =>
-                                    setThuTuHienThi(
-                                        Number(
-                                            e.target.value
-                                        )
-                                    )
-                                }
-                            />
-                        </div>
-                    </div>
-
-                    <div className="quan-form-actions">
-                        <button
-                            type="button"
-                            className="quan-secondary-button"
-                            onClick={resetCreateForm}
-                            disabled={saving}
-                        >
-                            Hủy
-                        </button>
-
-                        <button
-                            type="button"
-                            className="quan-primary-button"
-                            onClick={handleCreate}
-                            disabled={saving}
-                        >
-                            {saving
-                                ? "Đang lưu..."
-                                : "Thêm danh mục"}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {editId !== null && (
-                <div className="quan-section">
-                    <div className="quan-section-header">
-                        <div>
-                            <h2>Sửa danh mục</h2>
-                            <p>
-                                Cập nhật tên và thứ tự hiển thị.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="quan-form-grid">
-                        <div className="quan-form-group">
-                            <label>Tên danh mục</label>
-
-                            <input
-                                type="text"
-                                value={editTenDanhMuc}
-                                onChange={(e) =>
-                                    setEditTenDanhMuc(
-                                        e.target.value
-                                    )
-                                }
-                            />
-                        </div>
-
-                        <div className="quan-form-group">
-                            <label>Thứ tự hiển thị</label>
-
-                            <input
-                                type="number"
-                                min={0}
-                                value={editThuTuHienThi}
-                                onChange={(e) =>
-                                    setEditThuTuHienThi(
-                                        Number(
-                                            e.target.value
-                                        )
-                                    )
-                                }
-                            />
-                        </div>
-                    </div>
-
-                    <div className="quan-form-actions">
-                        <button
-                            type="button"
-                            className="quan-secondary-button"
-                            onClick={resetEditForm}
-                            disabled={saving}
-                        >
-                            Hủy
-                        </button>
-
-                        <button
-                            type="button"
-                            className="quan-primary-button"
-                            onClick={handleUpdate}
-                            disabled={saving}
-                        >
-                            {saving
-                                ? "Đang lưu..."
-                                : "Lưu thay đổi"}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className="quan-section">
-                <div className="quan-section-header">
+            <section className="merchant-category-panel">
+                <div className="merchant-category-panel-header">
                     <div>
                         <h2>Danh sách danh mục</h2>
                         <p>
-                            Hiện có {danhMucs.length} danh mục.
+                            Danh mục có số thứ tự nhỏ hơn sẽ hiển thị trước.
                         </p>
                     </div>
+
+                    <span className="merchant-category-count">
+                        {danhMucs.length} danh mục
+                    </span>
                 </div>
 
                 {danhMucs.length === 0 ? (
-                    <div className="quan-placeholder">
-                        <div className="quan-empty-icon">
-                            📂
-                        </div>
-
+                    <div className="merchant-category-empty">
+                        <span>
+                            <FolderOpen size={27} />
+                        </span>
                         <h3>Chưa có danh mục</h3>
-
                         <p>
-                            Hãy tạo danh mục đầu tiên cho
+                            Tạo danh mục đầu tiên để bắt đầu xây dựng
                             thực đơn.
                         </p>
+                        <button type="button" onClick={openCreate}>
+                            <Plus size={15} />
+                            Thêm danh mục
+                        </button>
                     </div>
                 ) : (
-                    <div className="quan-management-list">
-                        {danhMucs.map((item) => (
-                            <div
+                    <div className="merchant-category-list">
+                        {danhMucs.map((item, index) => (
+                            <article
                                 key={item.maDanhMuc}
-                                className="quan-management-item"
+                                className="merchant-category-row"
                             >
-                                <div>
-                                    <strong>
-                                        {item.tenDanhMuc}
-                                    </strong>
-
-                                    <p>
-                                        Thứ tự hiển thị:{" "}
-                                        {item.thuTuHienThi ?? 0}
-                                    </p>
+                                <div className="merchant-category-position">
+                                    {String(index + 1).padStart(2, "0")}
                                 </div>
 
-                                <div className="quan-management-actions">
+                                <div className="merchant-category-icon">
+                                    <FolderOpen size={19} />
+                                </div>
+
+                                <div className="merchant-category-info">
+                                    <strong>{item.tenDanhMuc}</strong>
+                                    <span>
+                                        <Hash size={12} />
+                                        Thứ tự hiển thị:{" "}
+                                        {item.thuTuHienThi ?? 0}
+                                    </span>
+                                </div>
+
+                                <div className="merchant-category-actions">
                                     <button
                                         type="button"
-                                        className="quan-secondary-button"
-                                        onClick={() =>
-                                            startEdit(item)
-                                        }
+                                        className="edit"
+                                        title="Sửa danh mục"
+                                        onClick={() => openEdit(item)}
+                                        disabled={deletingId !== null}
                                     >
+                                        <Pencil size={15} />
                                         Sửa
                                     </button>
 
                                     <button
                                         type="button"
-                                        className="quan-danger-button"
+                                        className="delete"
+                                        title="Xóa danh mục"
                                         onClick={() =>
-                                            handleDelete(
-                                                item.maDanhMuc
-                                            )
+                                            void handleDelete(item)
                                         }
+                                        disabled={deletingId !== null}
                                     >
-                                        Xóa
+                                        <Trash2 size={15} />
+                                        {deletingId === item.maDanhMuc
+                                            ? "Đang xóa..."
+                                            : "Xóa"}
                                     </button>
                                 </div>
-                            </div>
+                            </article>
                         ))}
                     </div>
                 )}
-            </div>
+            </section>
+
+            {editorOpen && (
+                <div
+                    className="merchant-category-overlay"
+                    onMouseDown={closeEditor}
+                >
+                    <form
+                        className="merchant-category-dialog"
+                        onSubmit={handleSubmit}
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <header className="merchant-category-dialog-header">
+                            <div>
+                                <span>
+                                    {editingId === null
+                                        ? "DANH MỤC MỚI"
+                                        : "CHỈNH SỬA DANH MỤC"}
+                                </span>
+                                <h2>
+                                    {editingId === null
+                                        ? "Thêm danh mục"
+                                        : "Cập nhật danh mục"}
+                                </h2>
+                                <p>
+                                    Thiết lập tên và vị trí hiển thị trong
+                                    thực đơn.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label="Đóng"
+                                onClick={closeEditor}
+                                disabled={saving}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+
+                        <div className="merchant-category-dialog-body">
+                            <label className="merchant-category-field">
+                                <span>Tên danh mục</span>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={form.tenDanhMuc}
+                                    placeholder="Ví dụ: Trà sữa"
+                                    maxLength={100}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            tenDanhMuc:
+                                                event.target.value,
+                                        }))
+                                    }
+                                />
+                                <small>
+                                    Tên này sẽ hiển thị với khách hàng.
+                                </small>
+                            </label>
+
+                            <label className="merchant-category-field">
+                                <span>Thứ tự hiển thị</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    value={form.thuTuHienThi}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            thuTuHienThi: Number(
+                                                event.target.value
+                                            ),
+                                        }))
+                                    }
+                                />
+                                <small>
+                                    Số nhỏ hơn sẽ được đặt ở phía trước.
+                                </small>
+                            </label>
+
+                            {error && (
+                                <p className="merchant-category-form-error">
+                                    {error}
+                                </p>
+                            )}
+                        </div>
+
+                        <footer className="merchant-category-dialog-footer">
+                            <button
+                                type="button"
+                                className="cancel"
+                                onClick={closeEditor}
+                                disabled={saving}
+                            >
+                                Hủy
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="save"
+                                disabled={saving}
+                            >
+                                <Save size={15} />
+                                {saving
+                                    ? "Đang lưu..."
+                                    : editingId === null
+                                      ? "Thêm danh mục"
+                                      : "Lưu thay đổi"}
+                            </button>
+                        </footer>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,5 +1,11 @@
-import { useState } from "react";
-import type { SyntheticEvent } from "react";
+import { useState, type FormEvent } from "react";
+import {
+    CalendarDays,
+    CircleDollarSign,
+    Save,
+    TicketPercent,
+    X,
+} from "lucide-react";
 import {
     createPromotion,
     createSystemPromotion,
@@ -7,12 +13,21 @@ import {
 
 interface Props {
     onCreated?: () => Promise<void>;
+    onCancel?: () => void;
     admin?: boolean;
 }
-function CreatePromotionForm({ onCreated, admin = false }: Props) {
+
+type DiscountType = "PhanTram" | "SoTien";
+
+function CreatePromotionForm({
+    onCreated,
+    onCancel,
+    admin = false,
+}: Props) {
     const [maCode, setMaCode] = useState("");
     const [moTa, setMoTa] = useState("");
-    const [loaiGiam, setLoaiGiam] = useState<"PhanTram" | "SoTien">("PhanTram");
+    const [loaiGiam, setLoaiGiam] =
+        useState<DiscountType>("PhanTram");
     const [giaTriGiam, setGiaTriGiam] = useState(10);
     const [giamToiDa, setGiamToiDa] = useState("");
     const [donHangToiThieu, setDonHangToiThieu] = useState(0);
@@ -23,18 +38,48 @@ function CreatePromotionForm({ onCreated, admin = false }: Props) {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
         event.preventDefault();
         setError("");
         setSuccess("");
 
-        if (new Date(ngayKetThuc) <= new Date(ngayBatDau)) {
-            setError("Thời gian kết thúc phải sau thời gian bắt đầu.");
+        const start = new Date(ngayBatDau).getTime();
+        const end = new Date(ngayKetThuc).getTime();
+
+        if (!maCode.trim()) {
+            setError("Vui lòng nhập mã giảm giá.");
+            return;
+        }
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+            setError(
+                "Thời gian kết thúc phải sau thời gian bắt đầu."
+            );
+            return;
+        }
+
+        if (giaTriGiam <= 0) {
+            setError("Giá trị giảm phải lớn hơn 0.");
             return;
         }
 
         if (loaiGiam === "PhanTram" && giaTriGiam > 100) {
-            setError("Mức giảm phần trăm không được vượt quá 100%.");
+            setError(
+                "Mức giảm phần trăm không được vượt quá 100%."
+            );
+            return;
+        }
+
+        if (donHangToiThieu < 0 || soLuong < 1) {
+            setError(
+                "Điều kiện đơn và số lượng mã không hợp lệ."
+            );
             return;
         }
 
@@ -47,9 +92,10 @@ function CreatePromotionForm({ onCreated, admin = false }: Props) {
                 loaiGiam,
                 giaTriGiam,
                 giamToiDa:
-    loaiGiam === "PhanTram" && giamToiDa !== ""
-        ? Number(giamToiDa)
-        : null,
+                    loaiGiam === "PhanTram" &&
+                    giamToiDa !== ""
+                        ? Number(giamToiDa)
+                        : null,
                 donHangToiThieu,
                 soLuong,
                 ngayBatDau,
@@ -63,129 +109,243 @@ function CreatePromotionForm({ onCreated, admin = false }: Props) {
             }
 
             setSuccess("Đã tạo mã giảm giá.");
-            setMaCode("");
-            setMoTa("");
 
             if (onCreated) {
                 await onCreated();
             }
         } catch (err) {
-            setError((err as Error).message);
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể tạo mã giảm giá."
+            );
         } finally {
             setBusy(false);
         }
     };
 
     return (
-        <form className="promotion-create-form" onSubmit={handleSubmit}>
-            <h2 style={{ margin: 0 }}>Tạo mã giảm giá</h2>
+        <form
+            className="merchant-promo-form"
+            onSubmit={handleSubmit}
+        >
+            <header className="merchant-promo-form-header">
+                <div>
+                    <span>CHƯƠNG TRÌNH MỚI</span>
+                    <h2>Tạo mã giảm giá</h2>
+                    <p>
+                        Thiết lập ưu đãi và thời gian sử dụng mã.
+                    </p>
+                </div>
 
-            {error && <p className="auth-error">{error}</p>}
-            {success && <p role="status">{success}</p>}
+                {onCancel && (
+                    <button
+                        type="button"
+                        aria-label="Đóng"
+                        onClick={onCancel}
+                        disabled={busy}
+                    >
+                        <X size={18} />
+                    </button>
+                )}
+            </header>
 
-            <label>
-                Mã giảm giá
-                <input
-                    required
-                    maxLength={30}
-                    value={maCode}
-                    onChange={(e) => setMaCode(e.target.value)}
-                />
-            </label>
+            <div className="merchant-promo-form-body">
+                <label className="merchant-promo-field">
+                    <span>Mã giảm giá</span>
+                    <div className="merchant-promo-icon-input">
+                        <TicketPercent size={16} />
+                        <input
+                            required
+                            autoFocus
+                            maxLength={30}
+                            value={maCode}
+                            placeholder="Ví dụ: FOODIE20"
+                            onChange={(event) =>
+                                setMaCode(
+                                    event.target.value.toUpperCase()
+                                )
+                            }
+                        />
+                    </div>
+                </label>
 
-            <label>
-                Mô tả
-                <input
-                    value={moTa}
-                    onChange={(e) => setMoTa(e.target.value)}
-                />
-            </label>
+                <label className="merchant-promo-field">
+                    <span>Loại giảm</span>
+                    <select
+                        value={loaiGiam}
+                        onChange={(event) => {
+                            setLoaiGiam(
+                                event.target.value as DiscountType
+                            );
+                            setGiamToiDa("");
+                        }}
+                    >
+                        <option value="PhanTram">
+                            Giảm theo phần trăm
+                        </option>
+                        <option value="SoTien">
+                            Giảm số tiền cố định
+                        </option>
+                    </select>
+                </label>
 
-            <label>
-                Loại giảm
-                <select
-                    value={loaiGiam}
-                    onChange={(e) => {
-                        setLoaiGiam(e.target.value as "PhanTram" | "SoTien");
-                        setGiamToiDa("");
-                    }}
-                >
-                    <option value="PhanTram">Phần trăm</option>
-                    <option value="SoTien">Số tiền</option>
-                </select>
-            </label>
-
-            <label>
-                Giá trị giảm
-                <input
-                    required
-                    type="number"
-                    min={1}
-                    max={loaiGiam === "PhanTram" ? 100 : undefined}
-                    value={giaTriGiam}
-                    onChange={(e) => setGiaTriGiam(Number(e.target.value))}
-                />
-            </label>
-
-            {loaiGiam === "PhanTram" && (
-                <label>
-                    Giảm tối đa (để trống nếu không giới hạn)
+                <label className="merchant-promo-field">
+                    <span>
+                        Giá trị giảm{" "}
+                        {loaiGiam === "PhanTram" ? "(%)" : "(đ)"}
+                    </span>
                     <input
+                        required
                         type="number"
-                        min={0}
-                        value={giamToiDa}
-                        onChange={(e) => setGiamToiDa(e.target.value)}
+                        min={1}
+                        max={
+                            loaiGiam === "PhanTram"
+                                ? 100
+                                : undefined
+                        }
+                        value={giaTriGiam}
+                        onChange={(event) =>
+                            setGiaTriGiam(
+                                Number(event.target.value)
+                            )
+                        }
                     />
                 </label>
-            )}
 
-            <label>
-                Đơn hàng tối thiểu
-                <input
-                    required
-                    type="number"
-                    min={0}
-                    value={donHangToiThieu}
-                    onChange={(e) =>
-                        setDonHangToiThieu(Number(e.target.value))
-                    }
-                />
-            </label>
+                {loaiGiam === "PhanTram" && (
+                    <label className="merchant-promo-field">
+                        <span>Giảm tối đa</span>
+                        <div className="merchant-promo-money-input">
+                            <CircleDollarSign size={16} />
+                            <input
+                                type="number"
+                                min={0}
+                                value={giamToiDa}
+                                placeholder="Không giới hạn"
+                                onChange={(event) =>
+                                    setGiamToiDa(
+                                        event.target.value
+                                    )
+                                }
+                            />
+                            <strong>đ</strong>
+                        </div>
+                    </label>
+                )}
 
-            <label>
-                Số lượng mã
-                <input
-                    required
-                    type="number"
-                    min={1}
-                    value={soLuong}
-                    onChange={(e) => setSoLuong(Number(e.target.value))}
-                />
-            </label>
+                <label className="merchant-promo-field">
+                    <span>Đơn hàng tối thiểu</span>
+                    <div className="merchant-promo-money-input">
+                        <CircleDollarSign size={16} />
+                        <input
+                            required
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={donHangToiThieu}
+                            onChange={(event) =>
+                                setDonHangToiThieu(
+                                    Number(event.target.value)
+                                )
+                            }
+                        />
+                        <strong>đ</strong>
+                    </div>
+                </label>
 
-            <label>
-                Bắt đầu
-                <input
-                    required
-                    type="datetime-local"
-                    value={ngayBatDau}
-                    onChange={(e) => setNgayBatDau(e.target.value)}
-                />
-            </label>
+                <label className="merchant-promo-field">
+                    <span>Số lượng mã</span>
+                    <input
+                        required
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={soLuong}
+                        onChange={(event) =>
+                            setSoLuong(Number(event.target.value))
+                        }
+                    />
+                </label>
 
-            <label>
-                Kết thúc
-                <input
-                    required
-                    type="datetime-local"
-                    value={ngayKetThuc}
-                    onChange={(e) => setNgayKetThuc(e.target.value)}
-                />
-            </label>
+                <label className="merchant-promo-field">
+                    <span>Bắt đầu</span>
+                    <div className="merchant-promo-icon-input">
+                        <CalendarDays size={16} />
+                        <input
+                            required
+                            type="datetime-local"
+                            value={ngayBatDau}
+                            onChange={(event) =>
+                                setNgayBatDau(event.target.value)
+                            }
+                        />
+                    </div>
+                </label>
 
-            <button type="submit" disabled={busy}>
-                {busy ? "Đang tạo..." : "Tạo mã"}
-            </button>
+                <label className="merchant-promo-field">
+                    <span>Kết thúc</span>
+                    <div className="merchant-promo-icon-input">
+                        <CalendarDays size={16} />
+                        <input
+                            required
+                            type="datetime-local"
+                            value={ngayKetThuc}
+                            onChange={(event) =>
+                                setNgayKetThuc(event.target.value)
+                            }
+                        />
+                    </div>
+                </label>
+
+                <label className="merchant-promo-field full">
+                    <span>Mô tả chương trình</span>
+                    <textarea
+                        rows={3}
+                        maxLength={300}
+                        value={moTa}
+                        placeholder="Mô tả ngắn về chương trình..."
+                        onChange={(event) =>
+                            setMoTa(event.target.value)
+                        }
+                    />
+                    <small>{moTa.length}/300 ký tự</small>
+                </label>
+
+                {error && (
+                    <p className="merchant-promo-form-error">
+                        {error}
+                    </p>
+                )}
+
+                {success && (
+                    <p className="merchant-promo-form-success">
+                        ✓ {success}
+                    </p>
+                )}
+            </div>
+
+            <footer className="merchant-promo-form-footer">
+                {onCancel && (
+                    <button
+                        type="button"
+                        className="cancel"
+                        onClick={onCancel}
+                        disabled={busy}
+                    >
+                        Hủy
+                    </button>
+                )}
+
+                <button
+                    type="submit"
+                    className="save"
+                    disabled={busy}
+                >
+                    <Save size={15} />
+                    {busy ? "Đang tạo..." : "Tạo mã"}
+                </button>
+            </footer>
         </form>
     );
 }

@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 
 import Header from "./components/Header";
+import LatestCartBar from "./components/LatestCartBar";
 
 import HomeEntry from "./pages/HomeEntry";
 import RestaurantDetail from "./pages/RestaurantDetail";
@@ -54,6 +55,10 @@ function AppContent() {
     const isQuanArea =
         location.pathname === "/quan" ||
         location.pathname.startsWith("/quan/");
+
+    const showLatestCart =
+        location.pathname === "/" ||
+        location.pathname === "/nha-hang";
 
     return (
         <>
@@ -120,7 +125,7 @@ function AppContent() {
                 />
                 < Route
                     path = "/don-hang/:id"
-                    element = {< OrderDetail />}
+                    element = {<OrderDetail />}
                 />
 
                 <Route
@@ -218,7 +223,6 @@ function AppContent() {
                         element={<AdminRestaurants />}
                     />
 
-               
                     <Route
                         path="khuyen-mai"
                         element={<AdminPromotions />}
@@ -231,6 +235,7 @@ function AppContent() {
                 </Route>
 
             </Routes>
+            {showLatestCart && <LatestCartBar />}
             {!isAdminArea && !isQuanArea && <Footer />}
         </>
     );

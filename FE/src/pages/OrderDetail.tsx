@@ -5,6 +5,23 @@ import OrderReviewPanel from "../components/OrderReviewPanel";
 import PaymentQr from "../components/PaymentQr";
 import { getRestaurantById } from "../services/restaurantService";
 import {
+    ArrowLeft,
+    Banknote,
+    Check,
+    Clock3,
+    History,
+    MapPin,
+    MessageSquareText,
+    ReceiptText,
+    RefreshCw,
+    ShieldCheck,
+    Smartphone,
+    Star,
+    Store,
+    UtensilsCrossed,
+    XCircle,
+} from "lucide-react";
+import {
     changePaymentMethod,
     getPaymentMethods,
     getPaymentsByOrder,
@@ -153,9 +170,16 @@ function OrderDetail() {
 
         try {
             setRetrying(true);
-            const nhaHang = await getRestaurantById(order.maNhaHang);
-            if (nhaHang.trangThaiHoatDong !== "MoCua") {
-                alert("Nhà hàng hiện đang tạm ngưng nhận đơn.");
+            const nhaHang =
+    await getRestaurantById(
+        order.maNhaHang
+    );
+
+            if (!nhaHang.dangMoCua) {
+                alert(
+                    nhaHang.trangThaiHienThi ||
+                    "Nhà hàng hiện không nhận đơn."
+                );
                 return;
             }
 
@@ -249,12 +273,14 @@ function OrderDetail() {
     );
 
     return (
-        <main className="profile-page">
-            <Link to="/don-hang" className="invoice-back">
-                <span aria-hidden="true">←</span>
+        <main className="profile-page order-detail-page">
+            <Link
+                to="/don-hang"
+                className="order-detail-back"
+            >
+                <ArrowLeft size={16} />
                 Đơn hàng của tôi
             </Link>
-
             {error || !order ? (
                 <div className="empty-result">
                     <h3>{error || "Không tìm thấy đơn hàng."}</h3>
@@ -263,230 +289,652 @@ function OrderDetail() {
                     </Link>
                 </div>
             ) : (
-                <article className="invoice-sheet">
-                    <header className="invoice-track">
-                        <h1>{STATUS_LABEL[order.trangThai] || order.trangThai}</h1>
-                        {statusHint && <p>{statusHint}</p>}
+                <article className="order-detail-shell">
+                    <header
+                        className={`order-detail-hero status-${order.trangThai}`}
+                    >
+                        <div className="order-detail-hero-top">
+                            <div className="order-detail-hero-content">
+                                <span className="order-detail-eyebrow">
+                                    Chi tiết đơn hàng
+                                </span>
+
+                                <div className="order-detail-title-row">
+                                    <h1>
+                                        {order.maDonHangHienThi}
+                                    </h1>
+
+                                    <span
+                                        className={`order-detail-status status-${order.trangThai}`}
+                                    >
+                                        {STATUS_LABEL[order.trangThai] ||
+                                            order.trangThai}
+                                    </span>
+                                </div>
+
+                                {statusHint && (
+                                    <p className="order-detail-status-hint">
+                                        {statusHint}
+                                    </p>
+                                )}
+
+                                <div className="order-detail-hero-meta">
+                                    <span>
+                                        <Store size={14} />
+                                        {order.tenNhaHang}
+                                    </span>
+
+                                    <span>
+                                        <Clock3 size={14} />
+
+                                        {new Date(
+                                            order.thoiGianDat
+                                        ).toLocaleString("vi-VN")}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
                         {order.trangThai === "DaHuy" ? (
-                            <div className="invoice-cancel">Đơn đã hủy</div>
+                            <div className="order-cancelled-panel">
+                                <span>
+                                    <XCircle size={20} />
+                                </span>
+
+                                <div>
+                                    <strong>Đơn hàng đã bị hủy</strong>
+
+                                    <p>
+                                        {latestNote ||
+                                            "Đơn hàng không còn được tiếp tục xử lý."}
+                                    </p>
+                                </div>
+                            </div>
                         ) : (
-                            <ol className="invoice-steps">
-                                {FLOW.map((step, index) => {
-                                    const reached = currentIndex >= 0 && index <= currentIndex;
-                                    const passed = currentIndex >= 0 && index < currentIndex;
-                                    return (
-                                        <li
-                                            key={step.code}
-                                            className={`invoice-step${reached ? " is-reached" : ""}${passed ? " is-passed" : ""}`}
-                                        >
-                                            <span>{step.label}</span>
-                                        </li>
-                                    );
-                                })}
-                            </ol>
+                            <div className="order-progress-wrap">
+                                <ol className="order-progress">
+                                    {FLOW.map((step, index) => {
+                                        const reached =
+                                            currentIndex >= 0 &&
+                                            index <= currentIndex;
+
+                                        const passed =
+                                            currentIndex >= 0 &&
+                                            index < currentIndex;
+
+                                        const current =
+                                            index === currentIndex;
+
+                                        return (
+                                            <li
+                                                key={step.code}
+                                                className={`order-progress-step${
+                                                    reached
+                                                        ? " is-reached"
+                                                        : ""
+                                                }${
+                                                    passed
+                                                        ? " is-passed"
+                                                        : ""
+                                                }${
+                                                    current
+                                                        ? " is-current"
+                                                        : ""
+                                                }`}
+                                            >
+                                                <div className="order-progress-marker">
+                                                    {reached ? (
+                                                        <Check size={14} />
+                                                    ) : (
+                                                        <span>
+                                                            {index + 1}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <span className="order-progress-label">
+                                                    {step.label}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            </div>
                         )}
                     </header>
 
-                        {order.trangThai === "HoanThanh" && (
-                            <>
-                                <button
-                                    type="button"
-                                    className="invoice-review"
-                                    onClick={() => setShowReview((previous) => !previous)}
-                                    aria-expanded={showReview}
-                                    aria-controls="order-review-panel"
-                                >
-                                    {showReview ? "Ẩn phần đánh giá" : "Đánh giá đơn hàng"}
-                                </button>
+                        <div className="order-detail-layout">
+    <div className="order-detail-main-column">
+        <section className="order-detail-card order-detail-items-card">
+            <div className="order-detail-section-heading">
+                <span className="order-detail-section-icon">
+                    <UtensilsCrossed size={18} />
+                </span>
 
-                                <section
-                                    id="order-review-panel"
-                                    className="invoice-block"
-                                    hidden={!showReview}
-                                >
-                                    <h2>Đánh giá trải nghiệm</h2>
-                                    <p className="invoice-muted">
-                                        Bạn có thể đánh giá quán và từng món trong đơn hàng.
-                                    </p>
+                <div>
+                    <h2>Món đã đặt</h2>
+                    <p>
+                        {order.chiTiet?.length ?? 0} dòng món trong đơn hàng
+                    </p>
+                </div>
+            </div>
 
-                                    <OrderReviewPanel
-                                        key={order.maDonHang}
-                                        maDonHang={order.maDonHang}
-                                        maNhaHang={order.maNhaHang}
-                                        tenNhaHang={order.tenNhaHang}
-                                        dishes={uniqueReviewDishes}
-                                    />
-                                </section>
-                            </>
-                        )}
+            <div className="order-detail-food-list">
+                {(order.chiTiet || []).map((ct, index) => (
+                    <article
+                        key={`${ct.maMonAn}-${index}`}
+                        className="order-detail-food-item"
+                    >
+                        <span className="order-detail-food-number">
+                            {index + 1}
+                        </span>
 
-                    <section className="invoice-block">
-                        <h2>{order.tenNhaHang}</h2>
-                        <p className="invoice-muted">
-                            {new Date(order.thoiGianDat).toLocaleString("vi-VN")}
-                        </p>
-                    </section>
-
-                    <section className="invoice-block">
-                            {(order.chiTiet || []).map((ct, index) => (
-                            <div key={index} className="invoice-item">
-                                <div className="invoice-line">
-                                    <strong>{ct.tenMonAn} x{ct.soLuong}</strong>
-                                    <span>{formatMoney(ct.thanhTien)}</span>
-                                </div>
-                                    {(ct.toppings || []).map((tp, tpIndex) => (
-                                    <p key={tpIndex} className="invoice-topping">
-                                        + {tp.tenTopping} x{tp.soLuong}
-                                    </p>
-                                ))}
+                        <div className="order-detail-food-info">
+                            <div className="order-detail-food-name">
+                                <h3>{ct.tenMonAn}</h3>
+                                <span>x{ct.soLuong}</span>
                             </div>
-                        ))}
-                    </section>
 
-                    <section className="invoice-block invoice-money">
-                        <div className="invoice-line">
-                            <span>Tổng tiền món</span>
-                            <span>{formatMoney(order.tongTienHang)}</span>
-                        </div>
-                        <div className="invoice-line">
-                            <span>Phí giao hàng</span>
-                            <span>{formatMoney(order.phiShip)}</span>
-                        </div>
-                        <div className="invoice-line">
-                            <span>Giảm giá</span>
-                            <span>-{formatMoney(order.soTienGiam)}</span>
-                        </div>
-                        <div className="invoice-line invoice-total">
-                            <span>Thành tiền</span>
-                            <span>{formatMoney(order.thanhTien)}</span>
-                        </div>
-                    </section>
-
-                    <section className="invoice-block">
-                        <p className="invoice-receiver">
-                            {order.tenNguoiNhan} · {order.soDienThoaiNhan}
-                        </p>
-                        <p className="invoice-muted">{order.diaChiGiaoHang}</p>
-                        {order.ghiChu && <p className="invoice-muted">Ghi chú: {order.ghiChu}</p>}
-                    </section>
-
-                    {latestPayment && (
-                        <section className="invoice-block">
-                            <h2>Thanh toán</h2>
-                            <p className="invoice-muted">
-                                {latestPayment.tenPhuongThuc}: {PAYMENT_LABEL[latestPayment.trangThaiThanhToan] || latestPayment.trangThaiThanhToan}
-                            </p>
-
-                            {order.trangThai !== "DaHuy" &&
-                                latestPayment.trangThaiThanhToan === "ChoThanhToan" &&
-                                latestPayment.tenPhuongThuc !== "COD" && (
-                                    <button
-                                        type="button"
-                                        className="menu-button"
-                                        onClick={() => {
-                                            setQrPaymentId(latestPayment.maThanhToan);
-                                            setQrMethodName(latestPayment.tenPhuongThuc);
-                                            setShowQr(true);
-                                        }}
-                                        style={{ width: "100%" }}
-                                    >
-                                        Tiếp tục thanh toán
-                                    </button>
-                                )}
-
-                            {order.trangThai !== "DaHuy" && latestPayment.trangThaiThanhToan === "ThatBai" && (
-                                showRetry ? (
-                                    <>
-                                        <div className="address-options">
-                                            {methods.map((item) => (
-                                                <label
-                                                    key={item.maPhuongThuc}
-                                                    className={`address-option ${selectedMethodId === item.maPhuongThuc ? "selected" : ""}`}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name="retry-payment"
-                                                        checked={selectedMethodId === item.maPhuongThuc}
-                                                        onChange={() => setSelectedMethodId(item.maPhuongThuc)}
-                                                    />
-                                                    <strong>{item.tenPhuongThuc}</strong>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className="menu-button"
-                                            onClick={handleRetry}
-                                            disabled={retrying || selectedMethodId === null}
-                                            style={{ width: "100%", marginTop: 12 }}
-                                        >
-                                            {retrying ? "Đang xử lý..." : "Xác nhận thanh toán"}
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="menu-button"
-                                        onClick={() => {
-                                            setSelectedMethodId(latestPayment.maPhuongThuc);
-                                            setShowRetry(true);
-                                        }}
-                                        style={{ width: "100%" }}
-                                    >
-                                        Thanh toán lại
-                                    </button>
-                                )
+                            {(ct.toppings || []).length > 0 && (
+                                <div className="order-detail-toppings">
+                                    {(ct.toppings || []).map(
+                                        (tp, toppingIndex) => (
+                                            <span
+                                                key={`${tp.tenTopping}-${toppingIndex}`}
+                                            >
+                                                + {tp.tenTopping}
+                                                {tp.soLuong > 1
+                                                    ? ` x${tp.soLuong}`
+                                                    : ""}
+                                            </span>
+                                        )
+                                    )}
+                                </div>
                             )}
-                        </section>
-                    )}
-
-                    <section className="invoice-block">
-                        <p className="invoice-code">Mã đơn {order.maDonHangHienThi}</p>
-                        {history.length === 0 ? (
-                            <p className="invoice-muted">Chưa có lịch sử trạng thái.</p>
-                        ) : (
-                            <ul className="invoice-history">
-                                {history.map((item) => (
-                                    <li key={item.maLichSu}>
-                                        <span>{STATUS_LABEL[item.tenTrangThai] || item.tenTrangThai}</span>
-                                        <time>{new Date(item.thoiGianTao).toLocaleString("vi-VN")}</time>
-                                        {item.ghiChu && <small>{item.ghiChu}</small>}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </section>
-                </article>
-            )}
-            {showQr && order && (
-                <div className="qr-overlay" role="dialog" aria-modal="true" aria-labelledby="retry-qr-title">
-                    <div className="qr-dialog">
-                        <h2 id="retry-qr-title">Thanh toán {qrMethodName}</h2>
-                        <p>Quét mã mô phỏng, rồi chọn kết quả.</p>
-                        <PaymentQr />
-                        <p>{formatMoney(order.thanhTien)}</p>
-                        <div className="qr-actions">
-                            <button
-                                type="button"
-                                className="menu-button"
-                                onClick={handleQrSuccess}
-                                disabled={qrBusy}
-                            >
-                                {qrBusy ? "Đang xử lý..." : "Tôi đã thanh toán"}
-                            </button>
-                            <button
-                                type="button"
-                                className="menu-button checkout-secondary"
-                                onClick={handleQrFail}
-                                disabled={qrBusy}
-                            >
-                                Thanh toán thất bại
-                            </button>
                         </div>
+
+                        <strong className="order-detail-food-price">
+                            {formatMoney(ct.thanhTien)}
+                        </strong>
+                    </article>
+                ))}
+            </div>
+        </section>
+
+        <section className="order-detail-card">
+            <div className="order-detail-section-heading">
+                <span className="order-detail-section-icon">
+                    <MapPin size={18} />
+                </span>
+
+                <div>
+                    <h2>Thông tin giao hàng</h2>
+                    <p>Địa chỉ nhận món của đơn hàng</p>
+                </div>
+            </div>
+
+            <div className="order-delivery-content">
+                <div className="order-delivery-recipient">
+                    <div>
+                        <span>Người nhận</span>
+                        <strong>{order.tenNguoiNhan}</strong>
+                    </div>
+
+                    <div>
+                        <span>Số điện thoại</span>
+                        <strong>{order.soDienThoaiNhan}</strong>
                     </div>
                 </div>
+
+                <div className="order-delivery-address">
+                    <MapPin size={16} />
+                    <p>{order.diaChiGiaoHang}</p>
+                </div>
+
+                {order.ghiChu && (
+                    <div className="order-delivery-note">
+                        <MessageSquareText size={16} />
+
+                        <div>
+                            <span>Ghi chú</span>
+                            <p>{order.ghiChu}</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </section>
+
+        <section className="order-detail-card">
+            <div className="order-detail-section-heading order-history-heading">
+                <span className="order-detail-section-icon">
+                    <History size={18} />
+                </span>
+
+                <div>
+                    <h2>Lịch sử đơn hàng</h2>
+                    <p>Theo dõi quá trình xử lý đơn</p>
+                </div>
+
+                <span className="order-detail-code">
+                    {order.maDonHangHienThi}
+                </span>
+            </div>
+
+            {history.length === 0 ? (
+                <p className="order-detail-empty-history">
+                    Chưa có lịch sử trạng thái.
+                </p>
+            ) : (
+                <ul className="order-detail-history">
+                    {[...history].reverse().map((item, index) => (
+                        <li
+                            key={item.maLichSu}
+                            className={index === 0 ? "is-latest" : ""}
+                        >
+                            <span className="order-history-dot">
+                                {index === 0 && <Check size={12} />}
+                            </span>
+
+                            <div className="order-history-content">
+                                <div>
+                                    <strong>
+                                        {STATUS_LABEL[item.tenTrangThai] ||
+                                            item.tenTrangThai}
+                                    </strong>
+
+                                    {index === 0 && (
+                                        <span className="order-history-latest">
+                                            Mới nhất
+                                        </span>
+                                    )}
+                                </div>
+
+                                <time>
+                                    {new Date(
+                                        item.thoiGianTao
+                                    ).toLocaleString("vi-VN")}
+                                </time>
+
+                                {item.ghiChu && <p>{item.ghiChu}</p>}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             )}
+        </section>
+    </div>
+
+    <aside className="order-detail-side-column">
+        <section className="order-detail-card order-detail-money-card">
+            <div className="order-detail-section-heading">
+                <span className="order-detail-section-icon">
+                    <ReceiptText size={18} />
+                </span>
+
+                <div>
+                    <h2>Thanh toán</h2>
+                    <p>Chi tiết số tiền của đơn</p>
+                </div>
+            </div>
+
+            <div className="order-detail-money-lines">
+                <div>
+                    <span>Tổng tiền món</span>
+                    <strong>{formatMoney(order.tongTienHang)}</strong>
+                </div>
+
+                <div>
+                    <span>Phí giao hàng</span>
+                    <strong>{formatMoney(order.phiShip)}</strong>
+                </div>
+
+                <div className="order-detail-discount">
+                    <span>Giảm giá</span>
+                    <strong>-{formatMoney(order.soTienGiam)}</strong>
+                </div>
+
+                <div className="order-detail-grand-total">
+                    <span>Thành tiền</span>
+                    <strong>{formatMoney(order.thanhTien)}</strong>
+                </div>
+            </div>
+        </section>
+
+        {latestPayment && (
+            <section className="order-detail-card order-payment-card">
+                <div className="order-payment-heading">
+                    <span className="order-payment-icon">
+                        {latestPayment.tenPhuongThuc
+                            .toUpperCase()
+                            .includes("COD") ? (
+                            <Banknote size={19} />
+                        ) : (
+                            <Smartphone size={19} />
+                        )}
+                    </span>
+
+                    <div>
+                        <span>Phương thức thanh toán</span>
+                        <strong>{latestPayment.tenPhuongThuc}</strong>
+                    </div>
+
+                    <span
+                        className={`order-payment-state state-${latestPayment.trangThaiThanhToan}`}
+                    >
+                        {PAYMENT_LABEL[
+                            latestPayment.trangThaiThanhToan
+                        ] || latestPayment.trangThaiThanhToan}
+                    </span>
+                </div>
+
+                {order.trangThai !== "DaHuy" &&
+                    latestPayment.trangThaiThanhToan ===
+                        "ChoThanhToan" &&
+                    latestPayment.tenPhuongThuc !== "COD" && (
+                        <button
+                            type="button"
+                            className="order-detail-primary-button"
+                            onClick={() => {
+                                setQrPaymentId(
+                                    latestPayment.maThanhToan
+                                );
+                                setQrMethodName(
+                                    latestPayment.tenPhuongThuc
+                                );
+                                setShowQr(true);
+                            }}
+                        >
+                            <Smartphone size={17} />
+                            Tiếp tục thanh toán
+                        </button>
+                    )}
+
+                {order.trangThai !== "DaHuy" &&
+                    latestPayment.trangThaiThanhToan === "ThatBai" &&
+                    (showRetry ? (
+                        <div className="order-payment-retry">
+                            <p className="order-payment-retry-title">
+                                Chọn phương thức thanh toán mới
+                            </p>
+
+                            <div className="order-retry-methods">
+                                {methods.map((item) => {
+                                    const isCod = item.tenPhuongThuc
+                                        .toUpperCase()
+                                        .includes("COD");
+
+                                    return (
+                                        <label
+                                            key={item.maPhuongThuc}
+                                            className={`order-retry-method ${
+                                                selectedMethodId ===
+                                                item.maPhuongThuc
+                                                    ? "selected"
+                                                    : ""
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="retry-payment"
+                                                checked={
+                                                    selectedMethodId ===
+                                                    item.maPhuongThuc
+                                                }
+                                                onChange={() =>
+                                                    setSelectedMethodId(
+                                                        item.maPhuongThuc
+                                                    )
+                                                }
+                                            />
+
+                                            <span className="order-retry-radio" />
+
+                                            <span className="order-retry-icon">
+                                                {isCod ? (
+                                                    <Banknote size={17} />
+                                                ) : (
+                                                    <Smartphone size={17} />
+                                                )}
+                                            </span>
+
+                                            <span>
+                                                <strong>
+                                                    {item.tenPhuongThuc}
+                                                </strong>
+
+                                                <small>
+                                                    {isCod
+                                                        ? "Thanh toán khi nhận món"
+                                                        : "Thanh toán trực tuyến"}
+                                                </small>
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="order-retry-actions">
+                                <button
+                                    type="button"
+                                    className="order-detail-primary-button"
+                                    onClick={handleRetry}
+                                    disabled={
+                                        retrying ||
+                                        selectedMethodId === null
+                                    }
+                                >
+                                    {retrying
+                                        ? "Đang xử lý..."
+                                        : "Xác nhận thanh toán"}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="order-detail-secondary-button"
+                                    onClick={() => setShowRetry(false)}
+                                    disabled={retrying}
+                                >
+                                    Để sau
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            className="order-detail-primary-button"
+                            onClick={() => {
+                                setSelectedMethodId(
+                                    latestPayment.maPhuongThuc
+                                );
+                                setShowRetry(true);
+                            }}
+                        >
+                            <RefreshCw size={16} />
+                            Chọn cách thanh toán lại
+                        </button>
+                    ))}
+
+                <div className="order-payment-security">
+                    <ShieldCheck size={14} />
+                    Thông tin thanh toán được bảo vệ an toàn.
+                </div>
+            </section>
+        )}
+
+        {order.trangThai === "HoanThanh" && (
+            <section className="order-review-callout">
+                <div className="order-review-callout-content">
+                    <span className="order-review-star">
+                        <Star size={20} />
+                    </span>
+
+                    <div>
+                        <strong>Bạn thấy đơn hàng thế nào?</strong>
+                        <p>
+                            Đánh giá quán và từng món để chia sẻ trải
+                            nghiệm.
+                        </p>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() =>
+                        setShowReview((previous) => !previous)
+                    }
+                    aria-expanded={showReview}
+                    aria-controls="order-review-panel"
+                >
+                    {showReview ? "Ẩn đánh giá" : "Viết đánh giá"}
+                </button>
+            </section>
+        )}
+    </aside>
+</div>
+
+{order.trangThai === "HoanThanh" && (
+    <section
+        id="order-review-panel"
+        className="order-detail-review-panel"
+        hidden={!showReview}
+    >
+        <div className="order-detail-section-heading">
+            <span className="order-detail-section-icon">
+                <Star size={18} />
+            </span>
+
+            <div>
+                <h2>Đánh giá trải nghiệm</h2>
+                <p>Bạn có thể đánh giá nhà hàng và từng món.</p>
+            </div>
+        </div>
+
+        <OrderReviewPanel
+            key={order.maDonHang}
+            maDonHang={order.maDonHang}
+            maNhaHang={order.maNhaHang}
+            tenNhaHang={order.tenNhaHang}
+            dishes={uniqueReviewDishes}
+        />
+    </section>
+)}
+                </article>
+            )}
+           {showQr && order && (
+    <div
+        className="order-qr-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-qr-title"
+        onMouseDown={() => {
+            if (!qrBusy) {
+                setShowQr(false);
+            }
+        }}
+    >
+        <section
+            className="order-qr-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+        >
+            <button
+                type="button"
+                className="order-qr-close"
+                aria-label="Đóng cửa sổ thanh toán"
+                disabled={qrBusy}
+                onClick={() => setShowQr(false)}
+            >
+                ×
+            </button>
+
+            <header className="order-qr-header">
+                <span className="order-qr-header-icon">
+                    <Smartphone size={21} />
+                </span>
+
+                <div>
+                    <span>Thanh toán trực tuyến</span>
+                    <h2 id="order-qr-title">
+                        Thanh toán qua {qrMethodName}
+                    </h2>
+
+                    <p>
+                        Quét mã bằng ứng dụng thanh toán trên điện thoại.
+                    </p>
+                </div>
+            </header>
+
+            <div className="order-qr-amount">
+                <span>Số tiền cần thanh toán</span>
+                <strong>{formatMoney(order.thanhTien)}</strong>
+            </div>
+
+            <div className="order-qr-code-frame">
+                <PaymentQr />
+            </div>
+
+            <div className="order-qr-guide">
+                <div>
+                    <span>1</span>
+                    <p>Mở ứng dụng {qrMethodName} trên điện thoại.</p>
+                </div>
+
+                <div>
+                    <span>2</span>
+                    <p>Quét mã QR và kiểm tra đúng số tiền.</p>
+                </div>
+
+                <div>
+                    <span>3</span>
+                    <p>
+                        Sau khi hoàn tất, nhấn nút xác nhận bên dưới.
+                    </p>
+                </div>
+            </div>
+
+            <div className="order-qr-actions">
+                <button
+                    type="button"
+                    className="order-qr-success-button"
+                    onClick={handleQrSuccess}
+                    disabled={qrBusy}
+                >
+                    <Check size={17} />
+
+                    {qrBusy
+                        ? "Đang xử lý..."
+                        : "Tôi đã thanh toán"}
+                </button>
+
+                <button
+                    type="button"
+                    className="order-qr-failed-button"
+                    onClick={handleQrFail}
+                    disabled={qrBusy}
+                >
+                    <XCircle size={16} />
+                    Thanh toán thất bại
+                </button>
+            </div>
+
+            <button
+                type="button"
+                className="order-qr-later-button"
+                disabled={qrBusy}
+                onClick={() => setShowQr(false)}
+            >
+                Thanh toán sau
+            </button>
+
+            <div className="order-qr-security">
+                <ShieldCheck size={14} />
+
+                <span>
+                    Đây là thanh toán mô phỏng phục vụ cho đồ án.
+                </span>
+            </div>
+        </section>
+    </div>
+)}
         </main>
     );
 }

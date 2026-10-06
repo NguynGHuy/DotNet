@@ -7,50 +7,104 @@ export interface ThemMonRequest {
     danhSachMaTopping?: number[];
 }
 
-export interface CapNhatMonRequest {
-    soLuong: number;
+export interface CapNhatTuyChonRequest {
     ghiChu?: string;
     danhSachMaTopping?: number[];
 }
 
-export async function getCart() {
+export interface CartTopping {
+    maTopping: number;
+    tenTopping: string;
+    giaThem: number;
+    soLuong: number;
+}
+
+export interface CartItem {
+    maChiTietGioHang: number;
+    maMonAn: number;
+    tenMonAn: string;
+    hinhAnh?: string | null;
+    donGia: number;
+    soLuong: number;
+    ghiChu?: string | null;
+    toppings: CartTopping[];
+    thanhTien: number;
+}
+
+export interface RestaurantCart {
+    maGioHang: number | null;
+    maNhaHang: number;
+    tenNhaHang: string;
+    anhBia?: string | null;
+    ngayCapNhat?: string | null;
+    soLuongMon: number;
+    tongTienTamTinh: number;
+    chiTiet: CartItem[];
+}
+
+function authHeaders() {
     const token = localStorage.getItem("token");
-    return apiFetch("/gio-hang", {
+    return { Authorization: `Bearer ${token}` };
+}
+
+export async function getRestaurantCart(maNhaHang: number): Promise<RestaurantCart> {
+    return apiFetch(`/gio-hang/nha-hang/${maNhaHang}`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
+    });
+}
+
+export async function getLatestCart(): Promise<RestaurantCart | null> {
+    return apiFetch("/gio-hang/gan-nhat", {
+        method: "GET",
+        headers: authHeaders(),
+    });
+}
+
+export async function getCart(maGioHang: number): Promise<RestaurantCart> {
+    return apiFetch(`/gio-hang/${maGioHang}`, {
+        method: "GET",
+        headers: authHeaders(),
     });
 }
 
 export async function addToCart(data: ThemMonRequest) {
-    const token = localStorage.getItem("token");
     return apiFetch("/gio-hang/them-mon", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
         body: JSON.stringify(data),
     });
 }
 
-export async function updateCartItem(id: number, data: CapNhatMonRequest) {
-    const token = localStorage.getItem("token");
+export async function updateCartItemQty(id: number, soLuong: number) {
     return apiFetch(`/gio-hang/chi-tiet/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
+        body: JSON.stringify({ soLuong }),
+    });
+}
+
+export async function updateCartItemOptions(
+    id: number,
+    data: CapNhatTuyChonRequest
+) {
+    return apiFetch(`/gio-hang/chi-tiet/${id}/tuy-chon`, {
+        method: "PUT",
+        headers: authHeaders(),
         body: JSON.stringify(data),
     });
 }
 
 export async function removeCartItem(id: number) {
-    const token = localStorage.getItem("token");
     return apiFetch(`/gio-hang/chi-tiet/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
     });
 }
 
-export async function clearCart() {
-    const token = localStorage.getItem("token");
-    return apiFetch("/gio-hang", {
+export async function clearCart(maGioHang: number) {
+    return apiFetch(`/gio-hang/${maGioHang}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
     });
 }

@@ -1,5 +1,16 @@
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, type FormEvent } from "react";
+import {
+    Check,
+    CircleDollarSign,
+    Layers3,
+    Pencil,
+    Plus,
+    Power,
+    Save,
+    Settings2,
+    Trash2,
+    X,
+} from "lucide-react";
 import {
     createNhomTopping,
     createTopping,
@@ -13,276 +24,208 @@ import {
     type NhomTopping,
     type Topping,
 } from "../services/toppingService";
-
 import { getCurrentUser } from "../services/userService";
 
 interface CurrentUser {
-    nhaHang?: {
-        maNhaHang: number;
-    };
+    nhaHang?: { maNhaHang: number };
+}
+
+interface GroupForm {
+    tenNhom: string;
+    batBuocChon: boolean;
+    chonToiDa: number | null;
+}
+
+interface ToppingForm {
+    tenTopping: string;
+    giaThem: number;
+}
+
+const EMPTY_GROUP: GroupForm = {
+    tenNhom: "",
+    batBuocChon: false,
+    chonToiDa: 1,
+};
+
+const EMPTY_TOPPING: ToppingForm = {
+    tenTopping: "",
+    giaThem: 0,
+};
+
+function formatMoney(value: number) {
+    return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 }
 
 function RestaurantTopping() {
-    const [nhomToppings, setNhomToppings] =
-        useState<NhomTopping[]>([]);
+    const [groups, setGroups] = useState<NhomTopping[]>([]);
+    const [toppings, setToppings] = useState<Topping[]>([]);
+    const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
-    const [toppings, setToppings] =
-        useState<Topping[]>([]);
+    const [groupEditorOpen, setGroupEditorOpen] = useState(false);
+    const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+    const [groupForm, setGroupForm] = useState<GroupForm>(EMPTY_GROUP);
 
-    const [selectedNhom, setSelectedNhom] =
-        useState<number | null>(null);
+    const [toppingEditorOpen, setToppingEditorOpen] = useState(false);
+    const [editingToppingId, setEditingToppingId] = useState<number | null>(null);
+    const [toppingForm, setToppingForm] =
+        useState<ToppingForm>(EMPTY_TOPPING);
 
     const [loading, setLoading] = useState(true);
-    const [loadingToppings, setLoadingToppings] =
-        useState(false);
+    const [loadingToppings, setLoadingToppings] = useState(false);
     const [saving, setSaving] = useState(false);
-
+    const [busyGroupId, setBusyGroupId] = useState<number | null>(null);
+    const [busyToppingId, setBusyToppingId] = useState<number | null>(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const [showGroupForm, setShowGroupForm] =
-        useState(false);
-
-    const [groupName, setGroupName] = useState("");
-    const [groupRequired, setGroupRequired] =
-        useState(false);
-    const [groupMax, setGroupMax] =
-        useState<number | null>(1);
-
-    const [editGroupId, setEditGroupId] =
-        useState<number | null>(null);
-
-    const [editGroupName, setEditGroupName] =
-        useState("");
-    const [editGroupRequired, setEditGroupRequired] =
-        useState(false);
-    const [editGroupMax, setEditGroupMax] =
-        useState<number | null>(1);
-
-    const [showToppingForm, setShowToppingForm] =
-        useState(false);
-
-    const [toppingName, setToppingName] =
-        useState("");
-    const [toppingPrice, setToppingPrice] =
-        useState(0);
-
-    const [editToppingId, setEditToppingId] =
-        useState<number | null>(null);
-
-    const [editToppingName, setEditToppingName] =
-        useState("");
-    const [editToppingPrice, setEditToppingPrice] =
-        useState(0);
-
     const getRestaurantId = async () => {
         const user = (await getCurrentUser()) as CurrentUser;
-
         const maNhaHang = user.nhaHang?.maNhaHang;
 
         if (!maNhaHang) {
-            throw new Error(
-                "Không tìm thấy thông tin nhà hàng."
-            );
+            throw new Error("Không tìm thấy thông tin nhà hàng.");
         }
 
         return maNhaHang;
     };
 
     const loadToppings = async (
-        maNhomTopping: number
+        groupId: number,
+        showLoading = true
     ) => {
         try {
-            setLoadingToppings(true);
-
-            const data = await getToppings(
-                maNhomTopping
-            );
-
-            setToppings(data);
+            if (showLoading) setLoadingToppings(true);
+            const data = await getToppings(groupId);
+            setToppings(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Lỗi tải topping:", err);
-
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể tải topping."
             );
+            setToppings([]);
         } finally {
-            setLoadingToppings(false);
+            if (showLoading) setLoadingToppings(false);
         }
     };
 
     const loadGroups = async (
-        preferredGroupId?: number
+        preferredGroupId?: number,
+        showLoading = true
     ) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             setError("");
 
-            const maNhaHang = await getRestaurantId();
+            const restaurantId = await getRestaurantId();
+            const data = await getNhomToppings(restaurantId);
+            const nextGroups = Array.isArray(data) ? data : [];
 
-            const data = await getNhomToppings(
-                maNhaHang
-            );
+            setGroups(nextGroups);
 
-            setNhomToppings(data);
-
-            if (data.length === 0) {
-                setSelectedNhom(null);
+            if (nextGroups.length === 0) {
+                setSelectedGroupId(null);
                 setToppings([]);
                 return;
             }
 
-            const nextSelected =
-                preferredGroupId &&
-                data.some(
+            const preferredExists =
+                preferredGroupId !== undefined &&
+                nextGroups.some(
                     (group) =>
-                        group.maNhomTopping ===
-                        preferredGroupId
-                )
-                    ? preferredGroupId
-                    : selectedNhom &&
-                        data.some(
-                            (group) =>
-                                group.maNhomTopping ===
-                                selectedNhom
-                        )
-                      ? selectedNhom
-                      : data[0].maNhomTopping;
+                        group.maNhomTopping === preferredGroupId
+                );
 
-            setSelectedNhom(nextSelected);
+            const currentExists =
+                selectedGroupId !== null &&
+                nextGroups.some(
+                    (group) =>
+                        group.maNhomTopping === selectedGroupId
+                );
 
+            const nextSelected = preferredExists
+                ? preferredGroupId!
+                : currentExists
+                  ? selectedGroupId!
+                  : nextGroups[0].maNhomTopping;
+
+            setSelectedGroupId(nextSelected);
             await loadToppings(nextSelected);
         } catch (err) {
-            console.error(
-                "Lỗi tải nhóm topping:",
-                err
-            );
-
+            console.error("Lỗi tải nhóm topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể tải nhóm topping."
             );
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadGroups();
+        void loadGroups();
     }, []);
 
-    const handleSelectGroup = async (
-        id: number
-    ) => {
-        setSelectedNhom(id);
-
-        setEditToppingId(null);
-        setShowToppingForm(false);
-
-        await loadToppings(id);
+    const showMessage = (message: string) => {
+        setSuccess(message);
+        window.setTimeout(() => setSuccess(""), 3000);
     };
 
-    const resetCreateGroup = () => {
-        setGroupName("");
-        setGroupRequired(false);
-        setGroupMax(1);
-        setShowGroupForm(false);
+    const handleSelectGroup = async (groupId: number) => {
+        if (groupId === selectedGroupId) return;
+
+        setSelectedGroupId(groupId);
+        setToppingEditorOpen(false);
+        setEditingToppingId(null);
+        setError("");
+        await loadToppings(groupId);
     };
 
-    const handleCreateGroup = async () => {
-        if (!groupName.trim()) {
-            setError(
-                "Vui lòng nhập tên nhóm topping."
-            );
-            return;
-        }
-
-        if (
-            groupMax !== null &&
-            groupMax <= 0
-        ) {
-            setError(
-                "Số lựa chọn tối đa phải lớn hơn 0."
-            );
-            return;
-        }
-
-        try {
-            setSaving(true);
-            setError("");
-            setSuccess("");
-
-            await createNhomTopping({
-                tenNhom: groupName.trim(),
-                batBuocChon: groupRequired,
-                chonToiDa: groupMax,
-            });
-
-            resetCreateGroup();
-
-            setSuccess(
-                "Thêm nhóm topping thành công."
-            );
-
-            await loadGroups();
-        } catch (err) {
-            console.error(
-                "Lỗi tạo nhóm topping:",
-                err
-            );
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể tạo nhóm topping."
-            );
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const startEditGroup = (
-        group: NhomTopping
-    ) => {
-        setEditGroupId(group.maNhomTopping);
-        setEditGroupName(group.tenNhom);
-        setEditGroupRequired(group.batBuocChon);
-        setEditGroupMax(group.chonToiDa);
-
-        setShowGroupForm(false);
+    const openCreateGroup = () => {
+        setEditingGroupId(null);
+        setGroupForm(EMPTY_GROUP);
+        setGroupEditorOpen(true);
         setError("");
         setSuccess("");
     };
 
-    const resetEditGroup = () => {
-        setEditGroupId(null);
-        setEditGroupName("");
-        setEditGroupRequired(false);
-        setEditGroupMax(1);
+    const openEditGroup = (group: NhomTopping) => {
+        setEditingGroupId(group.maNhomTopping);
+        setGroupForm({
+            tenNhom: group.tenNhom,
+            batBuocChon: group.batBuocChon,
+            chonToiDa: group.chonToiDa,
+        });
+        setGroupEditorOpen(true);
+        setError("");
+        setSuccess("");
     };
 
-    const handleUpdateGroup = async () => {
-        if (editGroupId === null) {
-            return;
-        }
+    const closeGroupEditor = () => {
+        if (saving) return;
+        setGroupEditorOpen(false);
+        setEditingGroupId(null);
+        setGroupForm(EMPTY_GROUP);
+        setError("");
+    };
 
-        if (!editGroupName.trim()) {
-            setError(
-                "Tên nhóm topping không được để trống."
-            );
+    const handleGroupSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        if (!groupForm.tenNhom.trim()) {
+            setError("Vui lòng nhập tên nhóm topping.");
             return;
         }
 
         if (
-            editGroupMax !== null &&
-            editGroupMax <= 0
+            groupForm.chonToiDa !== null &&
+            groupForm.chonToiDa <= 0
         ) {
-            setError(
-                "Số lựa chọn tối đa phải lớn hơn 0."
-            );
+            setError("Số lựa chọn tối đa phải lớn hơn 0.");
             return;
         }
 
@@ -291,185 +234,117 @@ function RestaurantTopping() {
             setError("");
             setSuccess("");
 
-            await updateNhomTopping(
-                editGroupId,
-                {
-                    tenNhom:
-                        editGroupName.trim(),
-                    batBuocChon:
-                        editGroupRequired,
-                    chonToiDa: editGroupMax,
-                }
-            );
+            const payload = {
+                tenNhom: groupForm.tenNhom.trim(),
+                batBuocChon: groupForm.batBuocChon,
+                chonToiDa: groupForm.chonToiDa,
+            };
 
-            resetEditGroup();
+            if (editingGroupId === null) {
+                await createNhomTopping(payload);
+                showMessage("Đã thêm nhóm topping.");
+                await loadGroups(undefined, false);
+            } else {
+                const updatedId = editingGroupId;
+                await updateNhomTopping(updatedId, payload);
+                showMessage("Đã cập nhật nhóm topping.");
+                await loadGroups(updatedId, false);
+            }
 
-            setSuccess(
-                "Cập nhật nhóm topping thành công."
-            );
-
-            await loadGroups(editGroupId);
+            setGroupEditorOpen(false);
+            setEditingGroupId(null);
+            setGroupForm(EMPTY_GROUP);
         } catch (err) {
-            console.error(
-                "Lỗi cập nhật nhóm:",
-                err
-            );
-
+            console.error("Lỗi lưu nhóm topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Không thể cập nhật nhóm topping."
+                    : "Không thể lưu nhóm topping."
             );
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDeleteGroup = async (
-        group: NhomTopping
-    ) => {
+    const handleDeleteGroup = async (group: NhomTopping) => {
         const confirmed = window.confirm(
             `Bạn có chắc muốn xóa nhóm "${group.tenNhom}" không?`
         );
 
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         try {
+            setBusyGroupId(group.maNhomTopping);
             setError("");
             setSuccess("");
 
-            await deleteNhomTopping(
-                group.maNhomTopping
-            );
+            await deleteNhomTopping(group.maNhomTopping);
 
-            setSuccess(
-                "Xóa nhóm topping thành công."
-            );
-
-            if (
-                editGroupId ===
-                group.maNhomTopping
-            ) {
-                resetEditGroup();
+            if (editingGroupId === group.maNhomTopping) {
+                setGroupEditorOpen(false);
+                setEditingGroupId(null);
             }
 
-            await loadGroups();
+            showMessage("Đã xóa nhóm topping.");
+            await loadGroups(undefined, false);
         } catch (err) {
-            console.error(
-                "Lỗi xóa nhóm topping:",
-                err
-            );
-
+            console.error("Lỗi xóa nhóm topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể xóa nhóm topping."
             );
-        }
-    };
-
-    const resetCreateTopping = () => {
-        setToppingName("");
-        setToppingPrice(0);
-        setShowToppingForm(false);
-    };
-
-    const handleCreateTopping = async () => {
-        if (selectedNhom === null) {
-            setError(
-                "Vui lòng chọn nhóm topping."
-            );
-            return;
-        }
-
-        if (!toppingName.trim()) {
-            setError(
-                "Vui lòng nhập tên topping."
-            );
-            return;
-        }
-
-        if (toppingPrice < 0) {
-            setError(
-                "Giá topping không được nhỏ hơn 0."
-            );
-            return;
-        }
-
-        try {
-            setSaving(true);
-            setError("");
-            setSuccess("");
-
-            await createTopping({
-                maNhomTopping: selectedNhom,
-                tenTopping: toppingName.trim(),
-                giaThem: toppingPrice,
-            });
-
-            resetCreateTopping();
-
-            setSuccess(
-                "Thêm topping thành công."
-            );
-
-            await loadToppings(selectedNhom);
-        } catch (err) {
-            console.error(
-                "Lỗi tạo topping:",
-                err
-            );
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể tạo topping."
-            );
         } finally {
-            setSaving(false);
+            setBusyGroupId(null);
         }
     };
 
-    const startEditTopping = (
-        item: Topping
-    ) => {
-        setEditToppingId(item.maTopping);
-        setEditToppingName(item.tenTopping);
-        setEditToppingPrice(item.giaThem);
+    const openCreateTopping = () => {
+        if (selectedGroupId === null) return;
 
-        setShowToppingForm(false);
-
+        setEditingToppingId(null);
+        setToppingForm(EMPTY_TOPPING);
+        setToppingEditorOpen(true);
         setError("");
         setSuccess("");
     };
 
-    const resetEditTopping = () => {
-        setEditToppingId(null);
-        setEditToppingName("");
-        setEditToppingPrice(0);
+    const openEditTopping = (item: Topping) => {
+        setEditingToppingId(item.maTopping);
+        setToppingForm({
+            tenTopping: item.tenTopping,
+            giaThem: Number(item.giaThem),
+        });
+        setToppingEditorOpen(true);
+        setError("");
+        setSuccess("");
     };
 
-    const handleUpdateTopping = async () => {
-        if (
-            editToppingId === null ||
-            selectedNhom === null
-        ) {
+    const closeToppingEditor = () => {
+        if (saving) return;
+        setToppingEditorOpen(false);
+        setEditingToppingId(null);
+        setToppingForm(EMPTY_TOPPING);
+        setError("");
+    };
+
+    const handleToppingSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        if (selectedGroupId === null) {
+            setError("Vui lòng chọn nhóm topping.");
             return;
         }
 
-        if (!editToppingName.trim()) {
-            setError(
-                "Tên topping không được để trống."
-            );
+        if (!toppingForm.tenTopping.trim()) {
+            setError("Vui lòng nhập tên topping.");
             return;
         }
 
-        if (editToppingPrice < 0) {
-            setError(
-                "Giá topping không được nhỏ hơn 0."
-            );
+        if (toppingForm.giaThem < 0) {
+            setError("Giá topping không được nhỏ hơn 0.");
             return;
         }
 
@@ -478,47 +353,42 @@ function RestaurantTopping() {
             setError("");
             setSuccess("");
 
-            await updateTopping(
-                editToppingId,
-                {
-                    tenTopping:
-                        editToppingName.trim(),
-                    giaThem:
-                        editToppingPrice,
-                }
-            );
+            if (editingToppingId === null) {
+                await createTopping({
+                    maNhomTopping: selectedGroupId,
+                    tenTopping: toppingForm.tenTopping.trim(),
+                    giaThem: toppingForm.giaThem,
+                });
+                showMessage("Đã thêm topping.");
+            } else {
+                await updateTopping(editingToppingId, {
+                    tenTopping: toppingForm.tenTopping.trim(),
+                    giaThem: toppingForm.giaThem,
+                });
+                showMessage("Đã cập nhật topping.");
+            }
 
-            resetEditTopping();
-
-            setSuccess(
-                "Cập nhật topping thành công."
-            );
-
-            await loadToppings(selectedNhom);
+            setToppingEditorOpen(false);
+            setEditingToppingId(null);
+            setToppingForm(EMPTY_TOPPING);
+            await loadToppings(selectedGroupId, false);
         } catch (err) {
-            console.error(
-                "Lỗi cập nhật topping:",
-                err
-            );
-
+            console.error("Lỗi lưu topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Không thể cập nhật topping."
+                    : "Không thể lưu topping."
             );
         } finally {
             setSaving(false);
         }
     };
 
-    const handleToggleTopping = async (
-        item: Topping
-    ) => {
-        if (selectedNhom === null) {
-            return;
-        }
+    const handleToggleTopping = async (item: Topping) => {
+        if (selectedGroupId === null) return;
 
         try {
+            setBusyToppingId(item.maTopping);
             setError("");
             setSuccess("");
 
@@ -527,78 +397,59 @@ function RestaurantTopping() {
                 !item.trangThai
             );
 
-            setSuccess(
+            showMessage(
                 item.trangThai
-                    ? "Đã tắt topping."
+                    ? "Đã tạm ngưng topping."
                     : "Đã bật topping."
             );
 
-            await loadToppings(selectedNhom);
+            await loadToppings(selectedGroupId, false);
         } catch (err) {
-            console.error(
-                "Lỗi đổi trạng thái topping:",
-                err
-            );
-
+            console.error("Lỗi đổi trạng thái topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể thay đổi trạng thái topping."
             );
+        } finally {
+            setBusyToppingId(null);
         }
     };
 
-    const handleDeleteTopping = async (
-        item: Topping
-    ) => {
-        if (selectedNhom === null) {
-            return;
-        }
+    const handleDeleteTopping = async (item: Topping) => {
+        if (selectedGroupId === null) return;
 
         const confirmed = window.confirm(
             `Bạn có chắc muốn xóa topping "${item.tenTopping}" không?`
         );
 
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         try {
+            setBusyToppingId(item.maTopping);
             setError("");
             setSuccess("");
 
             await deleteTopping(item.maTopping);
 
-            setSuccess(
-                "Xóa topping thành công."
-            );
-
-            if (
-                editToppingId ===
-                item.maTopping
-            ) {
-                resetEditTopping();
+            if (editingToppingId === item.maTopping) {
+                setToppingEditorOpen(false);
+                setEditingToppingId(null);
             }
 
-            await loadToppings(selectedNhom);
+            showMessage("Đã xóa topping.");
+            await loadToppings(selectedGroupId, false);
         } catch (err) {
-            console.error(
-                "Lỗi xóa topping:",
-                err
-            );
-
+            console.error("Lỗi xóa topping:", err);
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể xóa topping."
             );
+        } finally {
+            setBusyToppingId(null);
         }
     };
-
-    const formatMoney = (value: number) =>
-        `${Number(value || 0).toLocaleString(
-            "vi-VN"
-        )} đ`;
 
     if (loading) {
         return (
@@ -608,558 +459,571 @@ function RestaurantTopping() {
         );
     }
 
+    const selectedGroup =
+        groups.find(
+            (group) =>
+                group.maNhomTopping === selectedGroupId
+        ) ?? null;
+
+    const activeToppingCount = toppings.filter(
+        (item) => item.trangThai
+    ).length;
+
     return (
-        <div className="quan-dashboard">
-            <div className="quan-page-title">
+        <div className="merchant-options-page">
+            <header className="merchant-options-header">
                 <div>
+                    <span className="merchant-options-eyebrow">
+                        TÙY CHỌN MÓN ĂN
+                    </span>
                     <h1>Topping</h1>
                     <p>
-                        Quản lý nhóm topping và các lựa
-                        chọn của nhà hàng.
+                        Quản lý nhóm tùy chọn và giá bán thêm của từng
+                        topping.
                     </p>
                 </div>
 
                 <button
                     type="button"
-                    className="quan-primary-button"
-                    onClick={() => {
-                        setShowGroupForm(
-                            (prev) => !prev
-                        );
-
-                        resetEditGroup();
-                    }}
+                    className="merchant-options-add-group"
+                    onClick={openCreateGroup}
                 >
-                    {showGroupForm
-                        ? "Đóng"
-                        : "+ Thêm nhóm"}
+                    <Plus size={16} />
+                    Thêm nhóm
                 </button>
-            </div>
+            </header>
 
-            {error && (
-                <div className="quan-error-message">
-                    ✕ {error}
-                </div>
-            )}
+            {error &&
+                !groupEditorOpen &&
+                !toppingEditorOpen && (
+                    <div className="merchant-options-notice error">
+                        {error}
+                    </div>
+                )}
 
             {success && (
-                <div className="quan-success-message">
+                <div className="merchant-options-notice success">
                     ✓ {success}
                 </div>
             )}
 
-            {showGroupForm && (
-                <div className="quan-section">
-                    <div className="quan-section-header">
+            <div className="merchant-options-layout">
+                <aside className="merchant-options-groups">
+                    <div className="merchant-options-panel-title">
                         <div>
-                            <h2>Thêm nhóm topping</h2>
+                            <h2>Nhóm topping</h2>
+                            <p>{groups.length} nhóm đang được quản lý</p>
                         </div>
+                        <Layers3 size={18} />
                     </div>
 
-                    <div className="quan-form-grid">
-                        <div className="quan-form-group">
-                            <label>Tên nhóm</label>
-
-                            <input
-                                value={groupName}
-                                placeholder="Ví dụ: Chọn size"
-                                onChange={(e) =>
-                                    setGroupName(
-                                        e.target.value
-                                    )
-                                }
-                            />
+                    {groups.length === 0 ? (
+                        <div className="merchant-options-group-empty">
+                            <Layers3 size={25} />
+                            <p>Chưa có nhóm topping.</p>
+                            <button
+                                type="button"
+                                onClick={openCreateGroup}
+                            >
+                                Tạo nhóm đầu tiên
+                            </button>
                         </div>
+                    ) : (
+                        <div className="merchant-options-group-list">
+                            {groups.map((group) => {
+                                const selected =
+                                    group.maNhomTopping ===
+                                    selectedGroupId;
 
-                        <div className="quan-form-group">
-                            <label>
-                                Số lựa chọn tối đa
-                            </label>
-
-                            <input
-                                type="number"
-                                min={1}
-                                value={
-                                    groupMax ?? ""
-                                }
-                                onChange={(e) =>
-                                    setGroupMax(
-                                        e.target.value ===
-                                            ""
-                                            ? null
-                                            : Number(
-                                                  e.target
-                                                      .value
-                                              )
-                                    )
-                                }
-                            />
-                        </div>
-
-                        <div className="quan-form-group quan-form-full">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={
-                                        groupRequired
-                                    }
-                                    onChange={(e) =>
-                                        setGroupRequired(
-                                            e.target
-                                                .checked
-                                        )
-                                    }
-                                />
-                                {" "}
-                                Khách bắt buộc phải chọn
-                                topping trong nhóm này
-                            </label>
-                        </div>
-                    </div>
-
-                    <div className="quan-form-actions">
-                        <button
-                            type="button"
-                            className="quan-secondary-button"
-                            onClick={resetCreateGroup}
-                        >
-                            Hủy
-                        </button>
-
-                        <button
-                            type="button"
-                            className="quan-primary-button"
-                            onClick={handleCreateGroup}
-                            disabled={saving}
-                        >
-                            {saving
-                                ? "Đang lưu..."
-                                : "Thêm nhóm"}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {editGroupId !== null && (
-                <div className="quan-section">
-                    <div className="quan-section-header">
-                        <h2>Sửa nhóm topping</h2>
-                    </div>
-
-                    <div className="quan-form-grid">
-                        <div className="quan-form-group">
-                            <label>Tên nhóm</label>
-
-                            <input
-                                value={editGroupName}
-                                onChange={(e) =>
-                                    setEditGroupName(
-                                        e.target.value
-                                    )
-                                }
-                            />
-                        </div>
-
-                        <div className="quan-form-group">
-                            <label>
-                                Số lựa chọn tối đa
-                            </label>
-
-                            <input
-                                type="number"
-                                min={1}
-                                value={
-                                    editGroupMax ?? ""
-                                }
-                                onChange={(e) =>
-                                    setEditGroupMax(
-                                        e.target.value ===
-                                            ""
-                                            ? null
-                                            : Number(
-                                                  e.target
-                                                      .value
-                                              )
-                                    )
-                                }
-                            />
-                        </div>
-
-                        <div className="quan-form-group quan-form-full">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={
-                                        editGroupRequired
-                                    }
-                                    onChange={(e) =>
-                                        setEditGroupRequired(
-                                            e.target
-                                                .checked
-                                        )
-                                    }
-                                />
-                                {" "}
-                                Bắt buộc chọn
-                            </label>
-                        </div>
-                    </div>
-
-                    <div className="quan-form-actions">
-                        <button
-                            type="button"
-                            className="quan-secondary-button"
-                            onClick={resetEditGroup}
-                        >
-                            Hủy
-                        </button>
-
-                        <button
-                            type="button"
-                            className="quan-primary-button"
-                            onClick={handleUpdateGroup}
-                        >
-                            Lưu thay đổi
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className="quan-section">
-                <div className="quan-section-header">
-                    <div>
-                        <h2>Nhóm topping</h2>
-                        <p>
-                            Chọn một nhóm để quản lý các
-                            topping bên trong.
-                        </p>
-                    </div>
-                </div>
-
-                {nhomToppings.length === 0 ? (
-                    <div className="quan-placeholder">
-                        Chưa có nhóm topping.
-                    </div>
-                ) : (
-                    <div className="quan-management-list">
-                        {nhomToppings.map(
-                            (group) => (
-                                <div
-                                    key={
-                                        group.maNhomTopping
-                                    }
-                                    className={`quan-management-item ${
-                                        selectedNhom ===
-                                        group.maNhomTopping
-                                            ? "is-selected"
-                                            : ""
-                                    }`}
-                                >
-                                    <div>
-                                        <strong>
-                                            {group.tenNhom}
-                                        </strong>
-
-                                        <p>
-                                            {group.batBuocChon
-                                                ? "Bắt buộc"
-                                                : "Tùy chọn"}
-
-                                            {" · "}
-
-                                            {group.chonToiDa
-                                                ? `Tối đa ${group.chonToiDa} lựa chọn`
-                                                : "Không giới hạn"}
-                                        </p>
-                                    </div>
-
-                                    <div className="quan-management-actions">
+                                return (
+                                    <article
+                                        key={group.maNhomTopping}
+                                        className={`merchant-options-group ${
+                                            selected ? "selected" : ""
+                                        }`}
+                                    >
                                         <button
                                             type="button"
-                                            className="quan-primary-button"
+                                            className="merchant-options-group-select"
                                             onClick={() =>
-                                                handleSelectGroup(
+                                                void handleSelectGroup(
                                                     group.maNhomTopping
                                                 )
                                             }
                                         >
-                                            Chọn
+                                            <span>
+                                                <Settings2 size={17} />
+                                            </span>
+
+                                            <div>
+                                                <strong>
+                                                    {group.tenNhom}
+                                                </strong>
+                                                <p>
+                                                    {group.batBuocChon
+                                                        ? "Bắt buộc"
+                                                        : "Tùy chọn"}
+                                                    {" · "}
+                                                    {group.chonToiDa
+                                                        ? `Tối đa ${group.chonToiDa}`
+                                                        : "Không giới hạn"}
+                                                </p>
+                                            </div>
                                         </button>
 
-                                        <button
-                                            type="button"
-                                            className="quan-secondary-button"
-                                            onClick={() =>
-                                                startEditGroup(
-                                                    group
-                                                )
-                                            }
-                                        >
-                                            Sửa
-                                        </button>
+                                        <div className="merchant-options-group-actions">
+                                            <button
+                                                type="button"
+                                                title="Sửa nhóm"
+                                                onClick={() =>
+                                                    openEditGroup(group)
+                                                }
+                                                disabled={
+                                                    busyGroupId !== null
+                                                }
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
 
-                                        <button
-                                            type="button"
-                                            className="quan-danger-button"
-                                            onClick={() =>
-                                                handleDeleteGroup(
-                                                    group
-                                                )
-                                            }
-                                        >
-                                            Xóa
-                                        </button>
-                                    </div>
-                                </div>
-                            )
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {selectedNhom !== null && (
-                <div className="quan-section">
-                    <div className="quan-section-header">
-                        <div>
-                            <h2>
-                                Danh sách topping
-                            </h2>
-
-                            <p>
-                                {nhomToppings.find(
-                                    (group) =>
-                                        group.maNhomTopping ===
-                                        selectedNhom
-                                )?.tenNhom ??
-                                    "Nhóm topping"}
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="quan-primary-button"
-                            onClick={() => {
-                                setShowToppingForm(
-                                    (prev) => !prev
+                                            <button
+                                                type="button"
+                                                className="delete"
+                                                title="Xóa nhóm"
+                                                onClick={() =>
+                                                    void handleDeleteGroup(
+                                                        group
+                                                    )
+                                                }
+                                                disabled={
+                                                    busyGroupId !== null
+                                                }
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </article>
                                 );
+                            })}
+                        </div>
+                    )}
+                </aside>
 
-                                resetEditTopping();
-                            }}
-                        >
-                            + Thêm topping
-                        </button>
-                    </div>
-
-                    {showToppingForm && (
-                        <div className="quan-inline-form">
-                            <div className="quan-form-grid">
-                                <div className="quan-form-group">
-                                    <label>
-                                        Tên topping
-                                    </label>
-
-                                    <input
-                                        value={
-                                            toppingName
-                                        }
-                                        onChange={(e) =>
-                                            setToppingName(
-                                                e.target
-                                                    .value
-                                            )
-                                        }
-                                    />
+                <section className="merchant-options-toppings">
+                    {selectedGroup ? (
+                        <>
+                            <div className="merchant-options-topping-header">
+                                <div>
+                                    <span>NHÓM ĐANG CHỌN</span>
+                                    <h2>{selectedGroup.tenNhom}</h2>
+                                    <p>
+                                        {activeToppingCount} đang bán ·{" "}
+                                        {toppings.length} topping
+                                    </p>
                                 </div>
 
-                                <div className="quan-form-group">
-                                    <label>
-                                        Giá thêm
-                                    </label>
-
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={
-                                            toppingPrice
-                                        }
-                                        onChange={(e) =>
-                                            setToppingPrice(
-                                                Number(
-                                                    e.target
-                                                        .value
-                                                )
-                                            )
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="quan-form-actions">
                                 <button
-                                    className="quan-secondary-button"
-                                    onClick={
-                                        resetCreateTopping
-                                    }
+                                    type="button"
+                                    onClick={openCreateTopping}
                                 >
-                                    Hủy
-                                </button>
-
-                                <button
-                                    className="quan-primary-button"
-                                    onClick={
-                                        handleCreateTopping
-                                    }
-                                >
+                                    <Plus size={15} />
                                     Thêm topping
                                 </button>
                             </div>
-                        </div>
-                    )}
 
-                    {editToppingId !== null && (
-                        <div className="quan-inline-form">
-                            <div className="quan-form-grid">
-                                <div className="quan-form-group">
-                                    <label>
-                                        Tên topping
-                                    </label>
-
-                                    <input
-                                        value={
-                                            editToppingName
-                                        }
-                                        onChange={(e) =>
-                                            setEditToppingName(
-                                                e.target
-                                                    .value
-                                            )
-                                        }
-                                    />
+                            <div className="merchant-options-rule">
+                                <div>
+                                    <Check size={15} />
+                                    <span>
+                                        {selectedGroup.batBuocChon
+                                            ? "Khách bắt buộc phải chọn"
+                                            : "Khách có thể bỏ qua"}
+                                    </span>
                                 </div>
 
-                                <div className="quan-form-group">
-                                    <label>
-                                        Giá thêm
-                                    </label>
+                                <strong>
+                                    {selectedGroup.chonToiDa
+                                        ? `Tối đa ${selectedGroup.chonToiDa} lựa chọn`
+                                        : "Không giới hạn lựa chọn"}
+                                </strong>
+                            </div>
 
+                            {loadingToppings ? (
+                                <div className="merchant-options-loading">
+                                    Đang tải topping...
+                                </div>
+                            ) : toppings.length === 0 ? (
+                                <div className="merchant-options-topping-empty">
+                                    <Settings2 size={27} />
+                                    <h3>Nhóm này chưa có topping</h3>
+                                    <p>
+                                        Thêm lựa chọn đầu tiên cho nhóm{" "}
+                                        {selectedGroup.tenNhom}.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={openCreateTopping}
+                                    >
+                                        <Plus size={15} />
+                                        Thêm topping
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="merchant-options-topping-list">
+                                    {toppings.map((item) => (
+                                        <article
+                                            key={item.maTopping}
+                                            className={`merchant-options-topping-row ${
+                                                item.trangThai
+                                                    ? ""
+                                                    : "is-hidden"
+                                            }`}
+                                        >
+                                            <div className="merchant-options-topping-icon">
+                                                <CircleDollarSign
+                                                    size={17}
+                                                />
+                                            </div>
+
+                                            <div className="merchant-options-topping-info">
+                                                <strong>
+                                                    {item.tenTopping}
+                                                </strong>
+                                                <span
+                                                    className={
+                                                        item.trangThai
+                                                            ? "active"
+                                                            : "inactive"
+                                                    }
+                                                >
+                                                    {item.trangThai
+                                                        ? "Đang bán"
+                                                        : "Tạm ngưng"}
+                                                </span>
+                                            </div>
+
+                                            <strong className="merchant-options-price">
+                                                +{formatMoney(item.giaThem)}
+                                            </strong>
+
+                                            <div className="merchant-options-topping-actions">
+                                                <button
+                                                    type="button"
+                                                    title="Sửa topping"
+                                                    onClick={() =>
+                                                        openEditTopping(
+                                                            item
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        busyToppingId !==
+                                                        null
+                                                    }
+                                                >
+                                                    <Pencil size={14} />
+                                                    Sửa
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    title={
+                                                        item.trangThai
+                                                            ? "Tạm ngưng"
+                                                            : "Bật bán"
+                                                    }
+                                                    onClick={() =>
+                                                        void handleToggleTopping(
+                                                            item
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        busyToppingId !==
+                                                        null
+                                                    }
+                                                >
+                                                    <Power size={14} />
+                                                    {item.trangThai
+                                                        ? "Tắt"
+                                                        : "Bật"}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="delete"
+                                                    title="Xóa topping"
+                                                    onClick={() =>
+                                                        void handleDeleteTopping(
+                                                            item
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        busyToppingId !==
+                                                        null
+                                                    }
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="merchant-options-no-group">
+                            <Layers3 size={30} />
+                            <h2>Chưa có nhóm topping</h2>
+                            <p>
+                                Hãy tạo một nhóm trước khi thêm topping.
+                            </p>
+                        </div>
+                    )}
+                </section>
+            </div>
+
+            {groupEditorOpen && (
+                <div
+                    className="merchant-config-overlay"
+                    onMouseDown={closeGroupEditor}
+                >
+                    <form
+                        className="merchant-config-dialog"
+                        onSubmit={handleGroupSubmit}
+                        onMouseDown={(event) =>
+                            event.stopPropagation()
+                        }
+                    >
+                        <header className="merchant-config-header">
+                            <div>
+                                <span>THIẾT LẬP NHÓM</span>
+                                <h2>
+                                    {editingGroupId === null
+                                        ? "Thêm nhóm topping"
+                                        : "Cập nhật nhóm topping"}
+                                </h2>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label="Đóng"
+                                onClick={closeGroupEditor}
+                                disabled={saving}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+
+                        <div className="merchant-config-body">
+                            <label className="merchant-config-field">
+                                <span>Tên nhóm</span>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={groupForm.tenNhom}
+                                    maxLength={100}
+                                    placeholder="Ví dụ: Chọn size"
+                                    onChange={(event) =>
+                                        setGroupForm((current) => ({
+                                            ...current,
+                                            tenNhom:
+                                                event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+
+                            <label className="merchant-config-field">
+                                <span>Số lựa chọn tối đa</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={
+                                        groupForm.chonToiDa ?? ""
+                                    }
+                                    placeholder="Không giới hạn"
+                                    onChange={(event) =>
+                                        setGroupForm((current) => ({
+                                            ...current,
+                                            chonToiDa:
+                                                event.target.value === ""
+                                                    ? null
+                                                    : Number(
+                                                          event.target
+                                                              .value
+                                                      ),
+                                        }))
+                                    }
+                                />
+                                <small>
+                                    Để trống nếu không giới hạn.
+                                </small>
+                            </label>
+
+                            <label className="merchant-config-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={
+                                        groupForm.batBuocChon
+                                    }
+                                    onChange={(event) =>
+                                        setGroupForm((current) => ({
+                                            ...current,
+                                            batBuocChon:
+                                                event.target.checked,
+                                        }))
+                                    }
+                                />
+                                <span className="merchant-config-switch-control" />
+                                <div>
+                                    <strong>Bắt buộc lựa chọn</strong>
+                                    <p>
+                                        Khách phải chọn topping thuộc
+                                        nhóm này.
+                                    </p>
+                                </div>
+                            </label>
+
+                            {error && (
+                                <p className="merchant-config-error">
+                                    {error}
+                                </p>
+                            )}
+                        </div>
+
+                        <footer className="merchant-config-footer">
+                            <button
+                                type="button"
+                                className="cancel"
+                                onClick={closeGroupEditor}
+                                disabled={saving}
+                            >
+                                Hủy
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="save"
+                                disabled={saving}
+                            >
+                                <Save size={15} />
+                                {saving
+                                    ? "Đang lưu..."
+                                    : editingGroupId === null
+                                      ? "Thêm nhóm"
+                                      : "Lưu thay đổi"}
+                            </button>
+                        </footer>
+                    </form>
+                </div>
+            )}
+
+            {toppingEditorOpen && (
+                <div
+                    className="merchant-config-overlay"
+                    onMouseDown={closeToppingEditor}
+                >
+                    <form
+                        className="merchant-config-dialog compact"
+                        onSubmit={handleToppingSubmit}
+                        onMouseDown={(event) =>
+                            event.stopPropagation()
+                        }
+                    >
+                        <header className="merchant-config-header">
+                            <div>
+                                <span>THIẾT LẬP TOPPING</span>
+                                <h2>
+                                    {editingToppingId === null
+                                        ? "Thêm topping"
+                                        : "Cập nhật topping"}
+                                </h2>
+                                <p>{selectedGroup?.tenNhom}</p>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label="Đóng"
+                                onClick={closeToppingEditor}
+                                disabled={saving}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+
+                        <div className="merchant-config-body">
+                            <label className="merchant-config-field">
+                                <span>Tên topping</span>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={toppingForm.tenTopping}
+                                    maxLength={100}
+                                    placeholder="Ví dụ: Trân châu đen"
+                                    onChange={(event) =>
+                                        setToppingForm((current) => ({
+                                            ...current,
+                                            tenTopping:
+                                                event.target.value,
+                                        }))
+                                    }
+                                />
+                            </label>
+
+                            <label className="merchant-config-field">
+                                <span>Giá bán thêm</span>
+                                <div className="merchant-config-price">
+                                    <CircleDollarSign size={16} />
                                     <input
                                         type="number"
                                         min={0}
-                                        value={
-                                            editToppingPrice
-                                        }
-                                        onChange={(e) =>
-                                            setEditToppingPrice(
-                                                Number(
-                                                    e.target
-                                                        .value
-                                                )
+                                        step={1000}
+                                        value={toppingForm.giaThem}
+                                        onChange={(event) =>
+                                            setToppingForm(
+                                                (current) => ({
+                                                    ...current,
+                                                    giaThem: Number(
+                                                        event.target
+                                                            .value
+                                                    ),
+                                                })
                                             )
                                         }
                                     />
+                                    <strong>đ</strong>
                                 </div>
-                            </div>
+                            </label>
 
-                            <div className="quan-form-actions">
-                                <button
-                                    className="quan-secondary-button"
-                                    onClick={
-                                        resetEditTopping
-                                    }
-                                >
-                                    Hủy
-                                </button>
-
-                                <button
-                                    className="quan-primary-button"
-                                    onClick={
-                                        handleUpdateTopping
-                                    }
-                                >
-                                    Lưu thay đổi
-                                </button>
-                            </div>
+                            {error && (
+                                <p className="merchant-config-error">
+                                    {error}
+                                </p>
+                            )}
                         </div>
-                    )}
 
-                    {loadingToppings ? (
-                        <p>Đang tải topping...</p>
-                    ) : toppings.length === 0 ? (
-                        <div className="quan-placeholder">
-                            Chưa có topping trong nhóm
-                            này.
-                        </div>
-                    ) : (
-                        <div className="quan-management-list">
-                            {toppings.map((item) => (
-                                <div
-                                    key={
-                                        item.maTopping
-                                    }
-                                    className="quan-management-item"
-                                >
-                                    <div>
-                                        <strong>
-                                            {
-                                                item.tenTopping
-                                            }
-                                        </strong>
+                        <footer className="merchant-config-footer">
+                            <button
+                                type="button"
+                                className="cancel"
+                                onClick={closeToppingEditor}
+                                disabled={saving}
+                            >
+                                Hủy
+                            </button>
 
-                                        <p>
-                                            {formatMoney(
-                                                item.giaThem
-                                            )}
-                                            {" · "}
-                                            {item.trangThai
-                                                ? "Đang bán"
-                                                : "Đã tắt"}
-                                        </p>
-                                    </div>
-
-                                    <div className="quan-management-actions">
-                                        <button
-                                            className="quan-secondary-button"
-                                            onClick={() =>
-                                                startEditTopping(
-                                                    item
-                                                )
-                                            }
-                                        >
-                                            Sửa
-                                        </button>
-
-                                        <button
-                                            className={
-                                                item.trangThai
-                                                    ? "quan-secondary-button"
-                                                    : "quan-primary-button"
-                                            }
-                                            onClick={() =>
-                                                handleToggleTopping(
-                                                    item
-                                                )
-                                            }
-                                        >
-                                            {item.trangThai
-                                                ? "Tắt"
-                                                : "Bật"}
-                                        </button>
-
-                                        <button
-                                            className="quan-danger-button"
-                                            onClick={() =>
-                                                handleDeleteTopping(
-                                                    item
-                                                )
-                                            }
-                                        >
-                                            Xóa
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                            <button
+                                type="submit"
+                                className="save"
+                                disabled={saving}
+                            >
+                                <Save size={15} />
+                                {saving
+                                    ? "Đang lưu..."
+                                    : editingToppingId === null
+                                      ? "Thêm topping"
+                                      : "Lưu thay đổi"}
+                            </button>
+                        </footer>
+                    </form>
                 </div>
             )}
         </div>

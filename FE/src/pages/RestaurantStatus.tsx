@@ -1,269 +1,319 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-    getRestaurantProfile,
-    updateRestaurantStatus,
+  AlarmClock, Check, CheckCircle2, CirclePause, Clock3,
+  Power, RefreshCw, ShieldCheck, Store, Zap
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  getRestaurantProfile,
+  updateRestaurantStatus
+} from "../services/restaurantService";
+import type {
+  Restaurant,
+  RestaurantOperatingMode
 } from "../services/restaurantService";
 
-// interface Restaurant {
-//     maNhaHang: number;
-//     tenNhaHang: string;
-//     gioMoCua?: string;
-//     gioDongCua?: string;
-//     trangThaiDuyet?: string;
-//     trangThaiHoatDong?: string;
-// }
+interface ModeOption {
+  value: RestaurantOperatingMode;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  className: string;
+}
 
-import type { Restaurant } from "../services/restaurantService";
+const MODE_OPTIONS: ModeOption[] = [
+  {
+    value: "TuDong",
+    title: "Tự động theo giờ",
+    description: "Hệ thống tự mở và đóng quán theo giờ hoạt động.",
+    icon: AlarmClock,
+    className: "automatic",
+  },
+  {
+    value: "MoThuCong",
+    title: "Mở thủ công",
+    description: "Tiếp tục nhận đơn kể cả khi đang ngoài giờ hoạt động.",
+    icon: Zap,
+    className: "manual-open",
+  },
+  {
+    value: "TamNgung",
+    title: "Tạm ngưng",
+    description: "Ngừng nhận đơn cho đến khi bạn chọn chế độ khác.",
+    icon: CirclePause,
+    className: "paused",
+  },
+];
+
+const MODE_LABEL: Record<string, string> = {
+  TuDong: "Tự động theo giờ",
+  MoThuCong: "Mở thủ công",
+  TamNgung: "Tạm ngưng",
+};
+const APPROVAL_LABEL: Record<string, string> = {
+  ChoDuyet: "Chờ xét duyệt",
+  DaDuyet: "Đã được duyệt",
+  TuChoi: "Đã bị từ chối",
+};
+
+const formatTime = (value?: string | null) =>
+  value ? value.slice(0, 5) : "--:--";
 
 function QuanRestaurantStatus() {
-    const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState("");
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-    useEffect(() => {
-        loadRestaurant();
-    }, []);
+  const loadRestaurant = useCallback(async (showLoading = false) => {
+    try {
+      if (showLoading) setLoading(true);
+      setError("");
+      setRestaurant(await getRestaurantProfile());
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không thể lấy thông tin nhà hàng."
+      );
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, []);
 
-    const loadRestaurant = async () => {
-        try {
-            setLoading(true);
-            setError("");
+  useEffect(() => {
+    void loadRestaurant(true);
 
-            const data = await getRestaurantProfile();
-            setRestaurant(data);
-        } catch (err) {
-            console.error("Lỗi lấy thông tin nhà hàng:", err);
-            setError("Không thể lấy thông tin nhà hàng.");
-        } finally {
-            setLoading(false);
-        }
+    const timer = window.setInterval(() => {
+      void loadRestaurant(false);
+    }, 30000);
+
+    const handleFocus = () => {
+      void loadRestaurant(false);
     };
 
-    const handleChangeStatus = async (
-        status: "MoCua" | "TamNgung"
-    ) => {
-        try {
-            setUpdating(true);
-            setMessage("");
-            setError("");
+    window.addEventListener("focus", handleFocus);
 
-            await updateRestaurantStatus(status);
-
-            // Lấy lại dữ liệu mới nhất từ backend
-            const data = await getRestaurantProfile();
-            setRestaurant(data);
-
-            setMessage(
-                status === "MoCua"
-                    ? "Nhà hàng đã được mở cửa."
-                    : "Nhà hàng đã được tạm ngưng."
-            );
-
-            setTimeout(() => {
-                setMessage("");
-            }, 3000);
-        } catch (err) {
-            console.error("Lỗi cập nhật trạng thái:", err);
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Không thể cập nhật trạng thái nhà hàng."
-            );
-        } finally {
-            setUpdating(false);
-        }
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
     };
+  }, [loadRestaurant]);
 
-    if (loading) {
-        return (
-            <div className="quan-page-loading">
-                Đang tải trạng thái nhà hàng...
-            </div>
-        );
+  const handleChangeMode = async (mode: RestaurantOperatingMode) => {
+    if (updating || mode === restaurant?.cheDoHoatDong) return;
+
+    try {
+      setUpdating(true);
+      setMessage("");
+      setError("");
+
+      await updateRestaurantStatus(mode);
+      setRestaurant(await getRestaurantProfile());
+
+      const messages: Record<RestaurantOperatingMode, string> = {
+        TuDong: "Đã chuyển sang tự động theo giờ hoạt động.",
+        MoThuCong: "Nhà hàng đã được mở thủ công.",
+        TamNgung: "Nhà hàng đã tạm ngưng nhận đơn.",
+      };
+
+      setMessage(messages[mode]);
+      window.setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không thể cập nhật chế độ hoạt động."
+      );
+    } finally {
+      setUpdating(false);
     }
+  };
 
-    if (!restaurant) {
-        return (
-            <div className="quan-empty">
-                Không tìm thấy thông tin nhà hàng.
-            </div>
-        );
-    }
-
-    const isOpen =
-        restaurant.trangThaiHoatDong === "MoCua";
-
+  if (loading) {
     return (
-        <div className="quan-dashboard">
-            <div className="quan-page-title">
-                <div>
-                    <h1>Trạng thái quán</h1>
-                    <p>
-                        Quản lý trạng thái mở cửa của nhà hàng.
-                    </p>
-                </div>
-            </div>
-
-            {message && (
-                <div className="quan-success-message">
-                    ✓ {message}
-                </div>
-            )}
-
-            {error && (
-                <div className="quan-error-message">
-                    ✕ {error}
-                </div>
-            )}
-
-            <div className="quan-status-main-card">
-                <div
-                    className={`quan-status-circle ${
-                        isOpen ? "open" : "closed"
-                    }`}
-                >
-                    {isOpen ? "✓" : "×"}
-                </div>
-
-                <div className="quan-status-main-info">
-                    <span>Trạng thái hiện tại</span>
-
-                    <h2>
-                        {isOpen
-                            ? "Đang mở cửa"
-                            : "Đang đóng cửa"}
-                    </h2>
-
-                    <p>
-                        {isOpen
-                            ? "Khách hàng hiện có thể đặt món từ nhà hàng."
-                            : "Khách hàng hiện không thể đặt món từ nhà hàng."}
-                    </p>
-                </div>
-            </div>
-
-            <div className="quan-section">
-                <div className="quan-section-header">
-                    <div>
-                        <h2>Thay đổi trạng thái</h2>
-                        <p>
-                            Bạn có thể chủ động mở hoặc đóng cửa
-                            nhà hàng.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="quan-status-actions">
-                    <button
-                        className={`quan-status-button open-button ${
-                            isOpen ? "selected" : ""
-                        }`}
-                        onClick={() =>
-                            handleChangeStatus("MoCua")
-                        }
-                        disabled={updating || isOpen}
-                    >
-                        <span className="status-button-icon">
-                            🟢
-                        </span>
-
-                        <div>
-                            <strong>Mở cửa</strong>
-                            <small>
-                                Cho phép khách hàng đặt món
-                            </small>
-                        </div>
-                    </button>
-
-                    <button
-                        className={`quan-status-button close-button ${
-                            !isOpen ? "selected" : ""
-                        }`}
-                        onClick={() =>
-                            handleChangeStatus("TamNgung")
-                        }
-                        disabled={updating || !isOpen}
-                    >
-                        <span className="status-button-icon">
-                            🔴
-                        </span>
-
-                        <div>
-                            <strong>Tạm Ngưng</strong>
-                            <small>
-                                Tạm ngừng nhận đơn hàng
-                            </small>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <div className="quan-section">
-                <div className="quan-section-header">
-                    <div>
-                        <h2>Thời gian hoạt động</h2>
-                        <p>
-                            Thời gian hoạt động được thiết lập
-                            trong thông tin nhà hàng.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="quan-hours-card">
-                    <div className="quan-hours-icon">
-                        🕐
-                    </div>
-
-                    <div>
-                        <span>Giờ hoạt động</span>
-
-                        <strong>
-                            {restaurant.gioMoCua
-                                ? restaurant.gioMoCua.slice(0, 5)
-                                : "--:--"}
-
-                            {" - "}
-
-                            {restaurant.gioDongCua
-                                ? restaurant.gioDongCua.slice(0, 5)
-                                : "--:--"}
-                        </strong>
-                    </div>
-                </div>
-            </div>
-
-            <div className="quan-section">
-                <div className="quan-section-header">
-                    <div>
-                        <h2>Trạng thái duyệt</h2>
-                        <p>
-                            Trạng thái nhà hàng được hệ thống ghi
-                            nhận.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="quan-approval-status">
-                    <span className="quan-approval-dot"></span>
-
-                    <div>
-                        <strong>
-                            {restaurant.trangThaiDuyet ||
-                                "Chưa xác định"}
-                        </strong>
-
-                        <span>
-                            Nhà hàng của bạn đang ở trạng thái này
-                            trên hệ thống.
-                        </span>
-                    </div>
-                </div>
-            </div>
+      <main className="merchant-status-page">
+        <div className="merchant-status-loading">
+          <div className="loading-spinner" />
+          <p>Đang tải trạng thái nhà hàng...</p>
         </div>
+      </main>
     );
+  }
+
+  if (!restaurant) {
+    return (
+      <main className="merchant-status-page">
+        <div className="merchant-status-error">
+          <Power size={26} />
+          <h2>Không tìm thấy nhà hàng</h2>
+          <p>{error || "Không thể lấy thông tin nhà hàng."}</p>
+          <button type="button" onClick={() => void loadRestaurant(true)}>
+            <RefreshCw size={14} /> Thử lại
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const isOpen = Boolean(restaurant.dangMoCua);
+  const currentMode = restaurant.cheDoHoatDong;
+  const approvalCode = restaurant.trangThaiDuyet || "";
+  const approvalText = APPROVAL_LABEL[approvalCode] || approvalCode || "Chưa xác định";
+  const isApproved = approvalCode === "DaDuyet";
+
+  return (
+    <main className="merchant-status-page">
+      <header className="merchant-status-header">
+        <div className="merchant-status-heading">
+          <span><Power size={21} /></span>
+          <div>
+            <small>VẬN HÀNH NHÀ HÀNG</small>
+            <h1>Trạng thái quán</h1>
+            <p>Quản lý cách nhà hàng hiển thị và tiếp nhận đơn từ khách.</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="merchant-status-refresh"
+          disabled={updating}
+          onClick={() => void loadRestaurant(false)}
+        >
+          <RefreshCw size={14} className={updating ? "is-spinning" : ""} />
+          Làm mới
+        </button>
+      </header>
+
+      {message && (
+        <div className="merchant-status-notice success" role="status">
+          <CheckCircle2 size={17} /><span>{message}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="merchant-status-notice error" role="alert">
+          <CirclePause size={17} /><span>{error}</span>
+        </div>
+      )}
+
+      <section className={`merchant-current-status ${isOpen ? "is-open" : "is-closed"}`}>
+        <span className="merchant-current-status-icon">
+          {isOpen ? <Check size={24} /> : <Power size={24} />}
+        </span>
+
+        <div className="merchant-current-status-content">
+          <small>TRẠNG THÁI THỰC TẾ</small>
+          <h2>{isOpen ? "Nhà hàng đang nhận đơn" : "Nhà hàng đang đóng cửa"}</h2>
+          <p>
+            {restaurant.trangThaiHienThi ||
+              (isOpen
+                ? "Khách hàng có thể xem quán và đặt món."
+                : "Khách hàng hiện không thể đặt món tại quán.")}
+          </p>
+        </div>
+
+        <div className="merchant-current-mode">
+          <small>Chế độ điều khiển</small>
+          <strong>{MODE_LABEL[currentMode] || currentMode}</strong>
+        </div>
+      </section>
+
+      <div className="merchant-status-layout">
+        <section className="merchant-status-card merchant-mode-section">
+          <header>
+            <div>
+              <h2>Chế độ hoạt động</h2>
+              <p>Chọn cách hệ thống điều khiển trạng thái đóng hoặc mở quán.</p>
+            </div>
+          </header>
+
+          <div className="merchant-mode-list">
+            {MODE_OPTIONS.map(option => {
+              const Icon = option.icon;
+              const selected = currentMode === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`merchant-mode-option mode-${option.className}${selected ? " selected" : ""}`}
+                  disabled={updating || selected}
+                  onClick={() => void handleChangeMode(option.value)}
+                >
+                  <span className="merchant-mode-icon"><Icon size={20} /></span>
+
+                  <div>
+                    <strong>{option.title}</strong>
+                    <small>{option.description}</small>
+                  </div>
+
+                  {selected ? (
+                    <span className="merchant-mode-selected">
+                      <Check size={12} /> Đang dùng
+                    </span>
+                  ) : (
+                    <span className="merchant-mode-radio" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {updating && (
+            <div className="merchant-mode-updating">
+              <RefreshCw size={14} className="is-spinning" />
+              Đang cập nhật trạng thái...
+            </div>
+          )}
+        </section>
+
+        <aside className="merchant-status-side">
+          <section className="merchant-status-card merchant-hours-card">
+            <span className="merchant-side-icon"><Clock3 size={20} /></span>
+            <div>
+              <small>GIỜ HOẠT ĐỘNG</small>
+              <h2>
+                {formatTime(restaurant.gioMoCua)}
+                <span>–</span>
+                {formatTime(restaurant.gioDongCua)}
+              </h2>
+              <p>Khung giờ này được sử dụng khi quán ở chế độ tự động.</p>
+            </div>
+          </section>
+
+          <section className="merchant-status-card merchant-approval-card">
+            <span className={`merchant-side-icon ${isApproved ? "approved" : ""}`}>
+              <ShieldCheck size={20} />
+            </span>
+            <div>
+              <small>TRẠNG THÁI XÉT DUYỆT</small>
+              <h2>{approvalText}</h2>
+              <p>Nhà hàng phải được quản trị viên duyệt mới có thể nhận đơn.</p>
+            </div>
+          </section>
+
+          <section className="merchant-status-card merchant-status-guide">
+            <div className="merchant-guide-title">
+              <Store size={17} />
+              <h2>Phân biệt hai trạng thái</h2>
+            </div>
+
+            <div>
+              <strong>Trạng thái thực tế</strong>
+              <p>Cho biết ngay lúc này khách có đặt món được hay không.</p>
+            </div>
+
+            <div>
+              <strong>Chế độ hoạt động</strong>
+              <p>Quy định trạng thái được điều khiển tự động hay thủ công.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  );
 }
 
 export default QuanRestaurantStatus;

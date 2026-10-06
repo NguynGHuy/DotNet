@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import OrderReviewForm from "./OrderReviewForm";
 import { getMyOrderReviews } from "../services/reviewService";
 import type { OrderReviews } from "../services/reviewService";
-import "./Review.css";
 
 interface Props {
     maDonHang: number;

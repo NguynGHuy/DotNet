@@ -1,6 +1,7 @@
 import { apiFetch } from "./api";
 
 export interface DatHangRequest {
+  maGioHang: number;
   maDiaChi: number;
   maPhuongThuc: number;
   maKhuyenMai?: number | null;
@@ -24,13 +25,14 @@ export interface DatHangResult {
 }
 
 export async function checkPreCheckout(
+  maGioHang: number,
   maKhuyenMai: number | null = null,
 ): Promise<TienDonHang> {
   const token = localStorage.getItem("token");
   return apiFetch("/don-hang/kiem-tra-truoc-checkout", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ maKhuyenMai }),
+    body: JSON.stringify({ maGioHang, maKhuyenMai }),
   });
 }
 

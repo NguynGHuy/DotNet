@@ -169,6 +169,7 @@ namespace DatMonAnOnline.API.Controllers
                     GioDongCua = request.GioDongCua,
                     TrangThaiDuyet = "ChoDuyet",
                     TrangThaiHoatDong = "MoCua",
+                    CheDoHoatDong = "TuDong",
                     DanhGiaTrungBinh = 0,
                     PhiShipMacDinh = request.PhiShipMacDinh
                 };
@@ -274,8 +275,14 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     maNhaHang = taiKhoan.Nhahang.MaNhaHang,
                     tenNhaHang = taiKhoan.Nhahang.TenNhaHang,
-                    trangThaiDuyet = taiKhoan.Nhahang.TrangThaiDuyet,
-                    trangThaiHoatDong = taiKhoan.Nhahang.TrangThaiHoatDong
+                    trangThaiDuyet =
+                        taiKhoan.Nhahang.TrangThaiDuyet,
+
+                    trangThaiHoatDong =
+                        taiKhoan.Nhahang.TrangThaiHoatDong,
+
+                    cheDoHoatDong =
+                        taiKhoan.Nhahang.CheDoHoatDong
                 }
             });
         }

@@ -1,83 +1,115 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+    CalendarDays,
+    Clock3,
+    Pencil,
+    Plus,
+    Power,
+    ShoppingBag,
+    TicketPercent,
+    Users,
+} from "lucide-react";
 import {
     getMyPromotions,
     togglePromotionStatus,
+    type Promotion,
 } from "../services/promotionService";
-import type { Promotion } from "../services/promotionService";
 import CreatePromotionForm from "../components/CreatePromotionForm";
 import EditPromotionForm from "../components/EditPromotionForm";
 
+type PromotionFilter = "all" | "active" | "upcoming" | "ended";
+type PromotionState = "active" | "upcoming" | "expired" | "inactive";
+
+const STATUS_INFO: Record<
+    PromotionState,
+    { label: string; className: string }
+> = {
+    active: { label: "Đang áp dụng", className: "active" },
+    upcoming: { label: "Sắp diễn ra", className: "upcoming" },
+    expired: { label: "Đã hết hạn", className: "expired" },
+    inactive: { label: "Đã tắt", className: "inactive" },
+};
+
+function getPromotionState(item: Promotion): PromotionState {
+    if (!item.trangThai) return "inactive";
+
+    const now = Date.now();
+    const start = new Date(item.ngayBatDau).getTime();
+    const end = new Date(item.ngayKetThuc).getTime();
+
+    if (start > now) return "upcoming";
+    if (end < now) return "expired";
+    return "active";
+}
+
+function formatMoney(value: number) {
+    return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
+}
+
+function formatDate(value: string) {
+    return new Date(value).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
 function Promotions() {
     const [promotions, setPromotions] = useState<Promotion[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [changingId, setChangingId] = useState<number | null>(null);
-    const [error, setError] = useState("");
+    const [filter, setFilter] = useState<PromotionFilter>("all");
+    const [createOpen, setCreateOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [changingId, setChangingId] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const loadPromotions = async () => {
+    const loadPromotions = async (showLoading = true) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             setError("");
 
             const data = await getMyPromotions();
-            setPromotions(data);
+            setPromotions(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Lỗi lấy danh sách khuyến mãi:", err);
-
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể lấy danh sách khuyến mãi."
             );
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
     useEffect(() => {
-        let cancelled = false;
-
-        getMyPromotions()
-            .then((data) => {
-                if (!cancelled) {
-                    setPromotions(data);
-                    setError("");
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    setError(
-                        err instanceof Error
-                            ? err.message
-                            : "Không thể lấy danh sách khuyến mãi."
-                    );
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
+        void loadPromotions();
     }, []);
 
-    const handleToggle = async (id: number) => {
+    const showMessage = (message: string) => {
+        setSuccess(message);
+        window.setTimeout(() => setSuccess(""), 3000);
+    };
+
+    const handleToggle = async (item: Promotion) => {
         try {
-            setChangingId(id);
+            setChangingId(item.maKhuyenMai);
             setError("");
+            setSuccess("");
 
-            await togglePromotionStatus(id);
+            await togglePromotionStatus(item.maKhuyenMai);
+            await loadPromotions(false);
 
-            // Lấy lại danh sách mới nhất
-            const data = await getMyPromotions();
-            setPromotions(data);
+            showMessage(
+                item.trangThai
+                    ? `Đã tắt mã ${item.maCode}.`
+                    : `Đã bật mã ${item.maCode}.`
+            );
         } catch (err) {
             console.error("Lỗi thay đổi trạng thái mã:", err);
-
             setError(
                 err instanceof Error
                     ? err.message
@@ -88,18 +120,30 @@ function Promotions() {
         }
     };
 
-    const formatMoney = (value: number) => {
-        return `${value.toLocaleString("vi-VN")} đ`;
-    };
+    const filteredPromotions = useMemo(() => {
+        return promotions.filter((item) => {
+            if (filter === "all") return true;
 
-    const formatDate = (value: string) => {
-        return new Date(value).toLocaleString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            const state = getPromotionState(item);
+
+            if (filter === "active") return state === "active";
+            if (filter === "upcoming") return state === "upcoming";
+
+            return state === "inactive" || state === "expired";
         });
+    }, [promotions, filter]);
+
+    const countByFilter = (value: PromotionFilter) => {
+        if (value === "all") return promotions.length;
+
+        return promotions.filter((item) => {
+            const state = getPromotionState(item);
+
+            if (value === "active") return state === "active";
+            if (value === "upcoming") return state === "upcoming";
+
+            return state === "inactive" || state === "expired";
+        }).length;
     };
 
     if (loading) {
@@ -110,283 +154,316 @@ function Promotions() {
         );
     }
 
-    return (
-        <div className="quan-dashboard">
+    const editingPromotion =
+        promotions.find(
+            (item) => item.maKhuyenMai === editingId
+        ) ?? null;
 
-            {/* =========================
-                TIÊU ĐỀ
-            ========================= */}
-            <div className="quan-page-title">
+    return (
+        <div className="merchant-promotions-page">
+            <header className="merchant-promotions-header">
                 <div>
+                    <span className="merchant-promotions-eyebrow">
+                        CHƯƠNG TRÌNH ƯU ĐÃI
+                    </span>
                     <h1>Khuyến mãi</h1>
                     <p>
-                        Quản lý các mã giảm giá của nhà hàng.
+                        Tạo và quản lý mã giảm giá dành cho khách hàng.
                     </p>
                 </div>
-            </div>
 
+                <button
+                    type="button"
+                    className="merchant-promotions-add"
+                    onClick={() => {
+                        setCreateOpen(true);
+                        setEditingId(null);
+                        setError("");
+                        setSuccess("");
+                    }}
+                >
+                    <Plus size={16} />
+                    Tạo mã mới
+                </button>
+            </header>
 
-            {/* =========================
-                THÔNG BÁO LỖI
-            ========================= */}
-            {error && (
-                <div className="quan-error-message">
-                    ✕ {error}
+            {error && !createOpen && editingId === null && (
+                <div className="merchant-promotions-notice error">
+                    {error}
                 </div>
             )}
 
-
-            {/* =========================
-                TẠO MÃ GIẢM GIÁ
-            ========================= */}
-            <div className="quan-section">
-
-                <div className="quan-section-header">
-                    <div>
-                        <h2>Tạo mã giảm giá</h2>
-
-                        <p>
-                            Tạo chương trình khuyến mãi mới
-                            cho khách hàng.
-                        </p>
-                    </div>
+            {success && (
+                <div className="merchant-promotions-notice success">
+                    ✓ {success}
                 </div>
+            )}
 
-                <CreatePromotionForm
-                    onCreated={loadPromotions}
-                />
+            <nav className="merchant-promotions-tabs">
+                {(
+                    [
+                        ["all", "Tất cả"],
+                        ["active", "Đang áp dụng"],
+                        ["upcoming", "Sắp diễn ra"],
+                        ["ended", "Đã tắt / hết hạn"],
+                    ] as [PromotionFilter, string][]
+                ).map(([value, label]) => (
+                    <button
+                        key={value}
+                        type="button"
+                        className={filter === value ? "active" : ""}
+                        onClick={() => setFilter(value)}
+                    >
+                        {label}
+                        <span>{countByFilter(value)}</span>
+                    </button>
+                ))}
+            </nav>
 
-            </div>
-
-
-            {/* =========================
-                DANH SÁCH KHUYẾN MÃI
-            ========================= */}
-            <div className="quan-section">
-
-                <div className="quan-section-header">
-                    <div>
-                        {success && <p role="status">{success}</p>}
-
-                        <h2>Danh sách mã giảm giá</h2>
-
-                        <p>
-                            Quản lý các mã giảm giá hiện có
-                            của nhà hàng.
-                        </p>
-                    </div>
-
-                    <span className="quan-promotion-count">
-                        {promotions.length} mã
+            {filteredPromotions.length === 0 ? (
+                <div className="merchant-promotions-empty">
+                    <span>
+                        <TicketPercent size={28} />
                     </span>
+                    <h3>
+                        {promotions.length === 0
+                            ? "Chưa có mã giảm giá"
+                            : "Không có mã phù hợp"}
+                    </h3>
+                    <p>
+                        {promotions.length === 0
+                            ? "Tạo chương trình ưu đãi đầu tiên cho khách hàng."
+                            : "Không có mã giảm giá thuộc trạng thái này."}
+                    </p>
+
+                    {promotions.length === 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                        >
+                            <Plus size={15} />
+                            Tạo mã mới
+                        </button>
+                    )}
                 </div>
+            ) : (
+                <div className="merchant-promotions-grid">
+                    {filteredPromotions.map((item) => {
+                        const state = getPromotionState(item);
+                        const status = STATUS_INFO[state];
+                        const usagePercent =
+                            item.soLuong > 0
+                                ? Math.min(
+                                      100,
+                                      (item.soLuongDaDung /
+                                          item.soLuong) *
+                                          100
+                                  )
+                                : 0;
 
-
-                {promotions.length === 0 ? (
-
-                    <div className="quan-placeholder">
-                        <div className="quan-empty-icon">
-                            🎟️
-                        </div>
-
-                        <h3>
-                            Chưa có mã giảm giá
-                        </h3>
-
-                        <p>
-                            Hãy tạo mã giảm giá đầu tiên
-                            cho nhà hàng.
-                        </p>
-                    </div>
-
-                ) : (
-
-                    <div className="quan-promotion-list">
-
-                        {promotions.map((item) => (
-
-                            <div
-                                className="quan-promotion-item"
+                        return (
+                            <article
                                 key={item.maKhuyenMai}
+                                className={`merchant-promotion-card state-${status.className}`}
                             >
-
-                                {/* HEADER */}
-                                <div className="quan-promotion-header">
-
-                                    <div>
-                                        <span className="quan-promotion-code-label">
-                                            MÃ GIẢM GIÁ
+                                <header className="merchant-promotion-card-header">
+                                    <div className="merchant-promotion-code">
+                                        <span>
+                                            <TicketPercent size={16} />
                                         </span>
 
-                                        <h3>
-                                            {item.maCode}
-                                        </h3>
-
-                                        <p>
-                                            {item.moTa ||
-                                                "Không có mô tả"}
-                                        </p>
+                                        <div>
+                                            <small>MÃ GIẢM GIÁ</small>
+                                            <h2>{item.maCode}</h2>
+                                        </div>
                                     </div>
 
-
                                     <span
-                                        className={`quan-promotion-status ${
-                                            item.trangThai
-                                                ? "active"
-                                                : "inactive"
-                                        }`}
+                                        className={`merchant-promotion-status ${status.className}`}
                                     >
-                                        ●{" "}
-                                        {item.trangThai
-                                            ? "Đang bật"
-                                            : "Đã tắt"}
+                                        <i />
+                                        {status.label}
                                     </span>
+                                </header>
 
-                                </div>
+                                <p className="merchant-promotion-description">
+                                    {item.moTa ||
+                                        "Chương trình ưu đãi của nhà hàng."}
+                                </p>
 
+                                <div className="merchant-promotion-value">
+                                    <span>Mức ưu đãi</span>
+                                    <strong>
+                                        {item.loaiGiam === "PhanTram"
+                                            ? `${item.giaTriGiam}%`
+                                            : formatMoney(
+                                                  item.giaTriGiam
+                                              )}
+                                    </strong>
 
-                                {/* THÔNG TIN */}
-                                <div className="quan-promotion-details">
-
-                                    <div>
-                                        <span>
-                                            Mức giảm
-                                        </span>
-
-                                        <strong>
-                                            {item.loaiGiam ===
-                                            "PhanTram"
-                                                ? `${item.giaTriGiam}%`
-                                                : formatMoney(
-                                                      item.giaTriGiam
-                                                  )}
-                                        </strong>
-
-                                        {item.giamToiDa !== null && (
+                                    {item.giamToiDa !== null &&
+                                        item.loaiGiam ===
+                                            "PhanTram" && (
                                             <small>
-                                                Tối đa{" "}
+                                                Giảm tối đa{" "}
                                                 {formatMoney(
                                                     item.giamToiDa
                                                 )}
                                             </small>
                                         )}
-                                    </div>
-
-
-                                    <div>
-                                        <span>
-                                            Đơn tối thiểu
-                                        </span>
-
-                                        <strong>
-                                            {formatMoney(
-                                                item.donHangToiThieu
-                                            )}
-                                        </strong>
-                                    </div>
-
-
-                                    <div>
-                                        <span>
-                                            Đã sử dụng
-                                        </span>
-
-                                        <strong>
-                                            {item.soLuongDaDung}
-                                            /
-                                            {item.soLuong}
-                                        </strong>
-                                    </div>
-
                                 </div>
 
-
-                                {/* FOOTER */}
-                                <div className="quan-promotion-footer">
+                                <div className="merchant-promotion-meta">
+                                    <div>
+                                        <ShoppingBag size={15} />
+                                        <span>
+                                            Đơn tối thiểu
+                                            <strong>
+                                                {formatMoney(
+                                                    item.donHangToiThieu
+                                                )}
+                                            </strong>
+                                        </span>
+                                    </div>
 
                                     <div>
+                                        <Users size={15} />
                                         <span>
-                                            Thời hạn
+                                            Lượt sử dụng
+                                            <strong>
+                                                {item.soLuongDaDung}/
+                                                {item.soLuong}
+                                            </strong>
                                         </span>
+                                    </div>
+                                </div>
 
+                                <div className="merchant-promotion-progress">
+                                    <div>
+                                        <span>Tiến độ sử dụng</span>
+                                        <strong>
+                                            {Math.round(usagePercent)}%
+                                        </strong>
+                                    </div>
+
+                                    <span>
+                                        <i
+                                            style={{
+                                                width: `${usagePercent}%`,
+                                            }}
+                                        />
+                                    </span>
+                                </div>
+
+                                <div className="merchant-promotion-period">
+                                    <CalendarDays size={15} />
+                                    <div>
+                                        <span>Thời gian áp dụng</span>
                                         <p>
                                             {formatDate(
                                                 item.ngayBatDau
                                             )}
-
-                                            {" → "}
-
+                                            <b>→</b>
                                             {formatDate(
                                                 item.ngayKetThuc
                                             )}
                                         </p>
                                     </div>
+                                </div>
 
+                                <footer className="merchant-promotion-actions">
+                                    <button
+                                        type="button"
+                                        className="edit"
+                                        disabled={
+                                            changingId !== null ||
+                                            editingId !== null
+                                        }
+                                        onClick={() => {
+                                            setCreateOpen(false);
+                                            setEditingId(
+                                                item.maKhuyenMai
+                                            );
+                                            setSuccess("");
+                                            setError("");
+                                        }}
+                                    >
+                                        <Pencil size={14} />
+                                        Chỉnh sửa
+                                    </button>
 
                                     <button
                                         type="button"
                                         className={
                                             item.trangThai
-                                                ? "quan-secondary-button"
-                                                : "quan-primary-button"
+                                                ? "disable"
+                                                : "enable"
+                                        }
+                                        disabled={
+                                            changingId !== null ||
+                                            editingId !== null
                                         }
                                         onClick={() =>
-                                            handleToggle(
-                                                item.maKhuyenMai
-                                            )
+                                            void handleToggle(item)
                                         }
-                                        disabled={changingId !== null || editingId !== null}
                                     >
+                                        <Power size={14} />
                                         {changingId ===
                                         item.maKhuyenMai
                                             ? "Đang xử lý..."
                                             : item.trangThai
-                                            ? "Tắt mã"
-                                            : "Bật mã"}
+                                              ? "Tắt mã"
+                                              : "Bật mã"}
                                     </button>
+                                </footer>
+                            </article>
+                        );
+                    })}
+                </div>
+            )}
 
-                                </div>
-
-                                {editingId === item.maKhuyenMai ? (
-                                    <EditPromotionForm
-                                        key={item.maKhuyenMai}
-                                        promotion={item}
-                                        onCancel={() => setEditingId(null)}
-                                        onSaved={(updated) => {
-                                            setPromotions((previous) =>
-                                                previous.map((promotion) =>
-                                                    promotion.maKhuyenMai === updated.maKhuyenMai
-                                                        ? updated
-                                                        : promotion
-                                                )
-                                            );
-                                            setEditingId(null);
-                                            setSuccess(`Đã cập nhật mã ${updated.maCode}.`);
-                                        }}
-                                    />
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="promotion-edit-open"
-                                            disabled={editingId !== null || changingId !== null}
-                                        onClick={() => {
-                                            setSuccess("");
-                                            setEditingId(item.maKhuyenMai);
-                                        }}
-                                    >
-                                        Sửa mã
-                                    </button>
-                                )}
-                            </div>
-
-                        ))}
-
+            {createOpen && (
+                <div className="merchant-promotion-overlay">
+                    <div className="merchant-promotion-modal create">
+                        <CreatePromotionForm
+                            onCancel={() => setCreateOpen(false)}
+                            onCreated={async () => {
+                                await loadPromotions(false);
+                                setCreateOpen(false);
+                                showMessage(
+                                    "Đã tạo mã giảm giá mới."
+                                );
+                            }}
+                        />
                     </div>
+                </div>
+            )}
 
-                )}
-
-            </div>
-
+            {editingPromotion && (
+                <div className="merchant-promotion-overlay">
+                    <div className="merchant-promotion-modal edit">
+                        <EditPromotionForm
+                            key={editingPromotion.maKhuyenMai}
+                            promotion={editingPromotion}
+                            onCancel={() => setEditingId(null)}
+                            onSaved={(updated) => {
+                                setPromotions((current) =>
+                                    current.map((item) =>
+                                        item.maKhuyenMai ===
+                                        updated.maKhuyenMai
+                                            ? updated
+                                            : item
+                                    )
+                                );
+                                setEditingId(null);
+                                showMessage(
+                                    `Đã cập nhật mã ${updated.maCode}.`
+                                );
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

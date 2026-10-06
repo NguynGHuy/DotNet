@@ -1,5 +1,18 @@
 import { apiFetch } from "./api";
 
+/* =========================================================
+   CÁC CHẾ ĐỘ HOẠT ĐỘNG CỦA NHÀ HÀNG
+========================================================= */
+
+export type RestaurantOperatingMode =
+    | "TuDong"
+    | "MoThuCong"
+    | "TamNgung";
+
+/* =========================================================
+   RESTAURANT
+========================================================= */
+
 export interface Restaurant {
     maNhaHang: number;
     maTaiKhoan?: number;
@@ -13,7 +26,32 @@ export interface Restaurant {
     gioDongCua: string | null;
 
     trangThaiDuyet?: string;
-    trangThaiHoatDong: string;
+
+    /*
+     * Thuộc tính cũ được giữ tạm thời để không ảnh hưởng
+     * những component chưa sửa.
+     */
+    trangThaiHoatDong?: string;
+
+    /*
+     * Chế độ mà chủ quán đã chọn:
+     * TuDong | MoThuCong | TamNgung
+     */
+    cheDoHoatDong: RestaurantOperatingMode;
+
+    /*
+     * Trạng thái thực tế do backend tính toán.
+     */
+    dangMoCua: boolean;
+
+    /*
+     * Ví dụ:
+     * - Đang mở cửa theo giờ hoạt động
+     * - Đang mở cửa thủ công
+     * - Ngoài giờ hoạt động
+     * - Nhà hàng đang tạm ngưng
+     */
+    trangThaiHienThi: string;
 
     danhGiaTrungBinh: number;
     phiShipMacDinh: number;
@@ -21,6 +59,10 @@ export interface Restaurant {
     email?: string | null;
     soDienThoai?: string | null;
 }
+
+/* =========================================================
+   CẬP NHẬT HỒ SƠ
+========================================================= */
 
 export interface UpdateRestaurantRequest {
     tenNhaHang: string;
@@ -32,6 +74,10 @@ export interface UpdateRestaurantRequest {
     phiShipMacDinh: number;
 }
 
+/* =========================================================
+   AUTH HEADER
+========================================================= */
+
 function getAuthHeaders() {
     const token = localStorage.getItem("token");
 
@@ -40,13 +86,16 @@ function getAuthHeaders() {
     };
 }
 
-/* =========================
+/* =========================================================
    PUBLIC
-========================= */
+========================================================= */
 
-export async function getRestaurants(): Promise<Restaurant[]> {
+export async function getRestaurants(): Promise<
+    Restaurant[]
+> {
     return apiFetch("/nha-hang", {
         method: "GET",
+        cache: "no-store",
     });
 }
 
@@ -55,17 +104,21 @@ export async function getRestaurantById(
 ): Promise<Restaurant> {
     return apiFetch(`/nha-hang/${id}`, {
         method: "GET",
+        cache: "no-store",
     });
 }
 
-/* =========================
-   QUÁN
-========================= */
+/* =========================================================
+   QUÁN: HỒ SƠ
+========================================================= */
 
-export async function getRestaurantProfile(): Promise<Restaurant> {
+export async function getRestaurantProfile(): Promise<
+    Restaurant
+> {
     return apiFetch("/nha-hang/ho-so", {
         method: "GET",
         headers: getAuthHeaders(),
+        cache: "no-store",
     });
 }
 
@@ -79,8 +132,12 @@ export async function updateRestaurantProfile(
     });
 }
 
+/* =========================================================
+   QUÁN: CẬP NHẬT CHẾ ĐỘ HOẠT ĐỘNG
+========================================================= */
+
 export async function updateRestaurantStatus(
-    trangThaiHoatDong: "MoCua" | "TamNgung"
+    cheDoHoatDong: RestaurantOperatingMode
 ) {
     return apiFetch(
         "/nha-hang/trang-thai-hoat-dong",
@@ -88,7 +145,7 @@ export async function updateRestaurantStatus(
             method: "PUT",
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                trangThaiHoatDong,
+                cheDoHoatDong,
             }),
         }
     );
