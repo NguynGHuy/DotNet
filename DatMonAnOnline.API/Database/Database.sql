@@ -574,6 +574,7 @@ CREATE TABLE `thongbao` (
   `NoiDung` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `Loai` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `DaDoc` tinyint(1) NOT NULL DEFAULT '0',
+  `DuongDan` varchar(255) DEFAULT NULL,
   `NgayTao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`MaThongBao`),
   KEY `FK_ThongBao_TaiKhoan` (`MaTaiKhoan`),

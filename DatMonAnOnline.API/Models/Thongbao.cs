@@ -15,6 +15,8 @@ public partial class Thongbao
 
     public string? Loai { get; set; }
 
+    public string? DuongDan { get; set; }
+
     public bool DaDoc { get; set; }
 
     public DateTime NgayTao { get; set; }
