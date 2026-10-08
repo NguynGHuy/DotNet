@@ -95,69 +95,154 @@ function OrderDetail() {
     const [qrMethodName, setQrMethodName] = useState("");
 
     useEffect(() => {
-        const maDonHang = Number(id);
+    const maDonHang = Number(id);
 
-        if (!id || !Number.isInteger(maDonHang) || maDonHang <= 0) {
-            return;
-        }
+    if (!id || !Number.isInteger(maDonHang) || maDonHang <= 0) {
+        return;
+    }
 
-        let cancelled = false;
+    let cancelled = false;
 
-        const load = async () => {
+    const load = async (background = false) => {
+        try {
+            const [orderData, historyData] = await Promise.all([
+                getOrderById(maDonHang),
+                getOrderStatusHistory(maDonHang),
+            ]);
+
+            let paymentData: ThanhToanDon[] = [];
+            let methodData: PhuongThucThanhToan[] = [];
+
             try {
-                const [orderData, historyData] = await Promise.all([
-                    getOrderById(maDonHang),
-                    getOrderStatusHistory(maDonHang),
-                ]);
-
-                let paymentData: ThanhToanDon[] = [];
-                try {
-                    const rawPayments = await getPaymentsByOrder(maDonHang);
-                    paymentData = Array.isArray(rawPayments) ? rawPayments : [];
-                } catch {
-                    paymentData = [];
-                }
-
-                let methodData: PhuongThucThanhToan[] = [];
-                try {
-                    const rawMethods = await getPaymentMethods();
-                    methodData = Array.isArray(rawMethods) ? rawMethods : [];
-                } catch {
-                    methodData = [];
-                }
-
-                if (cancelled) return;
-
-                setOrder(orderData);
-                setHistory(historyData);
-                setPayments(paymentData);
-                setMethods(methodData);
-                setError("");
-            } catch (err) {
-                if (cancelled) return;
-
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Không tải được đơn hàng."
-                );
-                setOrder(null);
-                setHistory([]);
-                setPayments([]);
-            } finally {
-                if (!cancelled) {
-                    setLoadedId(id);
-                }
+                const rawPayments = await getPaymentsByOrder(maDonHang);
+                paymentData = Array.isArray(rawPayments)
+                    ? rawPayments
+                    : [];
+            } catch {
+                paymentData = [];
             }
-        };
 
-        void load();
+            try {
+                const rawMethods = await getPaymentMethods();
+                methodData = Array.isArray(rawMethods)
+                    ? rawMethods
+                    : [];
+            } catch {
+                methodData = [];
+            }
+
+            if (cancelled) return;
+
+            setOrder(orderData);
+            setHistory(historyData);
+            setPayments(paymentData);
+            setMethods(methodData);
+            setError("");
+        } catch (err) {
+            if (cancelled || background) return;
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không tải được đơn hàng."
+            );
+            setOrder(null);
+            setHistory([]);
+            setPayments([]);
+        } finally {
+            if (!cancelled && !background) {
+                setLoadedId(id);
+            }
+        }
+    };
+
+    const handleRealtimeUpdate = () => {
+        void load(true);
+    };
+
+    void load();
+
+    window.addEventListener(
+        "customer-orders-updated",
+        handleRealtimeUpdate
+    );
+
+    return () => {
+        cancelled = true;
+
+        window.removeEventListener(
+            "customer-orders-updated",
+            handleRealtimeUpdate
+        );
+    };
+}, [id, paymentVersion]);
+    useEffect(() => {
+    if (!order) return;
+
+    const elements = Array.from(
+        document.querySelectorAll<HTMLElement>(
+            [
+                ".order-detail-page .order-detail-card",
+                ".order-detail-page .order-review-callout",
+                ".order-detail-page .order-detail-review-panel",
+            ].join(",")
+        )
+    );
+
+    elements.forEach((element, index) => {
+        element.classList.add("order-detail-reveal");
+
+        element.style.setProperty(
+            "--order-reveal-delay",
+            `${Math.min(index, 5) * 0.12}s`
+        );
+    });
+
+    if (typeof IntersectionObserver === "undefined") {
+        const frame = requestAnimationFrame(() => {
+            elements.forEach((element) => {
+                element.classList.add("is-visible");
+            });
+        });
 
         return () => {
-            cancelled = true;
+            cancelAnimationFrame(frame);
         };
-    }, [id, paymentVersion]);
+    }
 
+    let observer: IntersectionObserver | null = null;
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        if (!entry.isIntersecting) return;
+
+                        entry.target.classList.add("is-visible");
+                        observer?.unobserve(entry.target);
+                    });
+                },
+                {
+                    threshold: 0.12,
+                    rootMargin: "0px 0px -45px 0px",
+                }
+            );
+
+            elements.forEach((element) => {
+                observer?.observe(element);
+            });
+        });
+    });
+
+    return () => {
+        cancelAnimationFrame(firstFrame);
+        cancelAnimationFrame(secondFrame);
+        observer?.disconnect();
+    };
+}, [order?.maDonHang, showReview]);
     const latestPayment = [...payments].sort(
         (a, b) => b.maThanhToan - a.maThanhToan
     )[0];

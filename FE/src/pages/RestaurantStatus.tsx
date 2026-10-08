@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlarmClock, Check, CheckCircle2, CirclePause, Clock3,
-  Power, RefreshCw, ShieldCheck, Store, Zap
+  AlarmClock,
+  Check,
+  CheckCircle2,
+  CirclePause,
+  Clock3,
+  Power,
+  RefreshCw,
+  ShieldCheck,
+  Store,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   getRestaurantProfile,
-  updateRestaurantStatus
+  updateRestaurantStatus,
 } from "../services/restaurantService";
 import type {
   Restaurant,
-  RestaurantOperatingMode
+  RestaurantOperatingMode,
 } from "../services/restaurantService";
 
 interface ModeOption {
@@ -75,7 +83,7 @@ function QuanRestaurantStatus() {
       setError(
         err instanceof Error
           ? err.message
-          : "Không thể lấy thông tin nhà hàng."
+          : "Không thể lấy thông tin nhà hàng.",
       );
     } finally {
       if (showLoading) setLoading(false);
@@ -124,7 +132,7 @@ function QuanRestaurantStatus() {
       setError(
         err instanceof Error
           ? err.message
-          : "Không thể cập nhật chế độ hoạt động."
+          : "Không thể cập nhật chế độ hoạt động.",
       );
     } finally {
       setUpdating(false);
@@ -160,14 +168,17 @@ function QuanRestaurantStatus() {
   const isOpen = Boolean(restaurant.dangMoCua);
   const currentMode = restaurant.cheDoHoatDong;
   const approvalCode = restaurant.trangThaiDuyet || "";
-  const approvalText = APPROVAL_LABEL[approvalCode] || approvalCode || "Chưa xác định";
+  const approvalText =
+    APPROVAL_LABEL[approvalCode] || approvalCode || "Chưa xác định";
   const isApproved = approvalCode === "DaDuyet";
 
   return (
     <main className="merchant-status-page">
       <header className="merchant-status-header">
         <div className="merchant-status-heading">
-          <span><Power size={21} /></span>
+          <span>
+            <Power size={21} />
+          </span>
           <div>
             <small>VẬN HÀNH NHÀ HÀNG</small>
             <h1>Trạng thái quán</h1>
@@ -188,24 +199,30 @@ function QuanRestaurantStatus() {
 
       {message && (
         <div className="merchant-status-notice success" role="status">
-          <CheckCircle2 size={17} /><span>{message}</span>
+          <CheckCircle2 size={17} />
+          <span>{message}</span>
         </div>
       )}
 
       {error && (
         <div className="merchant-status-notice error" role="alert">
-          <CirclePause size={17} /><span>{error}</span>
+          <CirclePause size={17} />
+          <span>{error}</span>
         </div>
       )}
 
-      <section className={`merchant-current-status ${isOpen ? "is-open" : "is-closed"}`}>
+      <section
+        className={`merchant-current-status ${isOpen ? "is-open" : "is-closed"}`}
+      >
         <span className="merchant-current-status-icon">
           {isOpen ? <Check size={24} /> : <Power size={24} />}
         </span>
 
         <div className="merchant-current-status-content">
           <small>TRẠNG THÁI THỰC TẾ</small>
-          <h2>{isOpen ? "Nhà hàng đang nhận đơn" : "Nhà hàng đang đóng cửa"}</h2>
+          <h2>
+            {isOpen ? "Nhà hàng đang nhận đơn" : "Nhà hàng đang đóng cửa"}
+          </h2>
           <p>
             {restaurant.trangThaiHienThi ||
               (isOpen
@@ -230,7 +247,7 @@ function QuanRestaurantStatus() {
           </header>
 
           <div className="merchant-mode-list">
-            {MODE_OPTIONS.map(option => {
+            {MODE_OPTIONS.map((option) => {
               const Icon = option.icon;
               const selected = currentMode === option.value;
 
@@ -242,7 +259,9 @@ function QuanRestaurantStatus() {
                   disabled={updating || selected}
                   onClick={() => void handleChangeMode(option.value)}
                 >
-                  <span className="merchant-mode-icon"><Icon size={20} /></span>
+                  <span className="merchant-mode-icon">
+                    <Icon size={20} />
+                  </span>
 
                   <div>
                     <strong>{option.title}</strong>
@@ -271,7 +290,9 @@ function QuanRestaurantStatus() {
 
         <aside className="merchant-status-side">
           <section className="merchant-status-card merchant-hours-card">
-            <span className="merchant-side-icon"><Clock3 size={20} /></span>
+            <span className="merchant-side-icon">
+              <Clock3 size={20} />
+            </span>
             <div>
               <small>GIỜ HOẠT ĐỘNG</small>
               <h2>
@@ -284,7 +305,9 @@ function QuanRestaurantStatus() {
           </section>
 
           <section className="merchant-status-card merchant-approval-card">
-            <span className={`merchant-side-icon ${isApproved ? "approved" : ""}`}>
+            <span
+              className={`merchant-side-icon ${isApproved ? "approved" : ""}`}
+            >
               <ShieldCheck size={20} />
             </span>
             <div>

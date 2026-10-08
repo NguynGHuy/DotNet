@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, CheckCircle2, ChefHat, ClipboardList, Clock3, CupSoda,
-  Power, ReceiptText, RefreshCw, Store, TicketPercent, UserRound,
-  UtensilsCrossed, WalletCards
+  ArrowRight,
+  CheckCircle2,
+  ChefHat,
+  ClipboardList,
+  Clock3,
+  CupSoda,
+  Power,
+  ReceiptText,
+  RefreshCw,
+  Store,
+  TicketPercent,
+  UserRound,
+  UtensilsCrossed,
+  WalletCards,
 } from "lucide-react";
-import { getRestaurantProfile, type Restaurant } from "../services/restaurantService";
+import {
+  getRestaurantProfile,
+  type Restaurant,
+} from "../services/restaurantService";
 import { getRestaurantOrders } from "../services/orderService";
 
 interface RestaurantOrderSummary {
@@ -27,10 +41,30 @@ const ORDER_STATUS: Record<string, { label: string; className: string }> = {
 };
 
 const QUICK_ACTIONS = [
-  { to: "/quan/menu", label: "Thực đơn", description: "Quản lý món ăn", icon: UtensilsCrossed },
-  { to: "/quan/khuyen-mai", label: "Khuyến mãi", description: "Quản lý ưu đãi", icon: TicketPercent },
-  { to: "/quan/thong-tin", label: "Thông tin quán", description: "Cập nhật hồ sơ", icon: Store },
-  { to: "/quan/topping", label: "Topping", description: "Quản lý lựa chọn thêm", icon: CupSoda },
+  {
+    to: "/quan/menu",
+    label: "Thực đơn",
+    description: "Quản lý món ăn",
+    icon: UtensilsCrossed,
+  },
+  {
+    to: "/quan/khuyen-mai",
+    label: "Khuyến mãi",
+    description: "Quản lý ưu đãi",
+    icon: TicketPercent,
+  },
+  {
+    to: "/quan/thong-tin",
+    label: "Thông tin quán",
+    description: "Cập nhật hồ sơ",
+    icon: Store,
+  },
+  {
+    to: "/quan/topping",
+    label: "Topping",
+    description: "Quản lý lựa chọn thêm",
+    icon: CupSoda,
+  },
 ];
 
 const formatMoney = (value: number) =>
@@ -42,9 +76,11 @@ const formatTime = (value?: string | null) =>
 const isToday = (value: string) => {
   const date = new Date(value);
   const today = new Date();
-  return date.getDate() === today.getDate() &&
+  return (
+    date.getDate() === today.getDate() &&
     date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
+    date.getFullYear() === today.getFullYear()
+  );
 };
 
 function getGreeting() {
@@ -72,9 +108,15 @@ function QuanHome() {
       ]);
 
       setRestaurant(restaurantData);
-      setOrders(Array.isArray(orderData) ? orderData as RestaurantOrderSummary[] : []);
+      setOrders(
+        Array.isArray(orderData) ? (orderData as RestaurantOrderSummary[]) : [],
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải được dữ liệu tổng quan.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Không tải được dữ liệu tổng quan.",
+      );
     } finally {
       setLoading(false);
     }
@@ -111,23 +153,33 @@ function QuanHome() {
   }
 
   const isOpen = Boolean(restaurant.dangMoCua);
-  const statusText = restaurant.trangThaiHienThi || (isOpen ? "Đang mở cửa" : "Đang đóng cửa");
-  const pendingCount = orders.filter(x => x.trangThai === "ChoXacNhan").length;
-  const processingCount = orders.filter(x =>
-    ["DaXacNhan", "DangChuanBi", "DangGiao"].includes(x.trangThai)
+  const statusText =
+    restaurant.trangThaiHienThi || (isOpen ? "Đang mở cửa" : "Đang đóng cửa");
+  const pendingCount = orders.filter(
+    (x) => x.trangThai === "ChoXacNhan",
   ).length;
-  const completedToday = orders.filter(x =>
-    x.trangThai === "HoanThanh" && isToday(x.thoiGianDat)
+  const processingCount = orders.filter((x) =>
+    ["DaXacNhan", "DangChuanBi", "DangGiao"].includes(x.trangThai),
+  ).length;
+  const completedToday = orders.filter(
+    (x) => x.trangThai === "HoanThanh" && isToday(x.thoiGianDat),
   );
-  const revenueToday = completedToday.reduce((total, order) =>
-    total + Number(order.thanhTien || 0), 0
+  const revenueToday = completedToday.reduce(
+    (total, order) => total + Number(order.thanhTien || 0),
+    0,
   );
   const recentOrders = [...orders]
-    .sort((a, b) => new Date(b.thoiGianDat).getTime() - new Date(a.thoiGianDat).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.thoiGianDat).getTime() - new Date(a.thoiGianDat).getTime(),
+    )
     .slice(0, 5);
 
   const todayLabel = new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long", day: "2-digit", month: "2-digit", year: "numeric"
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   }).format(new Date());
 
   return (
@@ -135,8 +187,12 @@ function QuanHome() {
       <header className="merchant-live-hero">
         <div className="merchant-live-welcome">
           <span>TRUNG TÂM VẬN HÀNH</span>
-          <h1>{getGreeting()}, {restaurant.tenNhaHang}</h1>
-          <p>{todayLabel} · Theo dõi tình hình kinh doanh và các đơn cần xử lý.</p>
+          <h1>
+            {getGreeting()}, {restaurant.tenNhaHang}
+          </h1>
+          <p>
+            {todayLabel} · Theo dõi tình hình kinh doanh và các đơn cần xử lý.
+          </p>
         </div>
 
         <button
@@ -145,37 +201,67 @@ function QuanHome() {
           onClick={() => navigate("/quan/trang-thai")}
         >
           <span className="merchant-live-status-dot" />
-          <div><small>Trạng thái quán</small><strong>{statusText}</strong></div>
+          <div>
+            <small>Trạng thái quán</small>
+            <strong>{statusText}</strong>
+          </div>
           <ArrowRight size={17} />
         </button>
       </header>
 
       <section className="merchant-live-stats">
         <article className="stat-pending">
-          <span><ReceiptText size={21} /></span>
-          <div><small>Chờ xác nhận</small><strong>{pendingCount}</strong><p>đơn cần xử lý</p></div>
+          <span>
+            <ReceiptText size={21} />
+          </span>
+          <div>
+            <small>Chờ xác nhận</small>
+            <strong>{pendingCount}</strong>
+            <p>đơn cần xử lý</p>
+          </div>
         </article>
 
         <article className="stat-processing">
-          <span><ChefHat size={21} /></span>
-          <div><small>Đang xử lý</small><strong>{processingCount}</strong><p>đơn đang thực hiện</p></div>
+          <span>
+            <ChefHat size={21} />
+          </span>
+          <div>
+            <small>Đang xử lý</small>
+            <strong>{processingCount}</strong>
+            <p>đơn đang thực hiện</p>
+          </div>
         </article>
 
         <article className="stat-completed">
-          <span><CheckCircle2 size={21} /></span>
-          <div><small>Hoàn thành hôm nay</small><strong>{completedToday.length}</strong><p>đơn giao thành công</p></div>
+          <span>
+            <CheckCircle2 size={21} />
+          </span>
+          <div>
+            <small>Hoàn thành hôm nay</small>
+            <strong>{completedToday.length}</strong>
+            <p>đơn giao thành công</p>
+          </div>
         </article>
 
         <article className="stat-revenue">
-          <span><WalletCards size={21} /></span>
-          <div><small>Doanh thu hôm nay</small><strong>{formatMoney(revenueToday)}</strong><p>từ đơn hoàn thành</p></div>
+          <span>
+            <WalletCards size={21} />
+          </span>
+          <div>
+            <small>Doanh thu hôm nay</small>
+            <strong>{formatMoney(revenueToday)}</strong>
+            <p>từ đơn hoàn thành</p>
+          </div>
         </article>
       </section>
 
       <div className="merchant-live-layout">
         <section className="merchant-recent-orders">
           <header>
-            <div><h2>Đơn hàng gần đây</h2><p>Các đơn mới nhất tại nhà hàng</p></div>
+            <div>
+              <h2>Đơn hàng gần đây</h2>
+              <p>Các đơn mới nhất tại nhà hàng</p>
+            </div>
             <button type="button" onClick={() => navigate("/quan/don-hang")}>
               Xem tất cả <ArrowRight size={14} />
             </button>
@@ -189,34 +275,46 @@ function QuanHome() {
             </div>
           ) : (
             <div className="merchant-recent-list">
-              {recentOrders.map(order => {
+              {recentOrders.map((order) => {
                 const status = ORDER_STATUS[order.trangThai] || {
-                  label: order.trangThai, className: "default"
+                  label: order.trangThai,
+                  className: "default",
                 };
 
                 return (
                   <button
                     key={order.maDonHang}
                     type="button"
-                    onClick={() => navigate(`/quan/don-hang/${order.maDonHang}`)}
+                    onClick={() =>
+                      navigate(`/quan/don-hang/${order.maDonHang}`)
+                    }
                   >
-                    <span className="merchant-recent-icon"><ReceiptText size={17} /></span>
+                    <span className="merchant-recent-icon">
+                      <ReceiptText size={17} />
+                    </span>
 
                     <div className="merchant-recent-main">
                       <strong>{order.maDonHangHienThi}</strong>
-                      <span><UserRound size={12} />{order.tenNguoiNhan}</span>
+                      <span>
+                        <UserRound size={12} />
+                        {order.tenNguoiNhan}
+                      </span>
                     </div>
 
                     <time>
                       {new Date(order.thoiGianDat).toLocaleString("vi-VN", {
-                        hour: "2-digit", minute: "2-digit",
-                        day: "2-digit", month: "2-digit"
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        day: "2-digit",
+                        month: "2-digit",
                       })}
                     </time>
 
                     <div className="merchant-recent-money">
                       <strong>{formatMoney(order.thanhTien)}</strong>
-                      <span className={`status-${status.className}`}>{status.label}</span>
+                      <span className={`status-${status.className}`}>
+                        {status.label}
+                      </span>
                     </div>
 
                     <ArrowRight className="merchant-recent-arrow" size={16} />
@@ -228,10 +326,17 @@ function QuanHome() {
         </section>
 
         <aside className="merchant-live-side">
-          <section className={`merchant-live-operation ${isOpen ? "is-open" : "is-closed"}`}>
+          <section
+            className={`merchant-live-operation ${isOpen ? "is-open" : "is-closed"}`}
+          >
             <div className="merchant-operation-heading">
-              <span><Power size={21} /></span>
-              <div><small>Vận hành nhà hàng</small><h2>{statusText}</h2></div>
+              <span>
+                <Power size={21} />
+              </span>
+              <div>
+                <small>Vận hành nhà hàng</small>
+                <h2>{statusText}</h2>
+              </div>
             </div>
 
             <p>
@@ -242,7 +347,13 @@ function QuanHome() {
 
             <div className="merchant-operation-hours">
               <Clock3 size={16} />
-              <div><small>Giờ hoạt động</small><strong>{formatTime(restaurant.gioMoCua)} – {formatTime(restaurant.gioDongCua)}</strong></div>
+              <div>
+                <small>Giờ hoạt động</small>
+                <strong>
+                  {formatTime(restaurant.gioMoCua)} –{" "}
+                  {formatTime(restaurant.gioDongCua)}
+                </strong>
+              </div>
             </div>
 
             <button type="button" onClick={() => navigate("/quan/trang-thai")}>
@@ -251,14 +362,25 @@ function QuanHome() {
           </section>
 
           <section className="merchant-live-quick">
-            <header><h2>Truy cập nhanh</h2></header>
+            <header>
+              <h2>Truy cập nhanh</h2>
+            </header>
             <div>
-              {QUICK_ACTIONS.map(action => {
+              {QUICK_ACTIONS.map((action) => {
                 const Icon = action.icon;
                 return (
-                  <button key={action.to} type="button" onClick={() => navigate(action.to)}>
-                    <span><Icon size={17} /></span>
-                    <div><strong>{action.label}</strong><small>{action.description}</small></div>
+                  <button
+                    key={action.to}
+                    type="button"
+                    onClick={() => navigate(action.to)}
+                  >
+                    <span>
+                      <Icon size={17} />
+                    </span>
+                    <div>
+                      <strong>{action.label}</strong>
+                      <small>{action.description}</small>
+                    </div>
                     <ArrowRight size={14} />
                   </button>
                 );

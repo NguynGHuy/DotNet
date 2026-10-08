@@ -196,6 +196,14 @@ function Checkout() {
   ] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      const returnUrl = `/thanh-toan?maGioHang=${maGioHang}`;
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(returnUrl)}`, {
+        replace: true,
+      });
+      return;
+    }
+
     const initCheckout = async () => {
       try {
         if (
@@ -924,11 +932,14 @@ function Checkout() {
               <div className="discount">
                 <span>Khuyến mãi</span>
 
-                <strong>
-                  -
-                  {formatCurrency(
-                    checkoutData.soTienGiam,
-                  )}
+                <strong
+                    key={checkoutData.soTienGiam}
+                    className="checkout-money-change"
+                >
+                    -
+                    {formatCurrency(
+                        checkoutData.soTienGiam,
+                    )}
                 </strong>
               </div>
 
@@ -950,10 +961,13 @@ function Checkout() {
                   Tổng thanh toán
                 </span>
 
-                <strong>
-                  {formatCurrency(
-                    checkoutData.thanhTien,
-                  )}
+                <strong
+                    key={checkoutData.thanhTien}
+                    className="checkout-money-change"
+                >
+                    {formatCurrency(
+                        checkoutData.thanhTien,
+                    )}
                 </strong>
               </div>
             </div>
@@ -1044,71 +1058,92 @@ function Checkout() {
           aria-labelledby="qr-title"
         >
           <div className="qr-dialog qr-dialog-v2">
-            <div className="qr-dialog-icon">
-              <QrCode size={24} />
-            </div>
+            <header className="qr-dialog-header">
+              <div className="qr-dialog-icon">
+                <QrCode size={24} />
+              </div>
 
-            <span className="qr-dialog-eyebrow">
-              Thanh toán trực tuyến
-            </span>
+              <div>
+                <span className="qr-dialog-eyebrow">
+                  Thanh toán trực tuyến
+                </span>
 
-            <h2 id="qr-title">
-              {payment.tenPhuongThuc}
-            </h2>
+                <h2 id="qr-title">
+                  Thanh toán qua {payment.tenPhuongThuc}
+                </h2>
 
-            <p className="qr-dialog-description">
-              Quét mã bằng ứng dụng thanh
-              toán, sau đó xác nhận kết quả.
-            </p>
+                <p className="qr-dialog-description">
+                  Mở ứng dụng thanh toán và quét mã QR bên dưới.
+                </p>
+              </div>
+            </header>
 
-            <div className="qr-payment-amount">
-              <span>
-                Số tiền thanh toán
-              </span>
+            <div className="qr-dialog-content">
+              <section className="qr-code-panel" aria-label="Mã QR thanh toán">
+                <div className="qr-code-frame">
+                  <PaymentQr />
+                </div>
 
-              <strong>
-                {formatCurrency(
-                  checkoutData.thanhTien,
-                )}
-              </strong>
-            </div>
+                <div className="qr-scan-hint">
+                  <QrCode size={15} />
+                  <span>Đưa mã vào giữa khung quét của ứng dụng</span>
+                </div>
+              </section>
 
-            <div className="qr-code-frame">
-              <PaymentQr />
-            </div>
+              <section className="qr-payment-panel">
+                <div className="qr-payment-amount">
+                  <span>Số tiền cần thanh toán</span>
 
-            <p className="qr-demo-note">
-              Đây là chức năng thanh toán mô
-              phỏng dùng trong đồ án.
-            </p>
+                  <strong>
+                    {formatCurrency(
+                      checkoutData.thanhTien,
+                    )}
+                  </strong>
+                </div>
 
-            <div className="qr-actions qr-actions-v2">
-              <button
-                type="button"
-                className="qr-success-button"
-                disabled={qrBusy}
-                onClick={() =>
-                  void handleQrSuccess()
-                }
-              >
-                <CircleCheck size={17} />
+                <div className="qr-payment-steps">
+                  <strong>Hoàn tất trong 3 bước</strong>
 
-                {qrBusy
-                  ? "Đang xử lý..."
-                  : "Tôi đã thanh toán"}
-              </button>
+                  <ol>
+                    <li><span>1</span>Mở ứng dụng {payment.tenPhuongThuc}</li>
+                    <li><span>2</span>Quét mã và xác nhận thanh toán</li>
+                    <li><span>3</span>Quay lại đây để xác nhận kết quả</li>
+                  </ol>
+                </div>
 
-              <button
-                type="button"
-                className="qr-fail-button"
-                disabled={qrBusy}
-                onClick={() =>
-                  void handleQrFail()
-                }
-              >
-                <CircleX size={17} />
-                Thanh toán thất bại
-              </button>
+                <p className="qr-demo-note">
+                  Đây là luồng thanh toán mô phỏng dùng trong đồ án.
+                </p>
+
+                <div className="qr-actions qr-actions-v2">
+                  <button
+                    type="button"
+                    className="qr-success-button"
+                    disabled={qrBusy}
+                    onClick={() =>
+                      void handleQrSuccess()
+                    }
+                  >
+                    <CircleCheck size={17} />
+
+                    {qrBusy
+                      ? "Đang xử lý..."
+                      : "Tôi đã thanh toán"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="qr-fail-button"
+                    disabled={qrBusy}
+                    onClick={() =>
+                      void handleQrFail()
+                    }
+                  >
+                    <CircleX size={17} />
+                    Giao dịch không thành công
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
         </div>

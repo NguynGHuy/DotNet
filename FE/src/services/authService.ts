@@ -5,6 +5,24 @@ export interface LoginRequest {
     matKhau: string;
 }
 
+export interface ChangePasswordRequest {
+    matKhauCu: string;
+    matKhauMoi: string;
+}
+
+export interface ForgotPasswordResponse {
+    message: string;
+    maYeuCau: string;
+    hetHanSauPhut: number;
+    maXacNhanThuNghiem?: string | null;
+}
+
+export interface ResetPasswordRequest {
+    maYeuCau: string;
+    maXacNhan: string;
+    matKhauMoi: string;
+}
+
 export interface RegisterRequest {
     email: string;
     matKhau: string;
@@ -16,6 +34,32 @@ export interface RegisterRequest {
 
 export async function login(data: LoginRequest) {
     return apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function changePassword(data: ChangePasswordRequest) {
+    const token = localStorage.getItem("token");
+
+    return apiFetch("/auth/doi-mat-khau", {
+        method: "PUT",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+    });
+}
+
+export async function requestPasswordReset(email: string) {
+    return apiFetch("/auth/quen-mat-khau", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+    }) as Promise<ForgotPasswordResponse>;
+}
+
+export async function resetPassword(data: ResetPasswordRequest) {
+    return apiFetch("/auth/dat-lai-mat-khau", {
         method: "POST",
         body: JSON.stringify(data),
     });

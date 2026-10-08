@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
     clearCart,
+    CART_TTL_MS,
     getRestaurantCart,
     removeCartItem,
     updateCartItemOptions,
@@ -33,6 +34,7 @@ function Cart() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const maNhaHang = Number(searchParams.get("maNhaHang"));
+    const checkoutRequested = searchParams.get("checkout") === "1";
 
     const [cart, setCart] = useState<RestaurantCart | null>(null);
     const [loading, setLoading] = useState(true);
@@ -45,28 +47,90 @@ function Cart() {
     const [editingError, setEditingError] = useState("");
     const [openingOptionsId, setOpeningOptionsId] = useState<number | null>(null);
 
-    const loadCart = useCallback(async () => {
-        if (!Number.isInteger(maNhaHang) || maNhaHang <= 0) {
-            setError("Không xác định được nhà hàng của giỏ hàng.");
+    const loadCart = useCallback(
+    async (showPageLoading = true) => {
+        if (
+            !Number.isInteger(maNhaHang) ||
+            maNhaHang <= 0
+        ) {
+            setError(
+                "Không xác định được nhà hàng của giỏ hàng."
+            );
             setLoading(false);
             return;
         }
 
         try {
-            setLoading(true);
+            if (showPageLoading) {
+                setLoading(true);
+            }
+
             setError("");
-            setCart(await getRestaurantCart(maNhaHang));
+
+            const data = await getRestaurantCart(
+                maNhaHang
+            );
+
+            setCart(data);
+            if (data.daHetHan) {
+                alert("Giỏ hàng đã hết hạn sau 5 phút không hoạt động.");
+            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Không thể tải giỏ hàng.");
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể tải giỏ hàng."
+            );
         } finally {
-            setLoading(false);
+            if (showPageLoading) {
+                setLoading(false);
+            }
         }
-    }, [maNhaHang]);
+    },
+    [maNhaHang]
+);
 
     useEffect(() => {
-        const timer = window.setTimeout(() => void loadCart(), 0);
+        const timer = window.setTimeout(
+            () => void loadCart(true),
+            0
+        );
+
         return () => window.clearTimeout(timer);
     }, [loadCart]);
+
+    useEffect(() => {
+        if (!cart?.chiTiet.length || !cart.ngayCapNhat) return;
+
+        const updatedAt = Date.parse(cart.ngayCapNhat);
+        if (!Number.isFinite(updatedAt)) return;
+
+        const remainingTime = Math.max(
+            0,
+            updatedAt + CART_TTL_MS - Date.now()
+        );
+        const timer = window.setTimeout(
+            () => void loadCart(false),
+            remainingTime + 50
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [cart?.chiTiet.length, cart?.ngayCapNhat, loadCart]);
+
+    useEffect(() => {
+        if (
+            !checkoutRequested ||
+            loading ||
+            !cart?.maGioHang ||
+            !localStorage.getItem("token")
+        ) {
+            return;
+        }
+
+        navigate(`/thanh-toan?maGioHang=${cart.maGioHang}`, {
+            replace: true,
+        });
+    }, [cart?.maGioHang, checkoutRequested, loading, navigate]);
 
     const handleUpdateQty = async (id: number, currentQty: number, change: number) => {
         const nextQty = currentQty + change;
@@ -75,7 +139,7 @@ function Cart() {
         try {
             setBusy(true);
             await updateCartItemQty(id, nextQty);
-            await loadCart();
+            await loadCart(false);
             window.dispatchEvent(new Event("cart-updated"));
         } catch (err) {
             alert(err instanceof Error ? err.message : "Không thể cập nhật số lượng.");
@@ -90,7 +154,7 @@ function Cart() {
         try {
             setBusy(true);
             await removeCartItem(id);
-            await loadCart();
+            await loadCart(false);
             window.dispatchEvent(new Event("cart-updated"));
         } catch (err) {
             alert(err instanceof Error ? err.message : "Không thể xóa món.");
@@ -100,20 +164,37 @@ function Cart() {
     };
 
     const handleClear = async () => {
-        if (!cart?.maGioHang || busy || !window.confirm(`Xóa toàn bộ món trong giỏ của ${cart.tenNhaHang}?`)) {
+        if (!cart || busy || !window.confirm(`Xóa toàn bộ món trong giỏ của ${cart.tenNhaHang}?`)) {
             return;
         }
 
         try {
             setBusy(true);
-            await clearCart(cart.maGioHang);
-            await loadCart();
+            await clearCart(cart.maGioHang, cart.maNhaHang);
+            await loadCart(false);
             window.dispatchEvent(new Event("cart-updated"));
         } catch (err) {
             alert(err instanceof Error ? err.message : "Không thể xóa giỏ hàng.");
         } finally {
             setBusy(false);
         }
+    };
+
+    const handleCheckout = () => {
+        if (!cart || busy) return;
+
+        if (!localStorage.getItem("token")) {
+            const returnUrl = `/gio-hang?maNhaHang=${cart.maNhaHang}&checkout=1`;
+            navigate(`/dang-nhap?returnUrl=${encodeURIComponent(returnUrl)}`);
+            return;
+        }
+
+        if (!cart.maGioHang) {
+            alert("Không xác định được giỏ hàng cần thanh toán.");
+            return;
+        }
+
+        navigate(`/thanh-toan?maGioHang=${cart.maGioHang}`);
     };
 
     const openEditOptions = async (item: CartItem) => {
@@ -196,7 +277,7 @@ function Cart() {
                 ghiChu: editingNote.trim() || undefined,
                 danhSachMaTopping: editingToppings,
             });
-            await loadCart();
+            await loadCart(false);
             window.dispatchEvent(new Event("cart-updated"));
             setEditingItemId(null);
             setEditingFood(null);
@@ -323,11 +404,17 @@ if (cart.chiTiet.length === 0) {
             </div>
 
             <div className="cart-items">
-                {cart.chiTiet.map((item) => (
-                    <article
-                        key={item.maChiTietGioHang}
-                        className="cart-item"
-                    >
+                {cart.chiTiet.map((item, index) => (
+                <article
+                    key={item.maChiTietGioHang}
+                    className="cart-item"
+                    style={{
+                        animationDelay: `${
+                            0.75 +
+                            Math.min(index, 5) * 0.12
+                        }s`,
+                    }}
+                >
                         <div className="cart-item-image">
                             {item.hinhAnh ? (
                                 <img
@@ -352,7 +439,10 @@ if (cart.chiTiet.length === 0) {
                                     </span>
                                 </div>
 
-                                <strong className="item-price">
+                                <strong
+                                    key={item.thanhTien}
+                                    className="item-price cart-value-change"
+                                >
                                     {formatMoney(item.thanhTien)}
                                 </strong>
                             </div>
@@ -428,7 +518,12 @@ if (cart.chiTiet.length === 0) {
                                             <Minus size={15} />
                                         </button>
 
-                                        <span>{item.soLuong}</span>
+                                        <span
+                                            key={item.soLuong}
+                                            className="cart-qty-value"
+                                        >
+                                            {item.soLuong}
+                                        </span>
 
                                         <button
                                             type="button"
@@ -500,7 +595,10 @@ if (cart.chiTiet.length === 0) {
             <div className="summary-row total">
                 <span>Tổng tạm tính</span>
 
-                <strong>
+                <strong
+                    key={cart.tongTienTamTinh}
+                    className="cart-value-change"
+                >
                     {formatMoney(cart.tongTienTamTinh)}
                 </strong>
             </div>
@@ -508,12 +606,8 @@ if (cart.chiTiet.length === 0) {
             <button
                 type="button"
                 className="checkout-btn"
-                disabled={busy || !cart.maGioHang}
-                onClick={() =>
-                    navigate(
-                        `/thanh-toan?maGioHang=${cart.maGioHang}`
-                    )
-                }
+                disabled={busy}
+                onClick={handleCheckout}
             >
                 <span>Tiếp tục thanh toán</span>
                 <ArrowRight size={17} />

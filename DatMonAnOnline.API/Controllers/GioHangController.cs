@@ -12,6 +12,7 @@ namespace DatMonAnOnline.API.Controllers;
 [Authorize(Roles = "KhachHang")]
 public class GioHangController : ControllerBase
 {
+    private static readonly TimeSpan ThoiHanGioHang = TimeSpan.FromMinutes(5);
     private readonly DatMonAnOnlineContext _context;
 
     public GioHangController(DatMonAnOnlineContext context) => _context = context;
@@ -36,6 +37,102 @@ public class GioHangController : ControllerBase
             .Include(g => g.Chitietgiohangs)
                 .ThenInclude(ct => ct.ChitietgiohangToppings)
                     .ThenInclude(tp => tp.MaToppingNavigation);
+    }
+
+    private async Task<bool> XoaNoiDungNeuHetHan(Giohang? gioHang)
+    {
+        if (gioHang == null ||
+            gioHang.NgayCapNhat > DateTime.Now.Subtract(ThoiHanGioHang))
+        {
+            return false;
+        }
+
+        await _context.Entry(gioHang)
+            .Collection(g => g.Chitietgiohangs)
+            .Query()
+            .Include(ct => ct.ChitietgiohangToppings)
+            .LoadAsync();
+
+        if (!gioHang.Chitietgiohangs.Any())
+            return false;
+
+        var cacDongCanXoa = gioHang.Chitietgiohangs.ToList();
+
+        foreach (var chiTiet in cacDongCanXoa)
+        {
+            _context.ChitietgiohangToppings
+                .RemoveRange(chiTiet.ChitietgiohangToppings);
+        }
+
+        _context.Chitietgiohangs.RemoveRange(cacDongCanXoa);
+        gioHang.Chitietgiohangs.Clear();
+        gioHang.NgayCapNhat = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private static string? ChuanHoaGhiChu(string? ghiChu) =>
+        string.IsNullOrWhiteSpace(ghiChu) ? null : ghiChu.Trim();
+
+    private static bool CungTuyChon(
+        Chitietgiohang benTrai,
+        Chitietgiohang benPhai)
+    {
+        if (benTrai.MaMonAn != benPhai.MaMonAn ||
+            !string.Equals(
+                ChuanHoaGhiChu(benTrai.GhiChu),
+                ChuanHoaGhiChu(benPhai.GhiChu),
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var toppingsBenTrai = benTrai.ChitietgiohangToppings
+            .Select(tp => tp.MaTopping)
+            .OrderBy(id => id);
+        var toppingsBenPhai = benPhai.ChitietgiohangToppings
+            .Select(tp => tp.MaTopping)
+            .OrderBy(id => id);
+
+        return toppingsBenTrai.SequenceEqual(toppingsBenPhai);
+    }
+
+    private bool GopCacDongGiongNhau(Giohang gioHang)
+    {
+        var cacDong = gioHang.Chitietgiohangs
+            .OrderBy(ct => ct.MaChiTietGioHang)
+            .ToList();
+        var cacDongGiuLai = new List<Chitietgiohang>();
+        var cacDongCanXoa = new List<Chitietgiohang>();
+
+        foreach (var dong in cacDong)
+        {
+            var dongGiongNhau = cacDongGiuLai.FirstOrDefault(dongDaCo =>
+                CungTuyChon(dongDaCo, dong) &&
+                dongDaCo.SoLuong + dong.SoLuong <= 100);
+
+            if (dongGiongNhau == null)
+            {
+                cacDongGiuLai.Add(dong);
+                continue;
+            }
+
+            dongGiongNhau.SoLuong += dong.SoLuong;
+            cacDongCanXoa.Add(dong);
+        }
+
+        if (cacDongCanXoa.Count == 0)
+            return false;
+
+        foreach (var dong in cacDongCanXoa)
+        {
+            _context.ChitietgiohangToppings
+                .RemoveRange(dong.ChitietgiohangToppings);
+            _context.Chitietgiohangs.Remove(dong);
+            gioHang.Chitietgiohangs.Remove(dong);
+        }
+
+        return true;
     }
 
     private static object TaoDuLieuGioHang(Giohang gioHang)
@@ -86,13 +183,19 @@ public class GioHangController : ControllerBase
             return Unauthorized(new { message = "Không tìm thấy thông tin khách hàng." });
 
         var gioHang = await TruyVanGioHangDayDu()
-            .AsNoTracking()
             .FirstOrDefaultAsync(g =>
                 g.MaKhachHang == maKhachHang.Value &&
                 g.MaNhaHang == maNhaHang);
 
-        if (gioHang != null)
+        var daHetHan = await XoaNoiDungNeuHetHan(gioHang);
+
+        if (gioHang != null && !daHetHan)
+        {
+            if (GopCacDongGiongNhau(gioHang))
+                await _context.SaveChangesAsync();
+
             return Ok(TaoDuLieuGioHang(gioHang));
+        }
 
         var nhaHang = await _context.Nhahangs
             .AsNoTracking()
@@ -112,7 +215,8 @@ public class GioHangController : ControllerBase
             NgayCapNhat = (DateTime?)null,
             SoLuongMon = 0,
             TongTienTamTinh = 0m,
-            ChiTiet = Array.Empty<object>()
+            ChiTiet = Array.Empty<object>(),
+            DaHetHan = daHetHan
         });
     }
 
@@ -126,7 +230,6 @@ public class GioHangController : ControllerBase
             return Unauthorized(new { message = "Không tìm thấy thông tin khách hàng." });
 
         var gioHang = await TruyVanGioHangDayDu()
-            .AsNoTracking()
             .Where(g =>
                 g.MaKhachHang == maKhachHang.Value &&
                 g.Chitietgiohangs.Any())
@@ -136,6 +239,12 @@ public class GioHangController : ControllerBase
 
         if (gioHang == null)
             return NoContent();
+
+        if (await XoaNoiDungNeuHetHan(gioHang))
+            return NoContent();
+
+        if (GopCacDongGiongNhau(gioHang))
+            await _context.SaveChangesAsync();
 
         return Ok(TaoDuLieuGioHang(gioHang));
     }
@@ -148,13 +257,23 @@ public class GioHangController : ControllerBase
         if (maKhachHang == null) return Unauthorized();
 
         var gioHang = await TruyVanGioHangDayDu()
-            .AsNoTracking()
             .FirstOrDefaultAsync(g =>
                 g.MaGioHang == maGioHang &&
                 g.MaKhachHang == maKhachHang.Value);
 
         if (gioHang == null)
             return NotFound(new { message = "Không tìm thấy giỏ hàng." });
+
+        if (await XoaNoiDungNeuHetHan(gioHang))
+        {
+            return StatusCode(410, new
+            {
+                message = "Giỏ hàng đã hết hạn sau 5 phút không hoạt động."
+            });
+        }
+
+        if (GopCacDongGiongNhau(gioHang))
+            await _context.SaveChangesAsync();
 
         return Ok(TaoDuLieuGioHang(gioHang));
     }
@@ -203,9 +322,15 @@ public class GioHangController : ControllerBase
                 return BadRequest(new { message = $"Nhóm {nhom.TenNhom} chỉ được chọn tối đa {nhom.ChonToiDa} topping." });
         }
 
-        var gioHang = await _context.Giohangs.FirstOrDefaultAsync(g =>
-            g.MaKhachHang == maKhachHang.Value &&
-            g.MaNhaHang == monAn.MaNhaHang);
+        var gioHang = await _context.Giohangs
+            .Include(g => g.Chitietgiohangs)
+                .ThenInclude(ct => ct.ChitietgiohangToppings)
+            .FirstOrDefaultAsync(g =>
+                g.MaKhachHang == maKhachHang.Value &&
+                g.MaNhaHang == monAn.MaNhaHang);
+
+        if (gioHang != null)
+            await XoaNoiDungNeuHetHan(gioHang);
 
         if (gioHang == null)
         {
@@ -218,12 +343,49 @@ public class GioHangController : ControllerBase
             _context.Giohangs.Add(gioHang);
         }
 
+        GopCacDongGiongNhau(gioHang);
+
+        var ghiChuChuanHoa = ChuanHoaGhiChu(request.GhiChu);
+        var cacDongGiongNhau = gioHang.Chitietgiohangs
+            .Where(ct =>
+                ct.MaMonAn == monAn.MaMonAn &&
+                string.Equals(
+                    ChuanHoaGhiChu(ct.GhiChu),
+                    ghiChuChuanHoa,
+                    StringComparison.Ordinal) &&
+                toppingDaChon.SetEquals(
+                    ct.ChitietgiohangToppings.Select(tp => tp.MaTopping)))
+            .ToList();
+
+        if (cacDongGiongNhau.Count > 0)
+        {
+            var tongSoLuongHienTai = cacDongGiongNhau.Sum(ct => ct.SoLuong);
+            if (tongSoLuongHienTai + request.SoLuong > 100)
+            {
+                return BadRequest(new
+                {
+                    message = "Số lượng tối đa cho cùng một món và tùy chọn là 100."
+                });
+            }
+
+            cacDongGiongNhau[0].SoLuong = tongSoLuongHienTai + request.SoLuong;
+            gioHang.NgayCapNhat = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Đã gộp món giống nhau và cập nhật số lượng.",
+                gioHang.MaGioHang,
+                gioHang.MaNhaHang
+            });
+        }
+
         var chiTiet = new Chitietgiohang
         {
             MaGioHangNavigation = gioHang,
             MaMonAn = monAn.MaMonAn,
             SoLuong = request.SoLuong,
-            GhiChu = string.IsNullOrWhiteSpace(request.GhiChu) ? null : request.GhiChu.Trim()
+            GhiChu = ghiChuChuanHoa
         };
 
         foreach (var maTopping in toppingDaChon)
@@ -264,6 +426,14 @@ public class GioHangController : ControllerBase
         if (chiTiet == null)
             return NotFound(new { message = "Không tìm thấy món trong giỏ." });
 
+        if (await XoaNoiDungNeuHetHan(chiTiet.MaGioHangNavigation))
+        {
+            return StatusCode(410, new
+            {
+                message = "Giỏ hàng đã hết hạn sau 5 phút không hoạt động."
+            });
+        }
+
         chiTiet.SoLuong = request.SoLuong;
         chiTiet.MaGioHangNavigation.NgayCapNhat = DateTime.Now;
         await _context.SaveChangesAsync();
@@ -291,6 +461,14 @@ public class GioHangController : ControllerBase
 
         if (chiTiet == null)
             return NotFound(new { message = "Không tìm thấy món trong giỏ." });
+
+        if (await XoaNoiDungNeuHetHan(chiTiet.MaGioHangNavigation))
+        {
+            return StatusCode(410, new
+            {
+                message = "Giỏ hàng đã hết hạn sau 5 phút không hoạt động."
+            });
+        }
 
         if (chiTiet.MaMonAnNavigation.TrangThai != true)
             return BadRequest(new { message = "Món ăn này đã ngừng bán." });
@@ -322,6 +500,8 @@ public class GioHangController : ControllerBase
             .Where(tp => !toppingDaChon.Contains(tp.MaTopping))
             .ToList();
         _context.ChitietgiohangToppings.RemoveRange(toppingCanXoa);
+        foreach (var topping in toppingCanXoa)
+            chiTiet.ChitietgiohangToppings.Remove(topping);
 
         foreach (var maTopping in toppingDaChon)
         {
@@ -345,10 +525,16 @@ public class GioHangController : ControllerBase
             }
         }
 
-        chiTiet.GhiChu = string.IsNullOrWhiteSpace(request.GhiChu)
-            ? null
-            : request.GhiChu.Trim();
+        chiTiet.GhiChu = ChuanHoaGhiChu(request.GhiChu);
         chiTiet.MaGioHangNavigation.NgayCapNhat = DateTime.Now;
+
+        await _context.Entry(chiTiet.MaGioHangNavigation)
+            .Collection(g => g.Chitietgiohangs)
+            .Query()
+            .Include(ct => ct.ChitietgiohangToppings)
+            .LoadAsync();
+
+        GopCacDongGiongNhau(chiTiet.MaGioHangNavigation);
 
         await _context.SaveChangesAsync();
 
@@ -370,6 +556,14 @@ public class GioHangController : ControllerBase
 
         if (chiTiet == null)
             return NotFound(new { message = "Không tìm thấy món trong giỏ." });
+
+        if (await XoaNoiDungNeuHetHan(chiTiet.MaGioHangNavigation))
+        {
+            return StatusCode(410, new
+            {
+                message = "Giỏ hàng đã hết hạn sau 5 phút không hoạt động."
+            });
+        }
 
         chiTiet.MaGioHangNavigation.NgayCapNhat = DateTime.Now;
         _context.ChitietgiohangToppings.RemoveRange(chiTiet.ChitietgiohangToppings);
@@ -395,6 +589,14 @@ public class GioHangController : ControllerBase
 
         if (gioHang == null)
             return NotFound(new { message = "Không tìm thấy giỏ hàng." });
+
+        if (await XoaNoiDungNeuHetHan(gioHang))
+        {
+            return Ok(new
+            {
+                message = "Giỏ hàng đã hết hạn và được làm trống."
+            });
+        }
 
         foreach (var chiTiet in gioHang.Chitietgiohangs)
             _context.ChitietgiohangToppings.RemoveRange(chiTiet.ChitietgiohangToppings);

@@ -6,6 +6,7 @@ export interface Notification {
     tieuDe: string;
     noiDung: string;
     loai: string | null;
+    duongDan: string | null;
     daDoc: boolean;
     ngayTao: string;
 }

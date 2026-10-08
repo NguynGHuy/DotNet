@@ -1,544 +1,452 @@
-import {
-    useEffect,
-    useRef,
-    useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import {
-    Link,
-    NavLink,
-    useNavigate,
-} from "react-router-dom";
-
-import {
-    Bell,
-    ChevronDown,
-    LayoutDashboard,
-    LogOut,
-    MapPin,
-    ReceiptText,
-    Store,
-    Tag,
-    UserRound,
-    UsersRound,
-    Utensils,
+  Bell,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  ReceiptText,
+  Store,
+  Tag,
+  UserRound,
+  UsersRound,
+  Utensils,
 } from "lucide-react";
 
 import { getCurrentUser } from "../services/userService";
-
+import { getNotifications } from "../services/notificationService";
 interface User {
-    email: string;
-    role: string;
-    maTaiKhoan: number;
-    trangThai: boolean;
+  email: string;
+  role: string;
+  maTaiKhoan: number;
+  trangThai: boolean;
+  anhDaiDien?: string | null;
 
-    khachHang?: {
-        hoTen: string;
-    };
+  khachHang?: {
+    hoTen: string;
+  };
 
-    nhaHang?: {
-        maNhaHang: number;
-        tenNhaHang: string;
-    };
+  nhaHang?: {
+    maNhaHang: number;
+    tenNhaHang: string;
+  };
+}
+
+const AVATAR_REMOVED = "__avatar_removed__";
+
+function getUserAvatar(user: User) {
+  if (user.role !== "KhachHang") return user.anhDaiDien || null;
+
+  const savedAvatar = localStorage.getItem(`customer-avatar:${user.maTaiKhoan}`);
+
+  if (savedAvatar === AVATAR_REMOVED) return null;
+  return savedAvatar || user.anhDaiDien || null;
 }
 
 function Header() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const menuRef =
-        useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-    const [user, setUser] =
-        useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    const [showMenu, setShowMenu] =
-        useState(false);
-
-    /* =====================================================
+  const [showMenu, setShowMenu] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  /* =====================================================
        LẤY NGƯỜI DÙNG
     ===================================================== */
 
-    useEffect(() => {
-        const token =
-            localStorage.getItem("token");
+  useEffect(() => {
+    const token = localStorage.getItem("token");
 
-        if (token) {
-            getCurrentUser()
-                .then((data) => {
-                    setUser(data);
-                })
-                .catch(() => {
-                    localStorage.removeItem(
-                        "token"
-                    );
+    if (token) {
+      getCurrentUser()
+        .then((data) => {
+          setUser(data);
+          setAvatarUrl(getUserAvatar(data));
+        })
+        .catch(() => {
+          localStorage.removeItem("token");
 
-                    setUser(null);
-                });
+          setUser(null);
+          setAvatarUrl(null);
+        });
+    }
+
+    const handleLoginSuccess = (event: Event) => {
+      const customEvent = event as CustomEvent<User>;
+
+      setUser(customEvent.detail);
+      setAvatarUrl(getUserAvatar(customEvent.detail));
+    };
+
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ hoTen: string }>;
+
+      setUser((current) =>
+        current?.role === "KhachHang"
+          ? {
+              ...current,
+              khachHang: {
+                ...current.khachHang,
+                hoTen: customEvent.detail.hoTen,
+              },
+            }
+          : current,
+      );
+    };
+
+    const handleAvatarUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ avatarUrl: string | null }>;
+      setAvatarUrl(customEvent.detail.avatarUrl);
+    };
+
+    window.addEventListener("login-success", handleLoginSuccess);
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("avatar-updated", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("login-success", handleLoginSuccess);
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("avatar-updated", handleAvatarUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadUnreadCount = async () => {
+      try {
+        const data = await getNotifications();
+
+        if (!cancelled) {
+          setUnreadCount(
+            Array.isArray(data) ? data.filter((item) => !item.daDoc).length : 0,
+          );
         }
+      } catch {
+        if (!cancelled) {
+          setUnreadCount(0);
+        }
+      }
+    };
 
-        const handleLoginSuccess = (
-            event: Event
-        ) => {
-            const customEvent =
-                event as CustomEvent<User>;
+    const handleNotificationUpdate = () => {
+      void loadUnreadCount();
+    };
 
-            setUser(customEvent.detail);
-        };
+    void loadUnreadCount();
 
-        window.addEventListener(
-            "login-success",
-            handleLoginSuccess
-        );
+    window.addEventListener("notification-received", handleNotificationUpdate);
 
-        return () => {
-            window.removeEventListener(
-                "login-success",
-                handleLoginSuccess
-            );
-        };
-    }, []);
+    window.addEventListener("notifications-updated", handleNotificationUpdate);
 
-    /* =====================================================
+    return () => {
+      cancelled = true;
+
+      window.removeEventListener(
+        "notification-received",
+        handleNotificationUpdate,
+      );
+
+      window.removeEventListener(
+        "notifications-updated",
+        handleNotificationUpdate,
+      );
+    };
+  }, [user]);
+  /* =====================================================
        ĐÓNG MENU KHI CLICK RA NGOÀI HOẶC BẤM ESC
     ===================================================== */
 
-    useEffect(() => {
-        if (!showMenu) return;
+  useEffect(() => {
+    if (!showMenu) return;
 
-        const handleOutsideClick = (
-            event: MouseEvent
-        ) => {
-            if (
-                menuRef.current &&
-                !menuRef.current.contains(
-                    event.target as Node
-                )
-            ) {
-                setShowMenu(false);
-            }
-        };
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
 
-        const handleEscape = (
-            event: KeyboardEvent
-        ) => {
-            if (event.key === "Escape") {
-                setShowMenu(false);
-            }
-        };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowMenu(false);
+      }
+    };
 
-        document.addEventListener(
-            "mousedown",
-            handleOutsideClick
-        );
+    document.addEventListener("mousedown", handleOutsideClick);
 
-        document.addEventListener(
-            "keydown",
-            handleEscape
-        );
+    document.addEventListener("keydown", handleEscape);
 
-        return () => {
-            document.removeEventListener(
-                "mousedown",
-                handleOutsideClick
-            );
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
 
-            document.removeEventListener(
-                "keydown",
-                handleEscape
-            );
-        };
-    }, [showMenu]);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showMenu]);
 
-    /* =====================================================
+  /* =====================================================
        ĐĂNG XUẤT
     ===================================================== */
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
+  const handleLogout = () => {
+    localStorage.removeItem("token");
 
-        setUser(null);
-        setShowMenu(false);
+    setUser(null);
+    setAvatarUrl(null);
+    setUnreadCount(0);
+    setShowMenu(false);
+    window.dispatchEvent(new Event("logout-success"));
+    navigate("/");
+  };
 
-        navigate("/");
-    };
+  const userName =
+    user?.role === "Quan"
+      ? user.nhaHang?.tenNhaHang || user.email || "Nhà hàng"
+      : user?.khachHang?.hoTen || user?.email || "Tài khoản";
 
-    const userName =
-        user?.role === "Quan"
-            ? user.nhaHang?.tenNhaHang ||
-              user.email ||
-              "Nhà hàng"
-            : user?.khachHang?.hoTen ||
-              user?.email ||
-              "Tài khoản";
+  const avatarLetter = userName.charAt(0).toUpperCase();
 
-    const avatarLetter =
-        userName.charAt(0).toUpperCase();
+  const closeMenu = () => {
+    setShowMenu(false);
+  };
 
-    const closeMenu = () => {
-        setShowMenu(false);
-    };
+  return (
+    <header className="header">
+      <div className="header-container">
+        {/* LOGO */}
 
-    return (
-        <header className="header">
-            <div className="header-container">
-                {/* LOGO */}
+        <Link to="/" className="logo" aria-label="Về trang chủ">
+          <span className="logo-icon">
+            <Utensils size={20} strokeWidth={2.2} />
+          </span>
 
-                <Link
-                    to="/"
-                    className="logo"
-                    aria-label="Về trang chủ"
-                >
-                    <span className="logo-icon">
-                        <Utensils
-                            size={20}
-                            strokeWidth={2.2}
-                        />
-                    </span>
+          <span className="logo-text">Đặt Món Ăn</span>
+        </Link>
 
-                    <span className="logo-text">
-                        Đặt Món Ăn
-                    </span>
-                </Link>
+        {/* NAVIGATION */}
 
-                {/* NAVIGATION */}
+        <nav className="main-nav" aria-label="Điều hướng chính">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          >
+            Trang chủ
+          </NavLink>
 
-                <nav
-                    className="main-nav"
-                    aria-label="Điều hướng chính"
-                >
-                    <NavLink
-                        to="/"
-                        end
-                        className={({
-                            isActive,
-                        }) =>
-                            `nav-link ${
-                                isActive
-                                    ? "active"
-                                    : ""
-                            }`
-                        }
-                    >
-                        Trang chủ
-                    </NavLink>
+          <NavLink
+            to="/nha-hang"
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          >
+            Nhà hàng
+          </NavLink>
+        </nav>
 
-                    <NavLink
-                        to="/nha-hang"
-                        className={({
-                            isActive,
-                        }) =>
-                            `nav-link ${
-                                isActive
-                                    ? "active"
-                                    : ""
-                            }`
-                        }
-                    >
-                        Nhà hàng
-                    </NavLink>
-                </nav>
+        {/* RIGHT */}
 
-                {/* RIGHT */}
+        <div className="header-right">
+          {user ? (
+            <div className="user-menu-wrapper" ref={menuRef}>
+              <button
+                type="button"
+                className={`user-menu-button ${showMenu ? "open" : ""}`}
+                onClick={() => setShowMenu((current) => !current)}
+                aria-expanded={showMenu}
+                aria-haspopup="menu"
+              >
+                <span className="user-avatar">
+                  {avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}
+                </span>
 
-                <div className="header-right">
-                    {user ? (
-                        <div
-                            className="user-menu-wrapper"
-                            ref={menuRef}
-                        >
-                            <button
-                                type="button"
-                                className={`user-menu-button ${
-                                    showMenu
-                                        ? "open"
-                                        : ""
-                                }`}
-                                onClick={() =>
-                                    setShowMenu(
-                                        (current) =>
-                                            !current
-                                    )
-                                }
-                                aria-expanded={
-                                    showMenu
-                                }
-                                aria-haspopup="menu"
-                            >
-                                <span className="user-avatar">
-                                    {avatarLetter}
-                                </span>
+                <span className="user-name">{userName}</span>
 
-                                <span className="user-name">
-                                    {userName}
-                                </span>
+                <ChevronDown
+                  size={16}
+                  strokeWidth={2}
+                  className={`user-chevron ${showMenu ? "open" : ""}`}
+                />
+              </button>
 
-                                <ChevronDown
-                                    size={16}
-                                    strokeWidth={2}
-                                    className={`user-chevron ${
-                                        showMenu
-                                            ? "open"
-                                            : ""
-                                    }`}
-                                />
-                            </button>
+              {showMenu && (
+                <div className="user-dropdown" role="menu">
+                  <div className="dropdown-user-info">
+                    <div className="dropdown-avatar">
+                      {avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}
+                    </div>
 
-                            {showMenu && (
-                                <div
-                                    className="user-dropdown"
-                                    role="menu"
-                                >
-                                    <div className="dropdown-user-info">
-                                        <div className="dropdown-avatar">
-                                            {
-                                                avatarLetter
-                                            }
-                                        </div>
+                    <div>
+                      <strong>{userName}</strong>
 
-                                        <div>
-                                            <strong>
-                                                {userName}
-                                            </strong>
+                      <span>{user.email}</span>
+                    </div>
+                  </div>
 
-                                            <span>
-                                                {user.email}
-                                            </span>
-                                        </div>
-                                    </div>
+                  <div className="dropdown-divider" />
 
-                                    <div className="dropdown-divider" />
+                  {/* KHÁCH HÀNG */}
 
-                                    {/* KHÁCH HÀNG */}
+                  {user.role === "KhachHang" && (
+                    <>
+                      <Link
+                        to="/ho-so"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <UserRound size={18} />
 
-                                    {user.role ===
-                                        "KhachHang" && (
-                                        <>
-                                            <Link
-                                                to="/ho-so"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <UserRound
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                        <span>Hồ sơ</span>
+                      </Link>
 
-                                                <span>
-                                                    Hồ sơ
-                                                </span>
-                                            </Link>
+                      <Link
+                        to="/dia-chi"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <MapPin size={18} />
 
-                                            <Link
-                                                to="/dia-chi"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <MapPin
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                        <span>Địa chỉ giao hàng</span>
+                      </Link>
 
-                                                <span>
-                                                    Địa chỉ
-                                                    giao
-                                                    hàng
-                                                </span>
-                                            </Link>
+                      <Link
+                        to="/don-hang"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <ReceiptText size={18} />
 
-                                            <Link
-                                                to="/don-hang"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <ReceiptText
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                        <span>Đơn hàng của tôi</span>
+                      </Link>
 
-                                                <span>
-                                                    Đơn hàng
-                                                    của tôi
-                                                </span>
-                                            </Link>
+                      <Link
+                        to="/thong-bao"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <Bell size={18} />
 
-                                            <Link
-                                                to="/thong-bao"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <Bell
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                        <span>Thông báo</span>
 
-                                                <span>
-                                                    Thông báo
-                                                </span>
-                                            </Link>
-                                        </>
-                                    )}
+                        {unreadCount > 0 && (
+                          <span
+                            className="header-notification-count"
+                            aria-label={`${unreadCount} thông báo chưa đọc`}
+                          >
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </>
+                  )}
 
-                                    {/* QUÁN */}
+                  {/* QUÁN */}
 
-                                    {user.role ===
-                                        "Quan" && (
-                                        <>
-                                            <Link
-                                                to="/quan"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <Store
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                  {user.role === "Quan" && (
+                    <>
+                      <Link
+                        to="/quan"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <Store size={18} />
 
-                                                <span>
-                                                    Quản lý
-                                                    nhà hàng
-                                                </span>
-                                            </Link>
+                        <span>Quản lý nhà hàng</span>
+                      </Link>
 
-                                            <Link
-                                                to="/quan/khuyen-mai"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <Tag
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                      <Link
+                        to="/quan/khuyen-mai"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <Tag size={18} />
 
-                                                <span>
-                                                    Khuyến mãi
-                                                    của quán
-                                                </span>
-                                            </Link>
+                        <span>Khuyến mãi của quán</span>
+                      </Link>
 
-                                            <Link
-                                                to="/quan/thong-bao"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <Bell
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                      <Link
+                        to="/quan/thong-bao"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <Bell size={18} />
 
-                                                <span>
-                                                    Thông báo
-                                                </span>
-                                            </Link>
-                                        </>
-                                    )}
+                        <span>Thông báo</span>
 
-                                    {/* ADMIN */}
+                        {unreadCount > 0 && (
+                          <span
+                            className="header-notification-count"
+                            aria-label={`${unreadCount} thông báo chưa đọc`}
+                          >
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </>
+                  )}
 
-                                    {user.role ===
-                                        "Admin" && (
-                                        <>
-                                            <Link
-                                                to="/admin/tai-khoan"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <UsersRound
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                  {/* ADMIN */}
 
-                                                <span>
-                                                    Quản lý
-                                                    tài khoản
-                                                </span>
-                                            </Link>
+                  {user.role === "Admin" && (
+                    <>
+                      <Link
+                        to="/admin/tai-khoan"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <UsersRound size={18} />
 
-                                            <Link
-                                                to="/admin"
-                                                className="dropdown-item"
-                                                onClick={
-                                                    closeMenu
-                                                }
-                                            >
-                                                <LayoutDashboard
-                                                    size={
-                                                        18
-                                                    }
-                                                />
+                        <span>Quản lý tài khoản</span>
+                      </Link>
 
-                                                <span>
-                                                    Trang quản
-                                                    trị
-                                                </span>
-                                            </Link>
-                                        </>
-                                    )}
+                      <Link
+                        to="/admin"
+                        className="dropdown-item"
+                        onClick={closeMenu}
+                      >
+                        <LayoutDashboard size={18} />
 
-                                    <div className="dropdown-divider" />
+                        <span>Trang quản trị</span>
+                      </Link>
+                    </>
+                  )}
 
-                                    <button
-                                        type="button"
-                                        className="dropdown-item logout-item"
-                                        onClick={
-                                            handleLogout
-                                        }
-                                    >
-                                        <LogOut
-                                            size={18}
-                                        />
+                  <div className="dropdown-divider" />
 
-                                        <span>
-                                            Đăng xuất
-                                        </span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="auth-area">
-                            <Link
-                                to="/dang-nhap"
-                                className="login-link"
-                            >
-                                Đăng nhập
-                            </Link>
+                  <button
+                    type="button"
+                    className="dropdown-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={18} />
 
-                            <Link
-                                to="/dang-ky"
-                                className="register-button"
-                            >
-                                Đăng ký
-                            </Link>
-                        </div>
-                    )}
+                    <span>Đăng xuất</span>
+                  </button>
                 </div>
+              )}
             </div>
-        </header>
-    );
+          ) : (
+            <div className="auth-area">
+              <Link to="/dang-nhap" className="login-link">
+                Đăng nhập
+              </Link>
+
+              <Link to="/dang-ky" className="register-button">
+                Đăng ký
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
 }
 
 export default Header;

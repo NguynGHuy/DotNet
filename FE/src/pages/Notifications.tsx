@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
     Bell,
     BellRing,
@@ -42,6 +43,10 @@ function formatNotificationDate(value: string) {
 }
 
 function Notifications() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const isCustomerNotificationPage = location.pathname === "/thong-bao";
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [filter, setFilter] = useState<NotificationFilter>("all");
     const [loading, setLoading] = useState(true);
@@ -52,14 +57,17 @@ function Notifications() {
     useEffect(() => {
         let cancelled = false;
 
-        getNotifications()
-            .then((data) => {
+        const loadNotifications = async () => {
+            try {
+                const data = await getNotifications();
+
                 if (!cancelled) {
-                    setNotifications(Array.isArray(data) ? data : []);
+                    setNotifications(
+                        Array.isArray(data) ? data : []
+                    );
                     setError("");
                 }
-            })
-            .catch((err: unknown) => {
+            } catch (err) {
                 if (!cancelled) {
                     setError(
                         err instanceof Error
@@ -67,13 +75,61 @@ function Notifications() {
                             : "Không thể tải thông báo."
                     );
                 }
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        const handleRealtimeNotification = (event: Event) => {
+            const realtimeEvent =
+                event as CustomEvent<Notification>;
+
+            const newNotification = realtimeEvent.detail;
+
+            if (
+                !newNotification ||
+                typeof newNotification.maThongBao !== "number"
+            ) {
+                void loadNotifications();
+                return;
+            }
+
+            setNotifications((current) => [
+                {
+                    ...newNotification,
+                    daDoc: newNotification.daDoc ?? false,
+                    duongDan: newNotification.duongDan ?? null,
+                },
+                ...current.filter(
+                    (item) =>
+                        item.maThongBao !==
+                        newNotification.maThongBao
+                ),
+            ]);
+
+            setError("");
+
+            window.dispatchEvent(
+                new Event("notifications-updated")
+            );
+        };
+
+        void loadNotifications();
+
+        window.addEventListener(
+            "notification-received",
+            handleRealtimeNotification
+        );
 
         return () => {
             cancelled = true;
+
+            window.removeEventListener(
+                "notification-received",
+                handleRealtimeNotification
+            );
         };
     }, []);
 
@@ -95,15 +151,41 @@ function Notifications() {
             window.dispatchEvent(
                 new Event("notifications-updated")
             );
+
+            return true;
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
                     : "Không thể cập nhật thông báo."
             );
+
+            return false;
         } finally {
             setMarkingId(null);
         }
+    };
+
+    const handleOpenNotification = async (
+        item: Notification
+    ) => {
+        if (
+            !item.duongDan ||
+            markingAll ||
+            markingId !== null
+        ) {
+            return;
+        }
+
+        if (!item.daDoc) {
+            const marked = await markAsRead(
+                item.maThongBao
+            );
+
+            if (!marked) return;
+        }
+
+        navigate(item.duongDan);
     };
 
     const markAllAsRead = async () => {
@@ -141,8 +223,14 @@ function Notifications() {
     const filteredNotifications = useMemo(() => {
         return [...notifications]
             .filter((item) => {
-                if (filter === "unread") return !item.daDoc;
-                if (filter === "read") return item.daDoc;
+                if (filter === "unread") {
+                    return !item.daDoc;
+                }
+
+                if (filter === "read") {
+                    return item.daDoc;
+                }
+
                 return true;
             })
             .sort(
@@ -152,8 +240,13 @@ function Notifications() {
             );
     }, [notifications, filter]);
 
-    const countFilter = (value: NotificationFilter) => {
-        if (value === "unread") return unreadCount;
+    const countFilter = (
+        value: NotificationFilter
+    ) => {
+        if (value === "unread") {
+            return unreadCount;
+        }
+
         if (value === "read") {
             return notifications.length - unreadCount;
         }
@@ -162,13 +255,21 @@ function Notifications() {
     };
 
     return (
-        <div className="merchant-notifications-page">
+        <div
+            className={`merchant-notifications-page ${
+                isCustomerNotificationPage
+                    ? "customer-notifications-page"
+                    : ""
+            }`}
+        >
             <header className="merchant-notifications-header">
                 <div>
                     <span className="merchant-notifications-eyebrow">
                         TRUNG TÂM THÔNG BÁO
                     </span>
+
                     <h1>Thông báo</h1>
+
                     <p>
                         {unreadCount > 0
                             ? `Bạn có ${unreadCount} thông báo chưa đọc.`
@@ -180,10 +281,16 @@ function Notifications() {
                     <button
                         type="button"
                         className="merchant-notifications-read-all"
-                        onClick={() => void markAllAsRead()}
-                        disabled={markingAll || markingId !== null}
+                        onClick={() =>
+                            void markAllAsRead()
+                        }
+                        disabled={
+                            markingAll ||
+                            markingId !== null
+                        }
                     >
                         <CheckCheck size={16} />
+
                         {markingAll
                             ? "Đang cập nhật..."
                             : "Đọc tất cả"}
@@ -208,11 +315,19 @@ function Notifications() {
                     <button
                         key={value}
                         type="button"
-                        className={filter === value ? "active" : ""}
-                        onClick={() => setFilter(value)}
+                        className={
+                            filter === value
+                                ? "active"
+                                : ""
+                        }
+                        onClick={() =>
+                            setFilter(value)
+                        }
                     >
                         {label}
-                        <span>{countFilter(value)}</span>
+                        <span>
+                            {countFilter(value)}
+                        </span>
                     </button>
                 ))}
             </nav>
@@ -226,6 +341,7 @@ function Notifications() {
                     <span>
                         <Inbox size={28} />
                     </span>
+
                     <h3>
                         {notifications.length === 0
                             ? "Chưa có thông báo"
@@ -233,6 +349,7 @@ function Notifications() {
                               ? "Không còn thông báo chưa đọc"
                               : "Không có thông báo đã đọc"}
                     </h3>
+
                     <p>
                         {notifications.length === 0
                             ? "Các cập nhật mới về đơn hàng và nhà hàng sẽ xuất hiện tại đây."
@@ -244,6 +361,7 @@ function Notifications() {
                     <div className="merchant-notifications-panel-title">
                         <div>
                             <Bell size={18} />
+
                             <h2>
                                 {filter === "all"
                                     ? "Tất cả thông báo"
@@ -259,68 +377,137 @@ function Notifications() {
                     </div>
 
                     <div className="merchant-notifications-list">
-                        {filteredNotifications.map((item) => (
-                            <article
-                                key={item.maThongBao}
-                                className={`merchant-notification-row ${
-                                    item.daDoc ? "read" : "unread"
-                                }`}
-                            >
-                                <div className="merchant-notification-icon">
-                                    {item.daDoc ? (
-                                        <Bell size={18} />
-                                    ) : (
-                                        <BellRing size={18} />
-                                    )}
-                                </div>
+                        {filteredNotifications.map(
+                            (item) => {
+                                const hasDestination =
+                                    Boolean(item.duongDan);
 
-                                <div className="merchant-notification-content">
-                                    <div>
-                                        <h3>{item.tieuDe}</h3>
+                                return (
+                                    <article
+                                        key={item.maThongBao}
+                                        className={`merchant-notification-row ${
+                                            item.daDoc
+                                                ? "read"
+                                                : "unread"
+                                        }${
+                                            hasDestination
+                                                ? " clickable"
+                                                : ""
+                                        }`}
+                                        role={
+                                            hasDestination
+                                                ? "link"
+                                                : undefined
+                                        }
+                                        tabIndex={
+                                            hasDestination
+                                                ? 0
+                                                : undefined
+                                        }
+                                        onClick={
+                                            hasDestination
+                                                ? () =>
+                                                      void handleOpenNotification(
+                                                          item
+                                                      )
+                                                : undefined
+                                        }
+                                        onKeyDown={(event) => {
+                                            if (
+                                                !hasDestination ||
+                                                event.target !==
+                                                    event.currentTarget
+                                            ) {
+                                                return;
+                                            }
 
-                                        {!item.daDoc && (
-                                            <span>Chưa đọc</span>
-                                        )}
-                                    </div>
+                                            if (
+                                                event.key ===
+                                                    "Enter" ||
+                                                event.key === " "
+                                            ) {
+                                                event.preventDefault();
 
-                                    <p>{item.noiDung}</p>
+                                                void handleOpenNotification(
+                                                    item
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <div className="merchant-notification-icon">
+                                            {item.daDoc ? (
+                                                <Bell size={18} />
+                                            ) : (
+                                                <BellRing size={18} />
+                                            )}
+                                        </div>
 
-                                    <time>
-                                        <Clock3 size={13} />
-                                        {formatNotificationDate(
-                                            item.ngayTao
-                                        )}
-                                    </time>
-                                </div>
+                                        <div className="merchant-notification-content">
+                                            <div>
+                                                <h3>
+                                                    {item.tieuDe}
+                                                </h3>
 
-                                <div className="merchant-notification-action">
-                                    {item.daDoc ? (
-                                        <span title="Đã đọc">
-                                            <Check size={16} />
-                                        </span>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void markAsRead(
+                                                {!item.daDoc && (
+                                                    <span>
+                                                        Chưa đọc
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <p>
+                                                {item.noiDung}
+                                            </p>
+
+                                            <time>
+                                                <Clock3 size={13} />
+
+                                                {formatNotificationDate(
+                                                    item.ngayTao
+                                                )}
+                                            </time>
+                                        </div>
+
+                                        <div className="merchant-notification-action">
+                                            {item.daDoc ? (
+                                                <span title="Đã đọc">
+                                                    <Check
+                                                        size={16}
+                                                    />
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={(
+                                                        event
+                                                    ) => {
+                                                        event.stopPropagation();
+
+                                                        void markAsRead(
+                                                            item.maThongBao
+                                                        );
+                                                    }}
+                                                    disabled={
+                                                        markingId !==
+                                                            null ||
+                                                        markingAll
+                                                    }
+                                                >
+                                                    <Check
+                                                        size={14}
+                                                    />
+
+                                                    {markingId ===
                                                     item.maThongBao
-                                                )
-                                            }
-                                            disabled={
-                                                markingId !== null ||
-                                                markingAll
-                                            }
-                                        >
-                                            <Check size={14} />
-                                            {markingId ===
-                                            item.maThongBao
-                                                ? "Đang cập nhật..."
-                                                : "Đánh dấu đã đọc"}
-                                        </button>
-                                    )}
-                                </div>
-                            </article>
-                        ))}
+                                                        ? "Đang cập nhật..."
+                                                        : "Đánh dấu đã đọc"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </article>
+                                );
+                            }
+                        )}
                     </div>
                 </section>
             )}

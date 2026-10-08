@@ -5,16 +5,21 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
-
+using DatMonAnOnline.API.Hubs;
+using DatMonAnOnline.API.Services;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174")
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5174"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -66,6 +71,24 @@ builder.Services.AddAuthentication(options =>
     // Hiển thị lỗi JWT trong Terminal khi authentication thất bại
     options.Events = new JwtBearerEvents
     {
+         OnMessageReceived = context =>
+    {
+        var accessToken =
+            context.Request.Query["access_token"];
+
+        var path =
+            context.HttpContext.Request.Path;
+
+        if (
+            !string.IsNullOrEmpty(accessToken) &&
+            path.StartsWithSegments("/hubs/thong-bao")
+        )
+        {
+            context.Token = accessToken;
+        }
+
+        return Task.CompletedTask;
+    },
         OnTokenValidated = async context =>
         {
             var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -113,7 +136,12 @@ builder.Services.AddAuthentication(options =>
 // =========================
 
 builder.Services.AddAuthorization();
-
+builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<
+    IRealtimeNotificationService,
+    RealtimeNotificationService
+>();
 // =========================
 // CONTROLLERS + JSON
 // =========================
@@ -163,6 +191,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<NotificationHub>(
+    "/hubs/thong-bao"
+);
 
 app.Run();
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+    CART_TTL_MS,
     getLatestCart,
     type RestaurantCart,
 } from "../services/cartService";
@@ -10,11 +11,6 @@ function LatestCartBar() {
     const [cart, setCart] = useState<RestaurantCart | null>(null);
 
     const loadLatestCart = useCallback(async () => {
-        if (!localStorage.getItem("token")) {
-            setCart(null);
-            return;
-        }
-
         try {
             const data = await getLatestCart();
             setCart(data && data.soLuongMon > 0 ? data : null);
@@ -31,7 +27,7 @@ function LatestCartBar() {
 
         const handleCartUpdated = () => void loadLatestCart();
         const handleLoginSuccess = () => void loadLatestCart();
-        const handleLogoutSuccess = () => setCart(null);
+        const handleLogoutSuccess = () => void loadLatestCart();
 
         window.addEventListener("cart-updated", handleCartUpdated);
         window.addEventListener("login-success", handleLoginSuccess);
@@ -44,6 +40,24 @@ function LatestCartBar() {
             window.removeEventListener("logout-success", handleLogoutSuccess);
         };
     }, [loadLatestCart]);
+
+    useEffect(() => {
+        if (!cart?.ngayCapNhat) return;
+
+        const updatedAt = Date.parse(cart.ngayCapNhat);
+        if (!Number.isFinite(updatedAt)) return;
+
+        const remainingTime = Math.max(
+            0,
+            updatedAt + CART_TTL_MS - Date.now(),
+        );
+        const timer = window.setTimeout(
+            () => void loadLatestCart(),
+            remainingTime + 50,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [cart?.ngayCapNhat, loadLatestCart]);
 
     if (!cart) return null;
 

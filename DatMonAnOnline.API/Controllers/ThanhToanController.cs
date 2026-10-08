@@ -1,4 +1,5 @@
 ﻿using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,26 +13,38 @@ namespace DatMonAnOnline.API.Controllers
     public class ThanhToanController : ControllerBase
     {
         private readonly DatMonAnOnlineContext _context;
+        private readonly IRealtimeNotificationService _realtime;
+        private readonly ILogger<ThanhToanController> _logger;
 
-        public ThanhToanController(DatMonAnOnlineContext context)
+        public ThanhToanController(
+            DatMonAnOnlineContext context,
+            IRealtimeNotificationService realtime,
+            ILogger<ThanhToanController> logger)
         {
             _context = context;
+            _realtime = realtime;
+            _logger = logger;
         }
 
         public class TaoThanhToanDto
         {
-            [Required] public int MaDonHang { get; set; }
-            [Required] public int MaPhuongThuc { get; set; }
+            [Required]
+            public int MaDonHang { get; set; }
+
+            [Required]
+            public int MaPhuongThuc { get; set; }
         }
 
         public class MoPhongKetQuaDto
         {
-            [Required, MaxLength(20)] public string KetQua { get; set; } = string.Empty;
+            [Required, MaxLength(20)]
+            public string KetQua { get; set; } = string.Empty;
         }
 
         public class DoiPhuongThucDto
         {
-            [Required] public int MaPhuongThuc { get; set; }
+            [Required]
+            public int MaPhuongThuc { get; set; }
         }
 
         [HttpGet("phuong-thuc")]
@@ -39,7 +52,9 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> GetPhuongThucThanhToan()
         {
             var maTaiKhoan = GetMaTaiKhoan();
-            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+
+            if (maTaiKhoan == null)
+                return Unauthorized(new { message = "Token không hợp lệ." });
 
             var result = await _context.Phuongthucthanhtoans
                 .AsNoTracking()
@@ -58,39 +73,80 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpPost]
         [Authorize(Roles = "KhachHang")]
-        public async Task<IActionResult> TaoThanhToan(TaoThanhToanDto request)
+        public async Task<IActionResult> TaoThanhToan(
+            TaoThanhToanDto request)
         {
             var khachHang = await GetCurrentKhachHang();
+
             if (khachHang == null)
-                return NotFound(new { message = "Không tìm thấy hồ sơ khách hàng." });
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy hồ sơ khách hàng."
+                });
+            }
 
             var donHang = await _context.Donhangs
-                .FirstOrDefaultAsync(x => x.MaDonHang == request.MaDonHang);
+                .FirstOrDefaultAsync(x =>
+                    x.MaDonHang == request.MaDonHang
+                );
 
             if (donHang == null)
                 return NotFound(new { message = "Không tìm thấy đơn hàng." });
 
             if (donHang.MaKhachHang != khachHang.MaKhachHang)
-                return StatusCode(403, new { message = "Bạn không có quyền thanh toán đơn hàng này." });
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền thanh toán đơn hàng này."
+                });
+            }
 
             if (donHang.MaTrangThai == 6)
-                return BadRequest(new { message = "Đơn hàng đã huỷ, không thể thanh toán." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đã huỷ, không thể thanh toán."
+                });
+            }
 
-            var daThanhCong = await _context.Thanhtoans
-                .AnyAsync(x => x.MaDonHang == donHang.MaDonHang && x.TrangThaiThanhToan == "ThanhCong");
+            var daThanhCong = await _context.Thanhtoans.AnyAsync(x =>
+                x.MaDonHang == donHang.MaDonHang &&
+                x.TrangThaiThanhToan == "ThanhCong"
+            );
 
             if (daThanhCong)
-                return BadRequest(new { message = "Đơn hàng đã thanh toán thành công." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đã thanh toán thành công."
+                });
+            }
 
-            var dangCho = await _context.Thanhtoans
-                .AnyAsync(x => x.MaDonHang == donHang.MaDonHang && x.TrangThaiThanhToan == "ChoThanhToan");
+            var dangCho = await _context.Thanhtoans.AnyAsync(x =>
+                x.MaDonHang == donHang.MaDonHang &&
+                x.TrangThaiThanhToan == "ChoThanhToan"
+            );
 
             if (dangCho)
-                return BadRequest(new { message = "Đơn hàng đang có giao dịch chờ thanh toán." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đang có giao dịch chờ thanh toán."
+                });
+            }
 
-            var phuongThuc = await LayPhuongThucDangBat(request.MaPhuongThuc);
+            var phuongThuc = await LayPhuongThucDangBat(
+                request.MaPhuongThuc
+            );
+
             if (phuongThuc == null)
-                return BadRequest(new { message = "Phương thức thanh toán không hợp lệ hoặc đã tắt." });
+            {
+                return BadRequest(new
+                {
+                    message = "Phương thức thanh toán không hợp lệ hoặc đã tắt."
+                });
+            }
 
             var thanhToan = new Thanhtoan
             {
@@ -103,7 +159,28 @@ namespace DatMonAnOnline.API.Controllers
             };
 
             _context.Thanhtoans.Add(thanhToan);
+
+            (int MaTaiKhoan, Thongbao ThongBao)? thongBaoDonMoi = null;
+
+            if (string.Equals(
+                phuongThuc.TenPhuongThuc,
+                "COD",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                thongBaoDonMoi =
+                    await TaoThongBaoDonMoiChoQuan(donHang);
+            }
+
             await _context.SaveChangesAsync();
+
+            if (thongBaoDonMoi.HasValue)
+            {
+                await GuiDonMoiRealtimeAnToan(
+                    thongBaoDonMoi.Value.MaTaiKhoan,
+                    thongBaoDonMoi.Value.ThongBao,
+                    donHang
+                );
+            }
 
             return Ok(new
             {
@@ -119,22 +196,39 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpGet("don-hang/{maDonHang:int}")]
         [Authorize]
-        public async Task<IActionResult> GetThanhToanTheoDonHang(int maDonHang)
+        public async Task<IActionResult> GetThanhToanTheoDonHang(
+            int maDonHang)
         {
             var maTaiKhoan = GetMaTaiKhoan();
-            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+
+            if (maTaiKhoan == null)
+                return Unauthorized(new { message = "Token không hợp lệ." });
 
             var donHang = await _context.Donhangs
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.MaDonHang == maDonHang);
+                .FirstOrDefaultAsync(x =>
+                    x.MaDonHang == maDonHang
+                );
 
             if (donHang == null)
                 return NotFound(new { message = "Không tìm thấy đơn hàng." });
 
             var role = User.FindFirstValue(ClaimTypes.Role);
-            var duocXem = await KiemTraQuyenXemDonHang(role, maTaiKhoan.Value, donHang);
+
+            var duocXem = await KiemTraQuyenXemDonHang(
+                role,
+                maTaiKhoan.Value,
+                donHang
+            );
+
             if (duocXem == false)
-                return StatusCode(403, new { message = "Bạn không có quyền xem thanh toán đơn hàng này." });
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền xem thanh toán đơn hàng này."
+                });
+            }
+
             if (duocXem == null)
                 return Unauthorized(new { message = "Token không hợp lệ." });
 
@@ -147,7 +241,8 @@ namespace DatMonAnOnline.API.Controllers
                     x.MaThanhToan,
                     x.MaDonHang,
                     x.MaPhuongThuc,
-                    tenPhuongThuc = x.MaPhuongThucNavigation.TenPhuongThuc,
+                    tenPhuongThuc =
+                        x.MaPhuongThucNavigation.TenPhuongThuc,
                     x.SoTien,
                     x.TrangThaiThanhToan,
                     x.MaGiaoDich,
@@ -160,105 +255,252 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpPut("{id:int}/mo-phong")]
         [Authorize(Roles = "KhachHang")]
-        public async Task<IActionResult> MoPhongKetQuaThanhToan(int id, MoPhongKetQuaDto request) // mo phong thong tin thanh toan ( thnah cong hoac that bai)
+        public async Task<IActionResult> MoPhongKetQuaThanhToan(
+            int id,
+            MoPhongKetQuaDto request)
         {
             var ketQua = request.KetQua.Trim();
-            if (ketQua != "ThanhCong" && ketQua != "ThatBai")
-                return BadRequest(new { message = "KetQua chỉ nhận ThanhCong hoặc ThatBai." });
+
+            if (ketQua != "ThanhCong" &&
+                ketQua != "ThatBai")
+            {
+                return BadRequest(new
+                {
+                    message = "KetQua chỉ nhận ThanhCong hoặc ThatBai."
+                });
+            }
 
             var khachHang = await GetCurrentKhachHang();
+
             if (khachHang == null)
-                return NotFound(new { message = "Không tìm thấy hồ sơ khách hàng." });
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy hồ sơ khách hàng."
+                });
+            }
 
             var thanhToan = await _context.Thanhtoans
                 .Include(x => x.MaDonHangNavigation)
                 .Include(x => x.MaPhuongThucNavigation)
-                .FirstOrDefaultAsync(x => x.MaThanhToan == id);
+                .FirstOrDefaultAsync(x =>
+                    x.MaThanhToan == id
+                );
 
             if (thanhToan == null)
-                return NotFound(new { message = "Không tìm thấy giao dịch thanh toán." });
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy giao dịch thanh toán."
+                });
+            }
 
-            if (thanhToan.MaDonHangNavigation.MaKhachHang != khachHang.MaKhachHang)
-                return StatusCode(403, new { message = "Bạn không có quyền xử lý giao dịch này." });
+            var donHang = thanhToan.MaDonHangNavigation;
+
+            if (donHang.MaKhachHang != khachHang.MaKhachHang)
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền xử lý giao dịch này."
+                });
+            }
 
             if (thanhToan.TrangThaiThanhToan != "ChoThanhToan")
-                return BadRequest(new { message = "Chỉ mô phỏng được giao dịch đang chờ thanh toán." });
+            {
+                return BadRequest(new
+                {
+                    message = "Chỉ mô phỏng được giao dịch đang chờ thanh toán."
+                });
+            }
 
-            if (thanhToan.MaPhuongThucNavigation.TenPhuongThuc == "COD")
-                return BadRequest(new { message = "Thanh toán khi nhan hang không mô phỏng. Sẽ thành công khi quán hoàn thành đơn." });
+            if (string.Equals(
+                thanhToan.MaPhuongThucNavigation.TenPhuongThuc,
+                "COD",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Thanh toán khi nhận hàng không mô phỏng. Giao dịch sẽ thành công khi quán hoàn thành đơn."
+                });
+            }
 
             thanhToan.TrangThaiThanhToan = ketQua;
             thanhToan.ThoiGianThanhToan = DateTime.Now;
-            thanhToan.MaGiaoDich = $"{thanhToan.MaPhuongThucNavigation.TenPhuongThuc.ToUpperInvariant()}_{DateTime.Now:yyyyMMddHHmmss}_{thanhToan.MaThanhToan}";
+            thanhToan.MaGiaoDich =
+                $"{thanhToan.MaPhuongThucNavigation.TenPhuongThuc.ToUpperInvariant()}_" +
+                $"{DateTime.Now:yyyyMMddHHmmss}_" +
+                $"{thanhToan.MaThanhToan}";
+
+            (int MaTaiKhoan, Thongbao ThongBao)? thongBaoDonMoi = null;
+
+            if (ketQua == "ThanhCong")
+            {
+                thongBaoDonMoi =
+                    await TaoThongBaoDonMoiChoQuan(donHang);
+            }
 
             await _context.SaveChangesAsync();
 
+            if (thongBaoDonMoi.HasValue)
+            {
+                await GuiDonMoiRealtimeAnToan(
+                    thongBaoDonMoi.Value.MaTaiKhoan,
+                    thongBaoDonMoi.Value.ThongBao,
+                    donHang
+                );
+            }
+
             return Ok(new
             {
-                message = ketQua == "ThanhCong" ? "Thanh toán thành công." : "Thanh toán thất bại.",
+                message = ketQua == "ThanhCong"
+                    ? "Thanh toán thành công."
+                    : "Thanh toán thất bại.",
                 maThanhToan = thanhToan.MaThanhToan,
-                tenPhuongThuc = thanhToan.MaPhuongThucNavigation.TenPhuongThuc,
-                trangThaiThanhToan = thanhToan.TrangThaiThanhToan,
+                tenPhuongThuc =
+                    thanhToan.MaPhuongThucNavigation.TenPhuongThuc,
+                trangThaiThanhToan =
+                    thanhToan.TrangThaiThanhToan,
                 maGiaoDich = thanhToan.MaGiaoDich,
-                thoiGianThanhToan = thanhToan.ThoiGianThanhToan
+                thoiGianThanhToan =
+                    thanhToan.ThoiGianThanhToan
             });
         }
 
         [HttpPost("{id:int}/doi-phuong-thuc")]
         [Authorize(Roles = "KhachHang")]
-        public async Task<IActionResult> DoiPhuongThucKhiThatBai(int id, DoiPhuongThucDto request)
+        public async Task<IActionResult> DoiPhuongThucKhiThatBai(
+            int id,
+            DoiPhuongThucDto request)
         {
             var khachHang = await GetCurrentKhachHang();
+
             if (khachHang == null)
-                return NotFound(new { message = "Không tìm thấy hồ sơ khách hàng." });
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy hồ sơ khách hàng."
+                });
+            }
 
             var thanhToanCu = await _context.Thanhtoans
                 .Include(x => x.MaDonHangNavigation)
-                .FirstOrDefaultAsync(x => x.MaThanhToan == id);
+                .FirstOrDefaultAsync(x =>
+                    x.MaThanhToan == id
+                );
 
             if (thanhToanCu == null)
-                return NotFound(new { message = "Không tìm thấy giao dịch thanh toán." });
+            {
+                return NotFound(new
+                {
+                    message = "Không tìm thấy giao dịch thanh toán."
+                });
+            }
 
-            if (thanhToanCu.MaDonHangNavigation.MaKhachHang != khachHang.MaKhachHang)
-                return StatusCode(403, new { message = "Bạn không có quyền đổi phương thức giao dịch này." });
+            var donHang = thanhToanCu.MaDonHangNavigation;
+
+            if (donHang.MaKhachHang != khachHang.MaKhachHang)
+            {
+                return StatusCode(403, new
+                {
+                    message = "Bạn không có quyền đổi phương thức giao dịch này."
+                });
+            }
 
             if (thanhToanCu.TrangThaiThanhToan == "ThanhCong")
-                return BadRequest(new { message = "Đơn đã thanh toán thành công, không thể đổi phương thức." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn đã thanh toán thành công, không thể đổi phương thức."
+                });
+            }
 
             if (thanhToanCu.TrangThaiThanhToan != "ThatBai")
-                return BadRequest(new { message = "Chỉ đổi phương thức khi giao dịch thất bại." });
+            {
+                return BadRequest(new
+                {
+                    message = "Chỉ đổi phương thức khi giao dịch thất bại."
+                });
+            }
 
-            if (thanhToanCu.MaDonHangNavigation.MaTrangThai == 6)
-                return BadRequest(new { message = "Đơn hàng đã huỷ, không thể đổi phương thức thanh toán." });
+            if (donHang.MaTrangThai == 6)
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đã huỷ, không thể đổi phương thức thanh toán."
+                });
+            }
 
-            var daThanhCong = await _context.Thanhtoans
-                .AnyAsync(x => x.MaDonHang == thanhToanCu.MaDonHang && x.TrangThaiThanhToan == "ThanhCong");
+            var daThanhCong = await _context.Thanhtoans.AnyAsync(x =>
+                x.MaDonHang == thanhToanCu.MaDonHang &&
+                x.TrangThaiThanhToan == "ThanhCong"
+            );
 
             if (daThanhCong)
-                return BadRequest(new { message = "Đơn hàng đã thanh toán thành công." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đã thanh toán thành công."
+                });
+            }
 
-            var dangCho = await _context.Thanhtoans
-                .AnyAsync(x => x.MaDonHang == thanhToanCu.MaDonHang && x.TrangThaiThanhToan == "ChoThanhToan");
+            var dangCho = await _context.Thanhtoans.AnyAsync(x =>
+                x.MaDonHang == thanhToanCu.MaDonHang &&
+                x.TrangThaiThanhToan == "ChoThanhToan"
+            );
 
             if (dangCho)
-                return BadRequest(new { message = "Đơn hàng đang có giao dịch chờ thanh toán." });
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng đang có giao dịch chờ thanh toán."
+                });
+            }
 
-            var phuongThuc = await LayPhuongThucDangBat(request.MaPhuongThuc);
+            var phuongThuc = await LayPhuongThucDangBat(
+                request.MaPhuongThuc
+            );
+
             if (phuongThuc == null)
-                return BadRequest(new { message = "Phương thức thanh toán không hợp lệ hoặc đã tắt." });
+            {
+                return BadRequest(new
+                {
+                    message = "Phương thức thanh toán không hợp lệ hoặc đã tắt."
+                });
+            }
 
             var thanhToanMoi = new Thanhtoan
             {
                 MaDonHang = thanhToanCu.MaDonHang,
                 MaPhuongThuc = phuongThuc.MaPhuongThuc,
-                SoTien = thanhToanCu.MaDonHangNavigation.ThanhTien,
+                SoTien = donHang.ThanhTien,
                 TrangThaiThanhToan = "ChoThanhToan",
                 MaGiaoDich = null,
                 ThoiGianThanhToan = null
             };
 
             _context.Thanhtoans.Add(thanhToanMoi);
+
+            (int MaTaiKhoan, Thongbao ThongBao)? thongBaoDonMoi = null;
+
+            if (string.Equals(
+                phuongThuc.TenPhuongThuc,
+                "COD",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                thongBaoDonMoi =
+                    await TaoThongBaoDonMoiChoQuan(donHang);
+            }
+
             await _context.SaveChangesAsync();
+
+            if (thongBaoDonMoi.HasValue)
+            {
+                await GuiDonMoiRealtimeAnToan(
+                    thongBaoDonMoi.Value.MaTaiKhoan,
+                    thongBaoDonMoi.Value.ThongBao,
+                    donHang
+                );
+            }
 
             return Ok(new
             {
@@ -268,52 +510,195 @@ namespace DatMonAnOnline.API.Controllers
                 maPhuongThuc = thanhToanMoi.MaPhuongThuc,
                 tenPhuongThuc = phuongThuc.TenPhuongThuc,
                 soTien = thanhToanMoi.SoTien,
-                trangThaiThanhToan = thanhToanMoi.TrangThaiThanhToan
+                trangThaiThanhToan =
+                    thanhToanMoi.TrangThaiThanhToan
             });
+        }
+
+        private async Task<(
+            int MaTaiKhoan,
+            Thongbao ThongBao
+        )?> TaoThongBaoDonMoiChoQuan(
+            Donhang donHang)
+        {
+            var nhaHang = await _context.Nhahangs
+                .AsNoTracking()
+                .Where(x =>
+                    x.MaNhaHang == donHang.MaNhaHang
+                )
+                .Select(x => new
+                {
+                    x.MaTaiKhoan,
+                    x.TenNhaHang
+                })
+                .FirstOrDefaultAsync();
+
+            if (nhaHang == null)
+                return null;
+
+            var daThongBao = await _context.Thongbaos
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.MaTaiKhoan == nhaHang.MaTaiKhoan &&
+                    x.Loai == "DonHang" &&
+                    x.TieuDe == "Bạn có đơn hàng mới" &&
+                    x.NoiDung.Contains(
+                        donHang.MaDonHangHienThi
+                    )
+                );
+
+            if (daThongBao)
+                return null;
+
+            var noiDung =
+                $"Bạn có đơn hàng mới " +
+                $"{donHang.MaDonHangHienThi}, " +
+                $"trị giá {donHang.ThanhTien:N0}đ.";
+
+            var thongBao = new Thongbao
+            {
+                MaTaiKhoan = nhaHang.MaTaiKhoan,
+                TieuDe = "Bạn có đơn hàng mới",
+                NoiDung = noiDung.Length > 500
+                    ? noiDung[..500]
+                    : noiDung,
+                Loai = "DonHang",
+                DuongDan = $"/quan/don-hang/{donHang.MaDonHang}",
+                DaDoc = false,
+                NgayTao = DateTime.Now
+            };
+
+            _context.Thongbaos.Add(thongBao);
+
+            return (
+                nhaHang.MaTaiKhoan,
+                thongBao
+            );
+        }
+
+        private async Task GuiDonMoiRealtimeAnToan(
+            int maTaiKhoanQuan,
+            Thongbao thongBao,
+            Donhang donHang)
+        {
+            var thongBaoPayload = new
+            {
+                maThongBao = thongBao.MaThongBao,
+                tieuDe = thongBao.TieuDe,
+                noiDung = thongBao.NoiDung,
+                loai = thongBao.Loai,
+                duongDan = thongBao.DuongDan,
+                daDoc = false,
+                ngayTao = thongBao.NgayTao
+            };
+
+            var donHangPayload = new
+            {
+                maDonHang = donHang.MaDonHang,
+                maDonHangHienThi =
+                    donHang.MaDonHangHienThi,
+                tenNguoiNhan =
+                    donHang.TenNguoiNhan,
+                thoiGianDat =
+                    donHang.ThoiGianDat,
+                trangThai = "ChoXacNhan",
+                thanhTien =
+                    donHang.ThanhTien
+            };
+
+            try
+            {
+                await Task.WhenAll(
+                    _realtime.GuiThongBaoAsync(
+                        maTaiKhoanQuan,
+                        thongBaoPayload
+                    ),
+                    _realtime.GuiDonHangMoiAsync(
+                        maTaiKhoanQuan,
+                        donHangPayload
+                    )
+                );
+            }
+            catch (Exception signalRException)
+            {
+                _logger.LogWarning(
+                    signalRException,
+                    "Đơn {MaDonHang} đã sẵn sàng nhưng không gửi được SignalR cho quán.",
+                    donHang.MaDonHang
+                );
+            }
         }
 
         private int? GetMaTaiKhoan()
         {
-            var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return int.TryParse(value, out var id) ? id : null;
+            var value = User.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+            return int.TryParse(value, out var id)
+                ? id
+                : null;
         }
 
         private async Task<Khachhang?> GetCurrentKhachHang()
         {
             var maTaiKhoan = GetMaTaiKhoan();
-            if (maTaiKhoan == null) return null;
+
+            if (maTaiKhoan == null)
+                return null;
 
             return await _context.Khachhangs
-                .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan.Value);
+                .FirstOrDefaultAsync(x =>
+                    x.MaTaiKhoan == maTaiKhoan.Value
+                );
         }
 
-        private async Task<Phuongthucthanhtoan?> LayPhuongThucDangBat(int maPhuongThuc)
+        private async Task<Phuongthucthanhtoan?>
+            LayPhuongThucDangBat(
+                int maPhuongThuc)
         {
             return await _context.Phuongthucthanhtoans
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.MaPhuongThuc == maPhuongThuc && x.TrangThai == true);
+                .FirstOrDefaultAsync(x =>
+                    x.MaPhuongThuc == maPhuongThuc &&
+                    x.TrangThai == true
+                );
         }
 
-        private async Task<bool?> KiemTraQuyenXemDonHang(string? role, int maTaiKhoan, Donhang donHang)
+        private async Task<bool?>
+            KiemTraQuyenXemDonHang(
+                string? role,
+                int maTaiKhoan,
+                Donhang donHang)
         {
             if (role == "KhachHang")
             {
                 var khachHang = await _context.Khachhangs
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan);
+                    .FirstOrDefaultAsync(x =>
+                        x.MaTaiKhoan == maTaiKhoan
+                    );
 
-                if (khachHang == null) return null;
-                return donHang.MaKhachHang == khachHang.MaKhachHang;
+                if (khachHang == null)
+                    return null;
+
+                return donHang.MaKhachHang ==
+                       khachHang.MaKhachHang;
             }
 
             if (role == "Quan")
             {
                 var nhaHang = await _context.Nhahangs
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.MaTaiKhoan == maTaiKhoan);
+                    .FirstOrDefaultAsync(x =>
+                        x.MaTaiKhoan == maTaiKhoan
+                    );
 
-                if (nhaHang == null) return null;
-                return donHang.MaNhaHang == nhaHang.MaNhaHang;
+                if (nhaHang == null)
+                    return null;
+
+                return donHang.MaNhaHang ==
+                       nhaHang.MaNhaHang;
             }
 
             return false;

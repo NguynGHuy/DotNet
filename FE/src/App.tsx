@@ -43,6 +43,10 @@ import RestaurantTopping from "./pages/RestaurantTopping";
 import Restaurants from "./pages/Restaurants";
 import RegisterRestaurant from "./pages/RegisterRestaurant";
 
+
+import RealtimeBridge from "./components/RealtimeBridge";
+import RealtimeToast from "./components/RealtimeToast";
+import PageLoader from "./components/PageLoader";
 import Footer from "./components/Footer";
 
 function AppContent() {
@@ -56,13 +60,26 @@ function AppContent() {
         location.pathname === "/quan" ||
         location.pathname.startsWith("/quan/");
 
+    const isCustomerArea =
+    !isAdminArea && !isQuanArea;
+
     const showLatestCart =
         location.pathname === "/" ||
         location.pathname === "/nha-hang";
 
     return (
-        <>
-            {!isAdminArea && !isQuanArea && <Header />}
+    <div
+    className={
+        isCustomerArea
+            ? "customer-app-shell"
+            : undefined
+        }
+    >
+        <RealtimeBridge />
+        <PageLoader key={location.key} />
+        <RealtimeToast />
+
+        {!isAdminArea && !isQuanArea && <Header />}
 
             <Routes>
 
@@ -237,7 +254,7 @@ function AppContent() {
             </Routes>
             {showLatestCart && <LatestCartBar />}
             {!isAdminArea && !isQuanArea && <Footer />}
-        </>
+        </div>
     );
 }
 
