@@ -25,6 +25,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const passwordChanged = searchParams.get("reason") === "password-changed";
   const [email, setEmail] = useState("");
   const [matKhau, setMatKhau] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,6 +71,12 @@ function Login() {
           await syncGuestCartsToAccount();
         } catch (syncError) {
           console.error("Không thể đồng bộ giỏ khách sau khi đăng nhập:", syncError);
+          throw new Error(
+            syncError instanceof Error
+              ? `Chưa thể đồng bộ giỏ hàng: ${syncError.message}`
+              : "Chưa thể đồng bộ giỏ hàng. Vui lòng thử đăng nhập lại.",
+            { cause: syncError },
+          );
         }
       }
 
@@ -92,6 +99,8 @@ function Login() {
       else if (user.role === "Quan") navigate("/quan", { replace: true });
       else navigate("/", { replace: true });
     } catch (loginError) {
+      localStorage.removeItem("token");
+      window.dispatchEvent(new Event("logout-success"));
       setError(
         loginError instanceof Error
           ? loginError.message
@@ -227,6 +236,11 @@ function Login() {
           />
         </div>
 
+        {passwordChanged && !error && (
+          <p className="auth-session-notice" role="status">
+            Mật khẩu đã được thay đổi. Vui lòng đăng nhập lại trên thiết bị này.
+          </p>
+        )}
         {error && <p className="auth-error" role="alert">{error}</p>}
 
         <button className="auth-button" type="button" onClick={() => void handleLogin()} disabled={loading}>

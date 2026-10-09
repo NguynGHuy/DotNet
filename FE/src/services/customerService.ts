@@ -42,3 +42,27 @@ export async function updateCustomerProfile(
         body: JSON.stringify(data),
     });
 }
+
+export async function uploadCustomerAvatar(file: File) {
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return apiFetch("/khach-hang/anh-dai-dien", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+    }) as Promise<{ message: string; anhDaiDien: string }>;
+}
+
+export async function deleteCustomerAvatar() {
+    const token = localStorage.getItem("token");
+    return apiFetch("/khach-hang/anh-dai-dien", {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+}

@@ -11,6 +11,8 @@ public partial class Chitietdonhang
 
     public int MaMonAn { get; set; }
 
+    public string? TenMonAnLucDat { get; set; }
+
     public int SoLuong { get; set; }
 
     public decimal DonGia { get; set; }

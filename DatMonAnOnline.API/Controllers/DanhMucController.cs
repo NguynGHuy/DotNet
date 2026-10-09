@@ -72,7 +72,8 @@ namespace DatMonAnOnline.API.Controllers
                 .AsNoTracking()
                 .AnyAsync(x =>
                     x.MaNhaHang == maNhaHang &&
-                    x.TrangThaiDuyet == "DaDuyet");
+                    x.TrangThaiDuyet == "DaDuyet" &&
+                    x.MaTaiKhoanNavigation.TrangThai == true);
 
             if (!nhaHangTonTai)
             {

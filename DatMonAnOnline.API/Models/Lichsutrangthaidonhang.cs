@@ -11,7 +11,7 @@ public partial class Lichsutrangthaidonhang
 
     public int MaTrangThai { get; set; }
 
-    public int MaTaiKhoan { get; set; }
+    public int? MaTaiKhoan { get; set; }
 
     public DateTime ThoiGianTao { get; set; }
 
@@ -19,7 +19,7 @@ public partial class Lichsutrangthaidonhang
 
     public virtual Donhang MaDonHangNavigation { get; set; } = null!;
 
-    public virtual Taikhoan MaTaiKhoanNavigation { get; set; } = null!;
+    public virtual Taikhoan? MaTaiKhoanNavigation { get; set; }
 
     public virtual Trangthaidonhang MaTrangThaiNavigation { get; set; } = null!;
 }

@@ -72,7 +72,10 @@ namespace DatMonAnOnline.API.Controllers
 
             var nhaHangTonTai = await _context.Nhahangs
                 .AsNoTracking()
-                .AnyAsync(x => x.MaNhaHang == maNhaHang && x.TrangThaiDuyet == "DaDuyet");
+                .AnyAsync(x =>
+                    x.MaNhaHang == maNhaHang &&
+                    x.TrangThaiDuyet == "DaDuyet" &&
+                    x.MaTaiKhoanNavigation.TrangThai == true);
 
             if (!nhaHangTonTai)
             {
@@ -117,11 +120,14 @@ namespace DatMonAnOnline.API.Controllers
                 .AsNoTracking()
                 .Include(x => x.MaDanhMucNavigation)
                 .Include(x => x.MaNhaHangNavigation)
+                    .ThenInclude(restaurant => restaurant.MaTaiKhoanNavigation)
                 .Include(x => x.MaNhomToppings)
                     .ThenInclude(x => x.Toppings)
                 .FirstOrDefaultAsync(x => x.MaMonAn == id);
 
-            if (monAn == null || monAn.MaNhaHangNavigation.TrangThaiDuyet != "DaDuyet")
+            if (monAn == null ||
+                monAn.MaNhaHangNavigation.TrangThaiDuyet != "DaDuyet" ||
+                monAn.MaNhaHangNavigation.MaTaiKhoanNavigation.TrangThai != true)
             {
                 return NotFound(new { message = "Không tìm thấy món ăn." });
             }

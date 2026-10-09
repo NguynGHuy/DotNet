@@ -1195,6 +1195,16 @@ img {
   font-size: 14px;
 }
 
+.auth-session-notice {
+  margin-bottom: 15px;
+  padding: 10px 12px;
+  background: #ecfdf3;
+  color: #18794e;
+  border: 1px solid #b7ebcd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
 .auth-button {
   width: 100%;
 
@@ -21079,6 +21089,42 @@ img {
   white-space: nowrap;
 }
 
+.customer-order-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.customer-order-payment {
+  display: inline-flex;
+  min-height: 27px;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 0 9px;
+  background: #fff4ee;
+  color: #d84f27;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.customer-order-payment.payment-ThanhCong {
+  background: #e9f8f0;
+  color: #218158;
+}
+
+.customer-order-payment.payment-ChoThanhToan {
+  background: #fff5db;
+  color: #a96f00;
+}
+
+.customer-order-payment.payment-ThatBai {
+  background: #feecea;
+  color: #b84940;
+}
+
 .customer-order-status.status-waiting {
   background: #fff5db;
   color: #a96f00;
@@ -21839,6 +21885,40 @@ img {
   color: #9c948d;
 }
 
+.merchant-order-payment {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #f3f0ed;
+  color: #716a64;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.merchant-order-payment.payment-paid {
+  background: #e9f8f0;
+  color: #248159;
+}
+
+.merchant-order-payment.payment-pending {
+  background: #fff5d9;
+  color: #a97005;
+}
+
+.merchant-order-payment.payment-failed {
+  background: #feecea;
+  color: #b84b42;
+}
+
+.merchant-order-payment.payment-cod {
+  background: #eef2f8;
+  color: #52647c;
+}
+
 .merchant-order-customer svg,
 .merchant-order-primary time svg {
   flex: 0 0 auto;
@@ -22452,6 +22532,56 @@ img {
 .merchant-detail-money .total strong {
   color: var(--food-primary);
   font-size: 15px;
+}
+.merchant-detail-money > .merchant-payment-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  justify-content: initial;
+  margin-bottom: 8px;
+  border: 1px solid #eee7e2;
+  border-radius: 11px;
+  padding: 10px;
+  background: #faf9f8;
+}
+.merchant-payment-state > svg {
+  grid-row: 1 / span 2;
+  color: #827a74;
+}
+.merchant-payment-state span,
+.merchant-payment-state strong,
+.merchant-payment-state small {
+  display: block;
+}
+.merchant-payment-state span {
+  color: #8b837c;
+  font-size: 8px;
+}
+.merchant-payment-state strong {
+  margin-top: 2px;
+  font-size: 10px;
+}
+.merchant-payment-state small {
+  grid-column: 2;
+  margin-top: 2px;
+  color: #9a928b;
+  font-size: 8px;
+}
+.merchant-payment-state.state-ThanhCong {
+  border-color: #cce8dc;
+  background: #f2fbf7;
+}
+.merchant-payment-state.state-ThanhCong > svg,
+.merchant-payment-state.state-ThanhCong strong {
+  color: #25845c;
+}
+.merchant-payment-state.state-ThatBai {
+  border-color: #f0d1ce;
+  background: #fff6f4;
+}
+.merchant-payment-state.state-ThatBai > svg,
+.merchant-payment-state.state-ThatBai strong {
+  color: #bd4438;
 }
 .merchant-detail-empty {
   border: 1px solid #eadeda;
@@ -40628,7 +40758,8 @@ fieldset.merchant-promo-form-body {
 }
 
 .qr-success-button,
-.qr-fail-button {
+.qr-fail-button,
+.qr-later-button {
   min-height: 43px;
   border-radius: 10px;
   font-size: 11px;
@@ -40636,6 +40767,24 @@ fieldset.merchant-promo-form-body {
 
 .qr-success-button {
   box-shadow: 0 8px 20px rgba(244, 81, 30, 0.18);
+}
+
+.qr-later-button {
+  border: 0;
+  background: transparent;
+  color: #6f747b;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qr-later-button:hover:not(:disabled) {
+  background: #f5f5f6;
+  color: #34373b;
+}
+
+.qr-later-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 @media (max-width: 720px) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
@@ -26,21 +26,19 @@ import {
 import ScrollReveal from "../components/ScrollReveal";
 import { changePassword } from "../services/authService";
 import {
+  deleteCustomerAvatar,
   getCustomerProfile,
+  uploadCustomerAvatar,
   updateCustomerProfile,
 } from "../services/customerService";
+import { resolveMediaUrl } from "../services/api";
 
 import type { CustomerProfile } from "../services/customerService";
 
-const AVATAR_REMOVED = "__avatar_removed__";
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
-function getAvatarStorageKey(accountId: number) {
-  return `customer-avatar:${accountId}`;
-}
-
 function resizeAvatar(file: File) {
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<File>((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
       reject(new Error("Vui lòng chọn một tệp hình ảnh."));
       return;
@@ -72,7 +70,20 @@ function resizeAvatar(file: File) {
       canvas.width = width;
       canvas.height = height;
       context.drawImage(image, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/webp", 0.86));
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Không thể xử lý ảnh đã chọn."));
+            return;
+          }
+
+          resolve(new File([blob], `avatar-${Date.now()}.webp`, {
+            type: "image/webp",
+          }));
+        },
+        "image/webp",
+        0.86,
+      );
     };
 
     image.onerror = () => {
@@ -85,6 +96,7 @@ function resizeAvatar(file: File) {
 }
 
 function Profile() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [hoTen, setHoTen] = useState("");
   const [ngaySinh, setNgaySinh] = useState("");
@@ -105,14 +117,7 @@ function Profile() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const applyAvatar = useCallback((data: CustomerProfile) => {
-    const savedAvatar = localStorage.getItem(getAvatarStorageKey(data.maTaiKhoan));
-
-    if (savedAvatar === AVATAR_REMOVED) {
-      setAvatarUrl(null);
-      return;
-    }
-
-    setAvatarUrl(savedAvatar || data.anhDaiDien || null);
+    setAvatarUrl(resolveMediaUrl(data.anhDaiDien));
   }, []);
 
   const loadProfile = useCallback(async (showLoading = false) => {
@@ -166,12 +171,11 @@ function Profile() {
       setAvatarBusy(true);
       setError("");
       const processedAvatar = await resizeAvatar(file);
-      localStorage.setItem(
-        getAvatarStorageKey(profile.maTaiKhoan),
-        processedAvatar,
-      );
-      setAvatarUrl(processedAvatar);
-      notifyAvatarChange(processedAvatar);
+      const response = await uploadCustomerAvatar(processedAvatar);
+      const nextAvatar = resolveMediaUrl(response.anhDaiDien);
+      setProfile({ ...profile, anhDaiDien: response.anhDaiDien });
+      setAvatarUrl(nextAvatar);
+      notifyAvatarChange(nextAvatar);
       setNotice("Ảnh đại diện đã được cập nhật.");
     } catch (avatarError) {
       setError(
@@ -184,13 +188,26 @@ function Profile() {
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
     if (!profile) return;
 
-    localStorage.setItem(getAvatarStorageKey(profile.maTaiKhoan), AVATAR_REMOVED);
-    setAvatarUrl(null);
-    notifyAvatarChange(null);
-    setNotice("Đã gỡ ảnh đại diện.");
+    try {
+      setAvatarBusy(true);
+      setError("");
+      await deleteCustomerAvatar();
+      setProfile({ ...profile, anhDaiDien: null });
+      setAvatarUrl(null);
+      notifyAvatarChange(null);
+      setNotice("Đã gỡ ảnh đại diện.");
+    } catch (avatarError) {
+      setError(
+        avatarError instanceof Error
+          ? avatarError.message
+          : "Không thể gỡ ảnh đại diện.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
   };
 
   const handleUpdate = async () => {
@@ -281,7 +298,9 @@ function Profile() {
       setNewPassword("");
       setConfirmPassword("");
       setPasswordError("");
-      setNotice("Mật khẩu đã được thay đổi thành công.");
+      localStorage.removeItem("token");
+      window.dispatchEvent(new Event("logout-success"));
+      navigate("/dang-nhap?reason=password-changed", { replace: true });
     } catch (changeError) {
       setPasswordError(
         changeError instanceof Error

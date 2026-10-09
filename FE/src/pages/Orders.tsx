@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
+  Banknote,
   CheckCircle2,
   ChefHat,
   CircleX,
@@ -28,6 +29,8 @@ interface CustomerOrder {
   thoiGianDat: string;
   trangThai: string;
   thanhTien: number;
+  tenPhuongThuc: string | null;
+  trangThaiThanhToan: string | null;
 }
 
 type FilterKey = "TatCa" | "DangXuLy" | "HoanThanh" | "DaHuy";
@@ -92,6 +95,15 @@ function getStatusMeta(status: string): StatusMeta {
   );
 }
 
+function getPaymentLabel(order: CustomerOrder) {
+  const isCod = order.tenPhuongThuc?.toUpperCase().includes("COD");
+
+  if (isCod && order.trangThaiThanhToan === "ChoThanhToan") return "COD • Thu khi giao";
+  if (order.trangThaiThanhToan === "ThanhCong") return "Đã thanh toán";
+  if (order.trangThaiThanhToan === "ThatBai") return "Thanh toán thất bại";
+  return "Chờ thanh toán";
+}
+
 function Orders() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,11 +150,14 @@ function Orders() {
       void loadOrders(false);
     };
 
-    void loadOrders(true);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadOrders(true);
+    }, 0);
 
     window.addEventListener("customer-orders-updated", handleRealtimeUpdate);
 
     return () => {
+      window.clearTimeout(initialLoadTimer);
       window.removeEventListener(
         "customer-orders-updated",
         handleRealtimeUpdate,
@@ -381,13 +396,20 @@ function Orders() {
                             </div>
                           </div>
 
-                          <span
-                            className={`customer-order-status status-${status.className}`}
-                          >
-                            <StatusIcon size={14} />
-
-                            {status.label}
-                          </span>
+                          <div className="customer-order-badges">
+                            <span
+                              className={`customer-order-payment payment-${order.trangThaiThanhToan || "unknown"}`}
+                            >
+                              <Banknote size={14} />
+                              {getPaymentLabel(order)}
+                            </span>
+                            <span
+                              className={`customer-order-status status-${status.className}`}
+                            >
+                              <StatusIcon size={14} />
+                              {status.label}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="customer-order-card-body">
@@ -480,6 +502,7 @@ function Orders() {
             <textarea
               id="cancel-order-reason"
               rows={3}
+              maxLength={500}
               autoFocus
               placeholder="Ví dụ: Tôi muốn thay đổi món ăn..."
               value={cancelReason}

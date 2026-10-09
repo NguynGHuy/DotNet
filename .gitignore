@@ -322,6 +322,10 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# User-generated uploads
+DatMonAnOnline.API/wwwroot/uploads/avatars/*
+!DatMonAnOnline.API/wwwroot/uploads/avatars/.gitkeep
+
 # Visual Studio 6 build log
 *.plg
 

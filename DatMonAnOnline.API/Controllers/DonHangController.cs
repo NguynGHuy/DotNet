@@ -16,15 +16,18 @@ namespace DatMonAnOnline.API.Controllers
         private readonly DatMonAnOnlineContext _context;
         private readonly IRealtimeNotificationService _realtime;
         private readonly ILogger<DonHangController> _logger;
+        private readonly ICheckoutCartReservationService _checkoutReservations;
 
         public DonHangController(
             DatMonAnOnlineContext context,
             IRealtimeNotificationService realtime,
-            ILogger<DonHangController> logger)
+            ILogger<DonHangController> logger,
+            ICheckoutCartReservationService checkoutReservations)
         {
             _context = context;
             _realtime = realtime;
             _logger = logger;
+            _checkoutReservations = checkoutReservations;
         }
 
         private static bool HienThiDonChoQuan(Donhang donHang)
@@ -34,7 +37,7 @@ namespace DatMonAnOnline.API.Controllers
                 .FirstOrDefault();
 
             if (moiNhat == null) return true;
-            if (moiNhat.MaPhuongThucNavigation?.TenPhuongThuc == "COD") return true;
+            if (OrderPaymentRules.IsCod(moiNhat)) return true;
 
             return moiNhat.TrangThaiThanhToan != "ChoThanhToan"
                 && moiNhat.TrangThaiThanhToan != "ThatBai";
@@ -117,10 +120,11 @@ namespace DatMonAnOnline.API.Controllers
                 return BadRequest(new { Message = loi });
 
             var thanhTien = tongTienHang + phiShip - soTienGiam;
+            var nhaHangId = maNhaHang!.Value;
 
             var nhaHangNhanDon = await _context.Nhahangs
                 .AsNoTracking()
-                .Where(n => n.MaNhaHang == maNhaHang!.Value)
+                .Where(n => n.MaNhaHang == nhaHangId)
                 .Select(n => new
                 {
                     n.MaTaiKhoan,
@@ -143,7 +147,8 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     MaDonHangHienThi = maDonHienThi,
                     MaKhachHang = khachHang.MaKhachHang,
-                    MaNhaHang = maNhaHang.Value,
+                    MaNhaHang = nhaHangId,
+                    TenNhaHangLucDat = nhaHangNhanDon.TenNhaHang,
                     MaDiaChi = diaChi.MaDiaChi,
                     MaTrangThai = 1,
                     MaKhuyenMai = request.MaKhuyenMai,
@@ -179,6 +184,7 @@ namespace DatMonAnOnline.API.Controllers
                     {
                         MaDonHang = donHang.MaDonHang,
                         MaMonAn = ctGio.MaMonAn,
+                        TenMonAnLucDat = ctGio.MaMonAnNavigation.TenMonAn,
                         SoLuong = ctGio.SoLuong,
                         DonGia = ctGio.MaMonAnNavigation.Gia,
                         ThanhTien = 0,
@@ -205,6 +211,7 @@ namespace DatMonAnOnline.API.Controllers
                         {
                             MaChiTietDonHang = ctDon.MaChiTietDonHang,
                             MaTopping = ctTopping.MaTopping,
+                            TenToppingLucDat = toppingReal.TenTopping,
                             SoLuong = ctTopping.SoLuong,
                             GiaThemLucDat = toppingReal.GiaThem
                         };
@@ -303,6 +310,7 @@ namespace DatMonAnOnline.API.Controllers
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+                _checkoutReservations.Release(request.MaGioHang);
 
                 if (thongBaoDonMoi != null)
                 {
@@ -363,11 +371,12 @@ namespace DatMonAnOnline.API.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                _logger.LogError(ex, "Không thể tạo đơn từ giỏ {MaGioHang}.", request.MaGioHang);
 
-                return StatusCode(
-                    500,
-                    "Có lỗi xảy ra khi đặt hàng: " + ex.Message
-                );
+                return StatusCode(500, new
+                {
+                    Message = "Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại."
+                });
             }
         }
 
@@ -383,21 +392,33 @@ namespace DatMonAnOnline.API.Controllers
 
             if (khachHang == null) return Unauthorized();
 
-            var danhSach = await _context.Donhangs
+            var donHangs = await _context.Donhangs
                 .Where(d => d.MaKhachHang == khachHang.MaKhachHang)
                 .Include(d => d.MaNhaHangNavigation)
                 .Include(d => d.MaTrangThaiNavigation)
+                .Include(d => d.Thanhtoans)
+                    .ThenInclude(payment => payment.MaPhuongThucNavigation)
                 .OrderByDescending(d => d.ThoiGianDat)
-                .Select(d => new
+                .ToListAsync();
+
+            var danhSach = donHangs.Select(d =>
+            {
+                var payment = d.Thanhtoans
+                    .OrderByDescending(item => item.MaThanhToan)
+                    .FirstOrDefault();
+
+                return new
                 {
                     d.MaDonHang,
                     d.MaDonHangHienThi,
                     d.ThoiGianDat,
-                    TenNhaHang = d.MaNhaHangNavigation!.TenNhaHang,
+                    TenNhaHang = d.TenNhaHangLucDat ?? d.MaNhaHangNavigation!.TenNhaHang,
                     TrangThai = d.MaTrangThaiNavigation!.TenTrangThai,
-                    d.ThanhTien
-                })
-                .ToListAsync();
+                    d.ThanhTien,
+                    TenPhuongThuc = payment?.MaPhuongThucNavigation.TenPhuongThuc,
+                    TrangThaiThanhToan = payment?.TrangThaiThanhToan
+                };
+            }).ToList();
 
             return Ok(danhSach);
         }
@@ -419,6 +440,8 @@ namespace DatMonAnOnline.API.Controllers
                 .Include(d => d.Chitietdonhangs)
                     .ThenInclude(ct => ct.ChitietdonhangToppings)
                     .ThenInclude(tp => tp.MaToppingNavigation)
+                .Include(d => d.Thanhtoans)
+                    .ThenInclude(payment => payment.MaPhuongThucNavigation)
                 .FirstOrDefaultAsync(d => d.MaDonHang == id);
 
             if (donHang == null)
@@ -453,6 +476,10 @@ namespace DatMonAnOnline.API.Controllers
                 }
             }
 
+            var latestPayment = donHang.Thanhtoans
+                .OrderByDescending(payment => payment.MaThanhToan)
+                .FirstOrDefault();
+
             return Ok(new
             {
                 donHang.MaDonHang,
@@ -466,7 +493,10 @@ namespace DatMonAnOnline.API.Controllers
                 TrangThai =
                     donHang.MaTrangThaiNavigation?.TenTrangThai ?? "",
                 TenNhaHang =
-                    donHang.MaNhaHangNavigation?.TenNhaHang ?? "",
+                    donHang.TenNhaHangLucDat ?? donHang.MaNhaHangNavigation?.TenNhaHang ?? "",
+                TenPhuongThuc = latestPayment?.MaPhuongThucNavigation.TenPhuongThuc,
+                TrangThaiThanhToan = latestPayment?.TrangThaiThanhToan,
+                MaThanhToan = latestPayment?.MaThanhToan,
                 donHang.TongTienHang,
                 donHang.PhiShip,
                 donHang.SoTienGiam,
@@ -475,14 +505,14 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     ct.MaMonAn,
                     TenMonAn =
-                        ct.MaMonAnNavigation?.TenMonAn ?? "",
+                        ct.TenMonAnLucDat ?? ct.MaMonAnNavigation?.TenMonAn ?? "",
                     ct.SoLuong,
                     ct.DonGia,
                     ct.ThanhTien,
                     Toppings = ct.ChitietdonhangToppings.Select(tp => new
                     {
                         TenTopping =
-                            tp.MaToppingNavigation?.TenTopping ?? "",
+                            tp.TenToppingLucDat ?? tp.MaToppingNavigation?.TenTopping ?? "",
                         GiaThem = tp.GiaThemLucDat,
                         tp.SoLuong
                     })
@@ -530,7 +560,15 @@ namespace DatMonAnOnline.API.Controllers
                     d.TenNguoiNhan,
                     TrangThai =
                         d.MaTrangThaiNavigation!.TenTrangThai,
-                    d.ThanhTien
+                    d.ThanhTien,
+                    TenPhuongThuc = d.Thanhtoans
+                        .OrderByDescending(payment => payment.MaThanhToan)
+                        .Select(payment => payment.MaPhuongThucNavigation.TenPhuongThuc)
+                        .FirstOrDefault(),
+                    TrangThaiThanhToan = d.Thanhtoans
+                        .OrderByDescending(payment => payment.MaThanhToan)
+                        .Select(payment => payment.TrangThaiThanhToan)
+                        .FirstOrDefault()
                 })
                 .ToList();
 
@@ -548,7 +586,11 @@ namespace DatMonAnOnline.API.Controllers
 
             var role = User.FindFirstValue(ClaimTypes.Role);
 
-            var donHang = await _context.Donhangs.FindAsync(id);
+            var donHang = await _context.Donhangs
+                .Include(order => order.Thanhtoans)
+                    .ThenInclude(payment => payment.MaPhuongThucNavigation)
+                .Include(order => order.MaKhuyenMaiNavigation)
+                .FirstOrDefaultAsync(order => order.MaDonHang == id);
 
             if (donHang == null)
                 return NotFound(new { Message = "Đơn hàng không tồn tại." });
@@ -601,8 +643,40 @@ namespace DatMonAnOnline.API.Controllers
                 .Where(x => x != maTaiKhoan.Value)
                 .ToListAsync();
 
+            var lyDo = request.LyDoHuy.Trim();
+            var claimed = await _context.Donhangs
+                .Where(order =>
+                    order.MaDonHang == donHang.MaDonHang &&
+                    order.MaTrangThai == donHang.MaTrangThai)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(order => order.MaTrangThai, 6)
+                    .SetProperty(order => order.LyDoHuy, lyDo));
+
+            if (claimed == 0)
+            {
+                return Conflict(new
+                {
+                    Message = "Trạng thái đơn vừa thay đổi. Vui lòng tải lại trước khi hủy."
+                });
+            }
+
             donHang.MaTrangThai = 6;
-            donHang.LyDoHuy = request.LyDoHuy;
+            donHang.LyDoHuy = lyDo;
+
+            foreach (var payment in donHang.Thanhtoans.Where(payment =>
+                         payment.TrangThaiThanhToan == "ChoThanhToan"))
+            {
+                payment.TrangThaiThanhToan = "ThatBai";
+                payment.ThoiGianThanhToan = DateTime.Now;
+            }
+
+            if (donHang.MaKhuyenMaiNavigation != null &&
+                donHang.MaKhuyenMaiNavigation.SoLuongDaDung > 0)
+            {
+                donHang.MaKhuyenMaiNavigation.SoLuongDaDung--;
+            }
+
+            var ghiChuHuy = $"Huỷ đơn. Lý do: {lyDo}";
 
             _context.Lichsutrangthaidonhangs.Add(
                 new Lichsutrangthaidonhang
@@ -611,7 +685,9 @@ namespace DatMonAnOnline.API.Controllers
                     MaTrangThai = 6,
                     MaTaiKhoan = maTaiKhoan.Value,
                     ThoiGianTao = DateTime.Now,
-                    GhiChu = $"Huỷ đơn. Lý do: {request.LyDoHuy}"
+                    GhiChu = ghiChuHuy.Length > 200
+                        ? ghiChuHuy[..200]
+                        : ghiChuHuy
                 }
             );
 
@@ -621,8 +697,6 @@ namespace DatMonAnOnline.API.Controllers
                 "Quan" => "Quán",
                 _ => "Hệ thống"
             };
-
-            var lyDo = request.LyDoHuy?.Trim();
 
             var noiDungThongBao =
                 $"{nguoiHuy} đã hủy đơn {donHang.MaDonHangHienThi}.";
@@ -842,6 +916,27 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
+            var latestPayment = donHang.Thanhtoans
+                .OrderByDescending(payment => payment.MaThanhToan)
+                .FirstOrDefault();
+
+            if (latestPayment == null)
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng chưa có thông tin thanh toán."
+                });
+            }
+
+            if (!OrderPaymentRules.IsCod(latestPayment) &&
+                latestPayment.TrangThaiThanhToan != "ThanhCong")
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn online chưa thanh toán thành công nên quán chưa thể xử lý."
+                });
+            }
+
             if (request.MaTrangThai != donHang.MaTrangThai + 1 ||
                 request.MaTrangThai > 5)
             {
@@ -874,6 +969,21 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
+            var claimed = await _context.Donhangs
+                .Where(order =>
+                    order.MaDonHang == donHang.MaDonHang &&
+                    order.MaTrangThai == donHang.MaTrangThai)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(order => order.MaTrangThai, request.MaTrangThai));
+
+            if (claimed == 0)
+            {
+                return Conflict(new
+                {
+                    message = "Trạng thái đơn vừa thay đổi. Vui lòng tải lại trước khi thao tác."
+                });
+            }
+
             donHang.MaTrangThai = request.MaTrangThai;
 
             if (request.MaTrangThai == 5)
@@ -883,7 +993,7 @@ namespace DatMonAnOnline.API.Controllers
                 var thanhToanCod = donHang.Thanhtoans
                     .Where(x =>
                         x.TrangThaiThanhToan == "ChoThanhToan" &&
-                        x.MaPhuongThucNavigation.TenPhuongThuc == "COD"
+                        OrderPaymentRules.IsCod(x)
                     )
                     .OrderByDescending(x => x.MaThanhToan)
                     .FirstOrDefault();
@@ -1051,6 +1161,7 @@ namespace DatMonAnOnline.API.Controllers
 
             if (gioHang != null &&
                 gioHang.Chitietgiohangs.Any() &&
+                !_checkoutReservations.IsReserved(gioHang.MaGioHang) &&
                 gioHang.NgayCapNhat <= DateTime.Now.Subtract(ThoiHanGioHang))
             {
                 foreach (var chiTiet in gioHang.Chitietgiohangs)
@@ -1084,10 +1195,14 @@ namespace DatMonAnOnline.API.Controllers
                 .MaNhaHang;
 
             var nhaHang = await _context.Nhahangs
-                .FindAsync(maNhaHang);
+                .Include(n => n.MaTaiKhoanNavigation)
+                .FirstOrDefaultAsync(n => n.MaNhaHang == maNhaHang);
 
             if (nhaHang == null)
                 return (0, 0, 0, null, "Không tìm thấy nhà hàng.");
+
+            if (nhaHang.MaTaiKhoanNavigation.TrangThai != true)
+                return (0, 0, 0, null, "Nhà hàng đang tạm ngưng hoạt động.");
 
             var trangThaiNhaHang =
                 TrangThaiNhaHangHelper.KiemTra(nhaHang);
@@ -1286,12 +1401,13 @@ namespace DatMonAnOnline.API.Controllers
 
         public int? MaKhuyenMai { get; set; }
 
+        [MaxLength(300)]
         public string? GhiChu { get; set; }
     }
 
     public class HuyDonHangYeuCau
     {
-        [Required]
+        [Required, MaxLength(500)]
         public string LyDoHuy { get; set; } =
             string.Empty;
     }

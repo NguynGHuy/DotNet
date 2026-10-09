@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Banknote,
   Check,
   CircleX,
   Clock3,
@@ -83,9 +84,11 @@ function RestaurantOrderDetail() {
     const maDonHang = Number(id);
 
     if (!id || !Number.isInteger(maDonHang) || maDonHang <= 0) {
-      setError("Mã đơn hàng không hợp lệ.");
-      setLoading(false);
-      return;
+      const invalidOrderTimer = window.setTimeout(() => {
+        setError("Mã đơn hàng không hợp lệ.");
+        setLoading(false);
+      }, 0);
+      return () => window.clearTimeout(invalidOrderTimer);
     }
 
     let cancelled = false;
@@ -198,6 +201,17 @@ function RestaurantOrderDetail() {
   const next = NEXT_STEP[order.trangThai];
   const canCancel = ["ChoXacNhan", "DaXacNhan"].includes(order.trangThai);
   const statusClass = STATUS_CLASS[order.trangThai] || "default";
+  const isCod = order.tenPhuongThuc?.toUpperCase().includes("COD") ?? false;
+  const paymentReady = isCod || order.trangThaiThanhToan === "ThanhCong";
+  const paymentLabel = isCod
+    ? order.trangThaiThanhToan === "ThanhCong"
+      ? "COD đã thu tiền"
+      : "COD • Cần thu khi giao"
+    : order.trangThaiThanhToan === "ThanhCong"
+      ? "Đã thanh toán online"
+      : order.trangThaiThanhToan === "ThatBai"
+        ? "Thanh toán thất bại"
+        : "Chờ khách thanh toán";
 
   return (
     <main className="merchant-detail-page">
@@ -241,7 +255,7 @@ function RestaurantOrderDetail() {
                     <CircleX size={15} /> Hủy đơn
                   </button>
                 )}
-                {next && (
+                {next && paymentReady && (
                   <button
                     className="merchant-detail-advance"
                     onClick={handleAdvance}
@@ -408,6 +422,12 @@ function RestaurantOrderDetail() {
               </div>
 
               <div className="merchant-detail-money">
+                <div className={`merchant-payment-state state-${order.trangThaiThanhToan || "unknown"}`}>
+                  <Banknote size={17} />
+                  <span>Trạng thái thanh toán</span>
+                  <strong>{paymentLabel}</strong>
+                  <small>{order.tenPhuongThuc || "Chưa xác định phương thức"}</small>
+                </div>
                 <div>
                   <span>Tổng tiền món</span>
                   <strong>{formatMoney(order.tongTienHang)}</strong>

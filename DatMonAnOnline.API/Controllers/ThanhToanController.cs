@@ -87,6 +87,9 @@ namespace DatMonAnOnline.API.Controllers
             }
 
             var donHang = await _context.Donhangs
+                .Include(order => order.MaKhuyenMaiNavigation)
+                .Include(order => order.Thanhtoans)
+                    .ThenInclude(payment => payment.MaPhuongThucNavigation)
                 .FirstOrDefaultAsync(x =>
                     x.MaDonHang == request.MaDonHang
                 );
@@ -102,11 +105,24 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
-            if (donHang.MaTrangThai == 6)
+            if (donHang.MaTrangThai != 1)
             {
                 return BadRequest(new
                 {
-                    message = "Đơn hàng đã huỷ, không thể thanh toán."
+                    message = "Đơn hàng không còn ở trạng thái chờ thanh toán/xác nhận."
+                });
+            }
+
+            var latestPayment = donHang.Thanhtoans
+                .OrderByDescending(payment => payment.MaThanhToan)
+                .FirstOrDefault();
+
+            if (latestPayment != null &&
+                await ExpireOnlineOrderIfNeeded(latestPayment))
+            {
+                return StatusCode(StatusCodes.Status410Gone, new
+                {
+                    message = "Đơn hàng đã tự hủy vì quá hạn thanh toán online 15 phút."
                 });
             }
 
@@ -282,6 +298,9 @@ namespace DatMonAnOnline.API.Controllers
 
             var thanhToan = await _context.Thanhtoans
                 .Include(x => x.MaDonHangNavigation)
+                    .ThenInclude(order => order.MaKhuyenMaiNavigation)
+                .Include(x => x.MaDonHangNavigation)
+                    .ThenInclude(order => order.Thanhtoans)
                 .Include(x => x.MaPhuongThucNavigation)
                 .FirstOrDefaultAsync(x =>
                     x.MaThanhToan == id
@@ -302,6 +321,22 @@ namespace DatMonAnOnline.API.Controllers
                 return StatusCode(403, new
                 {
                     message = "Bạn không có quyền xử lý giao dịch này."
+                });
+            }
+
+            if (donHang.MaTrangThai != 1)
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng không còn ở trạng thái chờ thanh toán/xác nhận."
+                });
+            }
+
+            if (await ExpireOnlineOrderIfNeeded(thanhToan))
+            {
+                return StatusCode(StatusCodes.Status410Gone, new
+                {
+                    message = "Đơn hàng đã tự hủy vì quá hạn thanh toán online 15 phút."
                 });
             }
 
@@ -384,6 +419,10 @@ namespace DatMonAnOnline.API.Controllers
 
             var thanhToanCu = await _context.Thanhtoans
                 .Include(x => x.MaDonHangNavigation)
+                    .ThenInclude(order => order.MaKhuyenMaiNavigation)
+                .Include(x => x.MaDonHangNavigation)
+                    .ThenInclude(order => order.Thanhtoans)
+                .Include(x => x.MaPhuongThucNavigation)
                 .FirstOrDefaultAsync(x =>
                     x.MaThanhToan == id
                 );
@@ -403,6 +442,22 @@ namespace DatMonAnOnline.API.Controllers
                 return StatusCode(403, new
                 {
                     message = "Bạn không có quyền đổi phương thức giao dịch này."
+                });
+            }
+
+            if (donHang.MaTrangThai != 1)
+            {
+                return BadRequest(new
+                {
+                    message = "Đơn hàng không còn chờ thanh toán."
+                });
+            }
+
+            if (await ExpireOnlineOrderIfNeeded(thanhToanCu))
+            {
+                return StatusCode(StatusCodes.Status410Gone, new
+                {
+                    message = "Đơn hàng đã tự hủy vì quá hạn thanh toán online 15 phút."
                 });
             }
 
@@ -513,6 +568,57 @@ namespace DatMonAnOnline.API.Controllers
                 trangThaiThanhToan =
                     thanhToanMoi.TrangThaiThanhToan
             });
+        }
+
+        private async Task<bool> ExpireOnlineOrderIfNeeded(Thanhtoan payment)
+        {
+            var order = payment.MaDonHangNavigation;
+
+            if (order.MaTrangThai != 1 ||
+                OrderPaymentRules.IsCod(payment) ||
+                !OrderPaymentRules.IsOnlinePaymentExpired(order))
+            {
+                return false;
+            }
+
+            var claimed = await _context.Donhangs
+                .Where(item => item.MaDonHang == order.MaDonHang && item.MaTrangThai == 1)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.MaTrangThai, 6)
+                    .SetProperty(
+                        item => item.LyDoHuy,
+                        "Hệ thống tự hủy do thanh toán online quá hạn 15 phút."));
+
+            if (claimed == 0)
+                return true;
+
+            foreach (var pendingPayment in order.Thanhtoans.Where(item =>
+                         item.TrangThaiThanhToan == "ChoThanhToan"))
+            {
+                pendingPayment.TrangThaiThanhToan = "ThatBai";
+                pendingPayment.ThoiGianThanhToan = DateTime.Now;
+            }
+
+            order.MaTrangThai = 6;
+            order.LyDoHuy = "Hệ thống tự hủy do thanh toán online quá hạn 15 phút.";
+
+            if (order.MaKhuyenMaiNavigation != null &&
+                order.MaKhuyenMaiNavigation.SoLuongDaDung > 0)
+            {
+                order.MaKhuyenMaiNavigation.SoLuongDaDung--;
+            }
+
+            _context.Lichsutrangthaidonhangs.Add(new Lichsutrangthaidonhang
+            {
+                MaDonHang = order.MaDonHang,
+                MaTrangThai = 6,
+                MaTaiKhoan = null,
+                ThoiGianTao = DateTime.Now,
+                GhiChu = "Hệ thống tự hủy: thanh toán online quá hạn 15 phút."
+            });
+
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         private async Task<(

@@ -1,4 +1,5 @@
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,8 +15,15 @@ public class GioHangController : ControllerBase
 {
     private static readonly TimeSpan ThoiHanGioHang = TimeSpan.FromMinutes(5);
     private readonly DatMonAnOnlineContext _context;
+    private readonly ICheckoutCartReservationService _checkoutReservations;
 
-    public GioHangController(DatMonAnOnlineContext context) => _context = context;
+    public GioHangController(
+        DatMonAnOnlineContext context,
+        ICheckoutCartReservationService checkoutReservations)
+    {
+        _context = context;
+        _checkoutReservations = checkoutReservations;
+    }
 
     private async Task<int?> LayMaKhachHang()
     {
@@ -32,6 +40,7 @@ public class GioHangController : ControllerBase
     {
         return _context.Giohangs
             .Include(g => g.MaNhaHangNavigation)
+                .ThenInclude(nhaHang => nhaHang.MaTaiKhoanNavigation)
             .Include(g => g.Chitietgiohangs)
                 .ThenInclude(ct => ct.MaMonAnNavigation)
             .Include(g => g.Chitietgiohangs)
@@ -42,6 +51,7 @@ public class GioHangController : ControllerBase
     private async Task<bool> XoaNoiDungNeuHetHan(Giohang? gioHang)
     {
         if (gioHang == null ||
+            _checkoutReservations.IsReserved(gioHang.MaGioHang) ||
             gioHang.NgayCapNhat > DateTime.Now.Subtract(ThoiHanGioHang))
         {
             return false;
@@ -199,7 +209,10 @@ public class GioHangController : ControllerBase
 
         var nhaHang = await _context.Nhahangs
             .AsNoTracking()
-            .Where(nh => nh.MaNhaHang == maNhaHang && nh.TrangThaiDuyet == "DaDuyet")
+            .Where(nh =>
+                nh.MaNhaHang == maNhaHang &&
+                nh.TrangThaiDuyet == "DaDuyet" &&
+                nh.MaTaiKhoanNavigation.TrangThai == true)
             .Select(nh => new { nh.MaNhaHang, nh.TenNhaHang, nh.AnhBia })
             .FirstOrDefaultAsync();
 
@@ -278,6 +291,36 @@ public class GioHangController : ControllerBase
         return Ok(TaoDuLieuGioHang(gioHang));
     }
 
+    [HttpPost("{maGioHang:int}/giu-checkout")]
+    public async Task<IActionResult> GiuGioHangTrongCheckout(int maGioHang)
+    {
+        var maKhachHang = await LayMaKhachHang();
+        if (maKhachHang == null) return Unauthorized();
+
+        var gioHang = await TruyVanGioHangDayDu()
+            .FirstOrDefaultAsync(g =>
+                g.MaGioHang == maGioHang &&
+                g.MaKhachHang == maKhachHang.Value);
+
+        if (gioHang == null)
+            return NotFound(new { message = "Không tìm thấy giỏ hàng." });
+
+        if (await XoaNoiDungNeuHetHan(gioHang) || !gioHang.Chitietgiohangs.Any())
+        {
+            return StatusCode(StatusCodes.Status410Gone, new
+            {
+                message = "Giỏ hàng đã hết hạn hoặc không còn món."
+            });
+        }
+
+        var expiresAtUtc = _checkoutReservations.Reserve(maGioHang);
+        return Ok(new
+        {
+            message = "Đã giữ giỏ hàng trong thời gian thanh toán.",
+            expiresAtUtc
+        });
+    }
+
     [HttpPost("them-mon")]
     public async Task<IActionResult> ThemMonVaoGio([FromBody] ThemMonYeuCau request)
     {
@@ -286,6 +329,7 @@ public class GioHangController : ControllerBase
 
         var monAn = await _context.Monans
             .Include(m => m.MaNhaHangNavigation)
+                .ThenInclude(nhaHang => nhaHang.MaTaiKhoanNavigation)
             .Include(m => m.MaNhomToppings)
                 .ThenInclude(nhom => nhom.Toppings)
             .FirstOrDefaultAsync(m => m.MaMonAn == request.MaMonAn);
@@ -293,10 +337,18 @@ public class GioHangController : ControllerBase
         if (monAn == null || monAn.TrangThai != true)
             return NotFound(new { message = "Món ăn không tồn tại hoặc đã ngừng bán." });
 
-        if (monAn.MaNhaHangNavigation.TrangThaiDuyet != "DaDuyet" ||
-            monAn.MaNhaHangNavigation.TrangThaiHoatDong != "MoCua")
+        var trangThaiNhaHang = TrangThaiNhaHangHelper.KiemTra(
+            monAn.MaNhaHangNavigation);
+
+        if (monAn.MaNhaHangNavigation.MaTaiKhoanNavigation.TrangThai != true ||
+            !trangThaiNhaHang.DangMoCua)
         {
-            return BadRequest(new { message = "Nhà hàng hiện không nhận đơn." });
+            return BadRequest(new
+            {
+                message = monAn.MaNhaHangNavigation.MaTaiKhoanNavigation.TrangThai != true
+                    ? "Nhà hàng đang tạm ngưng hoạt động."
+                    : trangThaiNhaHang.TrangThaiHienThi
+            });
         }
 
         var toppingDaChon = (request.DanhSachMaTopping ?? new List<int>())
@@ -409,6 +461,40 @@ public class GioHangController : ControllerBase
             gioHang.MaGioHang,
             gioHang.MaNhaHang
         });
+    }
+
+    [HttpPost("dong-bo-khach")]
+    public async Task<IActionResult> DongBoGioKhach([FromBody] DongBoGioKhachYeuCau request)
+    {
+        if (request.CacMon.Count == 0)
+            return Ok(new { message = "Không có món khách cần đồng bộ." });
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
+        {
+            foreach (var item in request.CacMon)
+            {
+                var result = await ThemMonVaoGio(item);
+                if (result is not OkObjectResult)
+                {
+                    await transaction.RollbackAsync();
+                    return result;
+                }
+            }
+
+            await transaction.CommitAsync();
+            return Ok(new
+            {
+                message = "Đã đồng bộ toàn bộ giỏ khách vào tài khoản.",
+                soDongDaDongBo = request.CacMon.Count
+            });
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     [HttpPut("chi-tiet/{id:int}")]
@@ -603,6 +689,7 @@ public class GioHangController : ControllerBase
 
         _context.Chitietgiohangs.RemoveRange(gioHang.Chitietgiohangs);
         gioHang.NgayCapNhat = DateTime.Now;
+        _checkoutReservations.Release(maGioHang);
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đã xóa các món trong giỏ của nhà hàng này." });
@@ -617,7 +704,7 @@ public class ThemMonYeuCau
     [Range(1, 100)]
     public int SoLuong { get; set; }
 
-    [MaxLength(300)]
+    [MaxLength(200)]
     public string? GhiChu { get; set; }
 
     public List<int>? DanhSachMaTopping { get; set; }
@@ -631,8 +718,14 @@ public class SuaSoLuongYeuCau
 
 public class SuaTuyChonYeuCau
 {
-    [MaxLength(300)]
+    [MaxLength(200)]
     public string? GhiChu { get; set; }
 
     public List<int>? DanhSachMaTopping { get; set; }
+}
+
+public class DongBoGioKhachYeuCau
+{
+    [Required, MinLength(1), MaxLength(100)]
+    public List<ThemMonYeuCau> CacMon { get; set; } = new();
 }

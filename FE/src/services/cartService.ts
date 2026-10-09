@@ -261,6 +261,13 @@ export async function getCart(maGioHang: number): Promise<RestaurantCart> {
   });
 }
 
+export async function reserveCartForCheckout(maGioHang: number) {
+  return apiFetch(`/gio-hang/${maGioHang}/giu-checkout`, {
+    method: "POST",
+    headers: authHeaders(),
+  }) as Promise<{ message: string; expiresAtUtc: string }>;
+}
+
 export async function addToCart(data: ThemMonRequest) {
   if (hasCustomerSession()) return addToServerCart(data);
 
@@ -409,19 +416,22 @@ export async function syncGuestCartsToAccount() {
   if (!hasCustomerSession()) return;
 
   const carts = readGuestCarts();
-
-  for (const cart of carts) {
-    for (const item of [...cart.chiTiet]) {
-      await addToServerCart({
+  const items = carts.flatMap((cart) =>
+    cart.chiTiet.map((item) => ({
         maMonAn: item.maMonAn,
         soLuong: item.soLuong,
         ghiChu: item.ghiChu || undefined,
         danhSachMaTopping: item.toppings.map((topping) => topping.maTopping),
-      });
+      })),
+  );
 
-      updateGuestCartByItem(item.maChiTietGioHang, () => null);
-    }
-  }
+  if (items.length === 0) return;
 
-  writeGuestCarts(readGuestCarts().filter((cart) => cart.chiTiet.length > 0));
+  await apiFetch("/gio-hang/dong-bo-khach", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ cacMon: items }),
+  });
+
+  writeGuestCarts([]);
 }

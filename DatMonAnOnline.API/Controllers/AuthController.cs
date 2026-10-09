@@ -1,5 +1,8 @@
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Security;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -19,17 +22,23 @@ namespace DatMonAnOnline.API.Controllers
         private readonly DatMonAnOnlineContext _context;
         private readonly IMemoryCache _cache;
         private readonly IWebHostEnvironment _environment;
+        private readonly IPasswordResetEmailQueue _passwordResetEmailQueue;
         private const string JwtSecret = "DayLaMotChuoiBaoMatRatDaiChoJwtToken123456";
         private static readonly TimeSpan PasswordResetLifetime = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan LoginLockLifetime = TimeSpan.FromMinutes(15);
+        private const int MaxFailedLoginAttempts = 5;
+        private static readonly object LoginAttemptSync = new();
 
         public AuthController(
             DatMonAnOnlineContext context,
             IMemoryCache cache,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IPasswordResetEmailQueue passwordResetEmailQueue)
         {
             _context = context;
             _cache = cache;
             _environment = environment;
+            _passwordResetEmailQueue = passwordResetEmailQueue;
         }
 
         public class RegisterKhachHangDto
@@ -87,6 +96,20 @@ namespace DatMonAnOnline.API.Controllers
             public string MatKhauLucTaoYeuCau { get; init; } = string.Empty;
             public DateTime HetHanUtc { get; init; }
             public int SoLanThuSai { get; set; }
+            public string EmailRequestCacheKey { get; init; } = string.Empty;
+        }
+
+        private sealed class PasswordResetReference
+        {
+            public string MaYeuCau { get; init; } = string.Empty;
+            public string? MaXacNhanThuNghiem { get; init; }
+            public DateTime HetHanUtc { get; init; }
+        }
+
+        private sealed class LoginAttemptEntry
+        {
+            public int SoLanThatBai { get; set; }
+            public DateTime? KhoaDenUtc { get; set; }
         }
 
         [HttpPost("register")]
@@ -224,19 +247,30 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        [EnableRateLimiting(AuthRateLimitPolicies.Login)]
         public async Task<IActionResult> Login(LoginDto request)
         {
             var email = request.Email.Trim().ToLowerInvariant();
+
+            if (TryGetLoginLock(email, out var retryAfter))
+                return LoginLocked(retryAfter);
 
             var taiKhoan = await _context.Taikhoans
                 .Include(x => x.MaRoleNavigation)
                 .FirstOrDefaultAsync(x => x.Email == email);
 
             if (taiKhoan == null || !VerifyPassword(request.MatKhau, taiKhoan.MatKhau))
+            {
+                if (RegisterFailedLogin(email, out retryAfter))
+                    return LoginLocked(retryAfter);
+
                 return Unauthorized(new { message = "Email hoặc mật khẩu không đúng." });
+            }
 
             if (taiKhoan.TrangThai != true)
                 return Unauthorized(new { message = "Tài khoản đã bị khóa." });
+
+            ClearFailedLogins(email);
 
             var role = taiKhoan.MaRoleNavigation?.TenRole;
             if (string.IsNullOrWhiteSpace(role))
@@ -246,7 +280,8 @@ namespace DatMonAnOnline.API.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, taiKhoan.MaTaiKhoan.ToString()),
                 new Claim(ClaimTypes.Name, taiKhoan.Email),
-                new Claim(ClaimTypes.Role, role)
+                new Claim(ClaimTypes.Role, role),
+                new Claim(PasswordTokenVersion.ClaimType, PasswordTokenVersion.Create(taiKhoan.MatKhau))
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
@@ -338,14 +373,26 @@ namespace DatMonAnOnline.API.Controllers
             taiKhoan.MatKhau = HashPassword(request.MatKhauMoi);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Đổi mật khẩu thành công." });
+            return Ok(new
+            {
+                message = "Đổi mật khẩu thành công. Tất cả phiên đăng nhập cũ đã được đăng xuất."
+            });
         }
 
         [HttpPost("quen-mat-khau")]
         [AllowAnonymous]
+        [EnableRateLimiting(AuthRateLimitPolicies.RequestPasswordReset)]
         public async Task<IActionResult> QuenMatKhau(QuenMatKhauDto request)
         {
             var email = request.Email.Trim().ToLowerInvariant();
+            var emailRequestCacheKey = GetPasswordResetEmailCacheKey(email);
+
+            if (_cache.TryGetValue(emailRequestCacheKey, out PasswordResetReference? existingRequest) &&
+                existingRequest != null && existingRequest.HetHanUtc > DateTime.UtcNow)
+            {
+                return PasswordResetRequested(existingRequest);
+            }
+
             var taiKhoan = await _context.Taikhoans
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Email == email && x.TrangThai == true);
@@ -359,6 +406,14 @@ namespace DatMonAnOnline.API.Controllers
                 MaTaiKhoan = taiKhoan?.MaTaiKhoan ?? 0,
                 MaXacNhanHash = HashResetCode(maYeuCau, maXacNhan),
                 MatKhauLucTaoYeuCau = taiKhoan?.MatKhau ?? string.Empty,
+                HetHanUtc = hetHanUtc,
+                EmailRequestCacheKey = emailRequestCacheKey
+            };
+
+            var requestReference = new PasswordResetReference
+            {
+                MaYeuCau = maYeuCau,
+                MaXacNhanThuNghiem = _environment.IsDevelopment() ? maXacNhan : null,
                 HetHanUtc = hetHanUtc
             };
 
@@ -370,18 +425,37 @@ namespace DatMonAnOnline.API.Controllers
                     AbsoluteExpiration = new DateTimeOffset(hetHanUtc)
                 });
 
-            return Ok(new
+            _cache.Set(
+                emailRequestCacheKey,
+                requestReference,
+                new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpiration = new DateTimeOffset(hetHanUtc)
+                });
+
+            if (taiKhoan != null && !_environment.IsDevelopment())
             {
-                message = "Nếu email tồn tại, mã xác nhận đã được tạo.",
-                maYeuCau,
-                hetHanSauPhut = (int)PasswordResetLifetime.TotalMinutes,
-                // Chỉ trả mã trực tiếp khi chạy local Development.
-                maXacNhanThuNghiem = _environment.IsDevelopment() ? maXacNhan : null
-            });
+                var queued = _passwordResetEmailQueue.TryQueue(new PasswordResetEmail(
+                    taiKhoan.Email,
+                    maXacNhan,
+                    (int)PasswordResetLifetime.TotalMinutes));
+
+                if (!queued)
+                {
+                    RemovePasswordReset(GetPasswordResetCacheKey(maYeuCau), entry);
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                    {
+                        message = "Dịch vụ gửi email đang tạm thời bận. Vui lòng thử lại sau."
+                    });
+                }
+            }
+
+            return PasswordResetRequested(requestReference);
         }
 
         [HttpPost("dat-lai-mat-khau")]
         [AllowAnonymous]
+        [EnableRateLimiting(AuthRateLimitPolicies.ConfirmPasswordReset)]
         public async Task<IActionResult> DatLaiMatKhau(DatLaiMatKhauDto request)
         {
             var cacheKey = GetPasswordResetCacheKey(request.MaYeuCau);
@@ -391,7 +465,7 @@ namespace DatMonAnOnline.API.Controllers
 
             if (entry.HetHanUtc <= DateTime.UtcNow)
             {
-                _cache.Remove(cacheKey);
+                RemovePasswordReset(cacheKey, entry);
                 return BadRequest(new { message = "Mã xác nhận đã hết hạn. Vui lòng yêu cầu mã mới." });
             }
 
@@ -401,7 +475,7 @@ namespace DatMonAnOnline.API.Controllers
 
                 if (entry.SoLanThuSai >= 5)
                 {
-                    _cache.Remove(cacheKey);
+                    RemovePasswordReset(cacheKey, entry);
                     return BadRequest(new { message = "Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới." });
                 }
 
@@ -425,7 +499,7 @@ namespace DatMonAnOnline.API.Controllers
 
             if (taiKhoan == null || taiKhoan.MatKhau != entry.MatKhauLucTaoYeuCau)
             {
-                _cache.Remove(cacheKey);
+                RemovePasswordReset(cacheKey, entry);
                 return BadRequest(new { message = "Yêu cầu đặt lại mật khẩu không còn hợp lệ." });
             }
 
@@ -434,9 +508,12 @@ namespace DatMonAnOnline.API.Controllers
 
             taiKhoan.MatKhau = HashPassword(request.MatKhauMoi);
             await _context.SaveChangesAsync();
-            _cache.Remove(cacheKey);
+            RemovePasswordReset(cacheKey, entry);
 
-            return Ok(new { message = "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập ngay." });
+            return Ok(new
+            {
+                message = "Đặt lại mật khẩu thành công. Tất cả phiên đăng nhập cũ đã được đăng xuất."
+            });
         }
 
         private int? GetMaTaiKhoan()
@@ -445,11 +522,111 @@ namespace DatMonAnOnline.API.Controllers
             return int.TryParse(value, out var id) ? id : null;
         }
 
+        private IActionResult PasswordResetRequested(PasswordResetReference request)
+        {
+            var remainingMinutes = Math.Max(
+                1,
+                (int)Math.Ceiling((request.HetHanUtc - DateTime.UtcNow).TotalMinutes));
+
+            return Ok(new
+            {
+                message = "Nếu email tồn tại, mã xác nhận đã được gửi.",
+                maYeuCau = request.MaYeuCau,
+                hetHanSauPhut = remainingMinutes,
+                // Chỉ trả mã trực tiếp khi chạy local Development.
+                maXacNhanThuNghiem = request.MaXacNhanThuNghiem
+            });
+        }
+
+        private IActionResult LoginLocked(TimeSpan retryAfter)
+        {
+            var retryAfterSeconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+
+            return StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                message = "Đăng nhập đã bị khóa tạm thời do sai quá nhiều lần. Vui lòng thử lại sau.",
+                retryAfterSeconds
+            });
+        }
+
+        private bool TryGetLoginLock(string email, out TimeSpan retryAfter)
+        {
+            lock (LoginAttemptSync)
+            {
+                var key = GetLoginAttemptCacheKey(email);
+                if (_cache.TryGetValue(key, out LoginAttemptEntry? entry) &&
+                    entry?.KhoaDenUtc is DateTime lockedUntil &&
+                    lockedUntil > DateTime.UtcNow)
+                {
+                    retryAfter = lockedUntil - DateTime.UtcNow;
+                    return true;
+                }
+
+                retryAfter = TimeSpan.Zero;
+                return false;
+            }
+        }
+
+        private bool RegisterFailedLogin(string email, out TimeSpan retryAfter)
+        {
+            lock (LoginAttemptSync)
+            {
+                var key = GetLoginAttemptCacheKey(email);
+                var entry = _cache.TryGetValue(key, out LoginAttemptEntry? existing) && existing != null
+                    ? existing
+                    : new LoginAttemptEntry();
+
+                entry.SoLanThatBai++;
+                if (entry.SoLanThatBai >= MaxFailedLoginAttempts)
+                    entry.KhoaDenUtc = DateTime.UtcNow.Add(LoginLockLifetime);
+
+                _cache.Set(
+                    key,
+                    entry,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = LoginLockLifetime
+                    });
+
+                if (entry.KhoaDenUtc is DateTime lockedUntil && lockedUntil > DateTime.UtcNow)
+                {
+                    retryAfter = lockedUntil - DateTime.UtcNow;
+                    return true;
+                }
+
+                retryAfter = TimeSpan.Zero;
+                return false;
+            }
+        }
+
+        private void ClearFailedLogins(string email)
+        {
+            lock (LoginAttemptSync)
+                _cache.Remove(GetLoginAttemptCacheKey(email));
+        }
+
+        private void RemovePasswordReset(string requestCacheKey, PasswordResetEntry entry)
+        {
+            _cache.Remove(requestCacheKey);
+            if (!string.IsNullOrWhiteSpace(entry.EmailRequestCacheKey))
+                _cache.Remove(entry.EmailRequestCacheKey);
+        }
+
         private static string? Normalize(string? value)
             => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
         private static string GetPasswordResetCacheKey(string requestId)
             => $"password-reset:{requestId}";
+
+        private static string GetPasswordResetEmailCacheKey(string email)
+            => $"password-reset-email:{HashCacheKey(email)}";
+
+        private static string GetLoginAttemptCacheKey(string email)
+            => $"login-attempt:{HashCacheKey(email)}";
+
+        private static string HashCacheKey(string value)
+            => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
         private static string HashResetCode(string requestId, string code)
         {

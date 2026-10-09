@@ -1,13 +1,22 @@
-const API_URL = "http://localhost:5038/api";
+export const API_URL = "http://localhost:5038/api";
+
+export function resolveMediaUrl(path: string | null | undefined) {
+    if (!path) return null;
+    if (/^(https?:|data:|blob:)/i.test(path)) return path;
+
+    const serverUrl = API_URL.replace(/\/api\/?$/, "");
+    return `${serverUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 export async function apiFetch(
     endpoint: string,
     options: RequestInit = {}
 ) {
+    const hasJsonBody = options.body != null && !(options.body instanceof FormData);
     const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers: {
-            "Content-Type": "application/json",
+            ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
             ...options.headers,
         },
     });

@@ -9,6 +9,8 @@ public partial class ChitietdonhangTopping
 
     public int MaTopping { get; set; }
 
+    public string? TenToppingLucDat { get; set; }
+
     public int SoLuong { get; set; }
 
     public decimal GiaThemLucDat { get; set; }

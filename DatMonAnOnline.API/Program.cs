@@ -7,6 +7,9 @@ using System.Text;
 using System.Security.Claims;
 using DatMonAnOnline.API.Hubs;
 using DatMonAnOnline.API.Services;
+using DatMonAnOnline.API.Security;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
@@ -21,6 +24,60 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowCredentials();
     });
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString();
+
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            message = "Bạn thao tác quá nhiều lần. Vui lòng chờ một lúc rồi thử lại."
+        }, cancellationToken);
+    };
+
+    static string GetClientKey(HttpContext context)
+        => context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client";
+
+    options.AddPolicy(AuthRateLimitPolicies.Login, context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            GetClientKey(context),
+            _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 6,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(AuthRateLimitPolicies.RequestPasswordReset, context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            GetClientKey(context),
+            _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(15),
+                SegmentsPerWindow = 3,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(AuthRateLimitPolicies.ConfirmPasswordReset, context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            GetClientKey(context),
+            _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(10),
+                SegmentsPerWindow = 5,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 // =========================
@@ -101,13 +158,22 @@ builder.Services.AddAuthentication(options =>
             // Kiểm tra DB ở mỗi request, không dùng trạng thái cũ trong JWT/cache.
             var db = context.HttpContext.RequestServices
                 .GetRequiredService<DatMonAnOnlineContext>();
-            var dangHoatDong = await db.Taikhoans
+            var taiKhoan = await db.Taikhoans
                 .AsNoTracking()
-                .AnyAsync(t => t.MaTaiKhoan == maTaiKhoan && t.TrangThai == true,
+                .Where(t => t.MaTaiKhoan == maTaiKhoan && t.TrangThai == true)
+                .Select(t => new { t.MatKhau })
+                .FirstOrDefaultAsync(
                     context.HttpContext.RequestAborted);
 
-            if (!dangHoatDong)
+            if (taiKhoan == null)
+            {
                 context.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
+                return;
+            }
+
+            var tokenVersion = context.Principal?.FindFirstValue(PasswordTokenVersion.ClaimType);
+            if (!PasswordTokenVersion.Matches(tokenVersion, taiKhoan.MatKhau))
+                context.Fail("Phiên đăng nhập đã bị thu hồi.");
         },
         OnChallenge = async context =>
         {
@@ -137,6 +203,25 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ICheckoutCartReservationService, CheckoutCartReservationService>();
+var smtpOptions = builder.Services
+    .AddOptions<SmtpEmailOptions>()
+    .Bind(builder.Configuration.GetSection(SmtpEmailOptions.SectionName));
+
+if (!builder.Environment.IsDevelopment())
+{
+    smtpOptions
+        .Validate(options => options.IsValid(), "Cấu hình Email:Smtp chưa đầy đủ hoặc không hợp lệ.")
+        .ValidateOnStart();
+}
+
+builder.Services.AddSingleton<IPasswordResetEmailSender, SmtpPasswordResetEmailSender>();
+builder.Services.AddSingleton<PasswordResetEmailQueue>();
+builder.Services.AddSingleton<IPasswordResetEmailQueue>(services =>
+    services.GetRequiredService<PasswordResetEmailQueue>());
+builder.Services.AddHostedService(services =>
+    services.GetRequiredService<PasswordResetEmailQueue>());
+builder.Services.AddHostedService<PendingOnlineOrderExpirationService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<
     IRealtimeNotificationService,
@@ -184,7 +269,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseCors("AllowFrontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 

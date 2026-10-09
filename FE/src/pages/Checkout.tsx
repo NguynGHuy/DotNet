@@ -32,7 +32,7 @@ import {
   placeOrder,
   type TienDonHang,
 } from "../services/orderService";
-import { getCart } from "../services/cartService";
+import { getCart, reserveCartForCheckout } from "../services/cartService";
 import { checkPromotion } from "../services/promotionService";
 import { getRestaurantById } from "../services/restaurantService";
 import {
@@ -215,6 +215,8 @@ function Checkout() {
           );
         }
 
+        await reserveCartForCheckout(maGioHang);
+
         const [
           addressData,
           paymentData,
@@ -307,6 +309,20 @@ function Checkout() {
 
     void initCheckout();
   }, [maGioHang, navigate]);
+
+  useEffect(() => {
+    if (!Number.isInteger(maGioHang) || maGioHang <= 0 || !localStorage.getItem("token")) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void reserveCartForCheckout(maGioHang).catch(() => {
+        // Lần thao tác kế tiếp sẽ hiển thị lỗi chính xác nếu giỏ không còn hợp lệ.
+      });
+    }, 5 * 60 * 1000);
+
+    return () => window.clearInterval(interval);
+  }, [maGioHang]);
 
   const handleApplyPromotion =
     async () => {
@@ -1113,6 +1129,7 @@ function Checkout() {
 
                 <p className="qr-demo-note">
                   Đây là luồng thanh toán mô phỏng dùng trong đồ án.
+                  Đơn chưa thanh toán sẽ tự hủy sau 15 phút và hoàn lại lượt voucher.
                 </p>
 
                 <div className="qr-actions qr-actions-v2">
@@ -1141,6 +1158,19 @@ function Checkout() {
                   >
                     <CircleX size={17} />
                     Giao dịch không thành công
+                  </button>
+
+                  <button
+                    type="button"
+                    className="qr-later-button"
+                    disabled={qrBusy}
+                    onClick={() => {
+                      if (donDaTao) {
+                        navigate(`/don-hang/${donDaTao.maDonHang}`);
+                      }
+                    }}
+                  >
+                    Thanh toán sau · còn tối đa 15 phút
                   </button>
                 </div>
               </section>

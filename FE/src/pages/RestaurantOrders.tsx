@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import {
   ArrowRight,
+  Banknote,
   BadgeCheck,
   CheckCircle2,
   ChefHat,
@@ -35,6 +36,8 @@ interface RestaurantOrderSummary {
   thoiGianDat: string;
   trangThai: string;
   thanhTien: number;
+  tenPhuongThuc?: string | null;
+  trangThaiThanhToan?: string | null;
 }
 
 interface StatusMeta {
@@ -92,6 +95,27 @@ function formatMoney(value: number) {
 
 function formatOrderTime(value: string) {
   return new Date(value).toLocaleString("vi-VN");
+}
+
+function getPaymentMeta(order: RestaurantOrderSummary) {
+  if (order.tenPhuongThuc?.toUpperCase() === "COD") {
+    return {
+      label: order.trangThaiThanhToan === "ThanhCong"
+        ? "COD · Đã thu tiền"
+        : "COD · Thu khi giao",
+      className: order.trangThaiThanhToan === "ThanhCong" ? "paid" : "cod",
+    };
+  }
+
+  if (order.trangThaiThanhToan === "ThanhCong") {
+    return { label: `${order.tenPhuongThuc || "Online"} · Đã thanh toán`, className: "paid" };
+  }
+
+  if (order.trangThaiThanhToan === "ThatBai") {
+    return { label: `${order.tenPhuongThuc || "Online"} · Thất bại`, className: "failed" };
+  }
+
+  return { label: `${order.tenPhuongThuc || "Online"} · Chờ thanh toán`, className: "pending" };
 }
 
 function RestaurantOrders() {
@@ -164,20 +188,19 @@ function RestaurantOrders() {
       void loadOrders(false);
     };
 
-    void loadOrders(true);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadOrders(true);
+    }, 0);
 
     window.addEventListener("restaurant-orders-updated", handleRealtimeUpdate);
 
     return () => {
+      window.clearTimeout(initialLoadTimer);
       window.removeEventListener(
         "restaurant-orders-updated",
         handleRealtimeUpdate,
       );
     };
-  }, [loadOrders]);
-
-  useEffect(() => {
-    void loadOrders();
   }, [loadOrders]);
 
   const currentFilterLabel = useMemo(() => {
@@ -312,6 +335,7 @@ function RestaurantOrders() {
         <section className="merchant-order-list">
           {orders.map((order) => {
             const status = getStatusMeta(order.trangThai);
+            const payment = getPaymentMeta(order);
 
             const StatusIcon = status.icon;
 
@@ -350,6 +374,11 @@ function RestaurantOrders() {
 
                     {formatOrderTime(order.thoiGianDat)}
                   </time>
+
+                  <span className={`merchant-order-payment payment-${payment.className}`}>
+                    <Banknote size={12} />
+                    {payment.label}
+                  </span>
                 </div>
 
                 <div className="merchant-order-price">

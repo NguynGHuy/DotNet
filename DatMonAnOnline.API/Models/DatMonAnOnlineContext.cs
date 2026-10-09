@@ -124,6 +124,7 @@ public partial class DatMonAnOnlineContext : DbContext
 
             entity.Property(e => e.DonGia).HasPrecision(18);
             entity.Property(e => e.GhiChu).HasMaxLength(255);
+            entity.Property(e => e.TenMonAnLucDat).HasMaxLength(150);
             entity.Property(e => e.ThanhTien).HasPrecision(18);
 
             entity.HasOne(d => d.MaDonHangNavigation).WithMany(p => p.Chitietdonhangs)
@@ -149,6 +150,7 @@ public partial class DatMonAnOnlineContext : DbContext
 
             entity.Property(e => e.GiaThemLucDat).HasPrecision(18);
             entity.Property(e => e.SoLuong).HasDefaultValueSql("'1'");
+            entity.Property(e => e.TenToppingLucDat).HasMaxLength(100);
 
             entity.HasOne(d => d.MaChiTietDonHangNavigation).WithMany(p => p.ChitietdonhangToppings)
                 .HasForeignKey(d => d.MaChiTietDonHang)
@@ -385,6 +387,7 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.Property(e => e.GiamGiaNhaHang).HasPrecision(18);
             entity.Property(e => e.LyDoHuy).HasMaxLength(500);
             entity.Property(e => e.MaDonHangHienThi).HasMaxLength(50);
+            entity.Property(e => e.TenNhaHangLucDat).HasMaxLength(150);
             entity.Property(e => e.PhiNenTang).HasPrecision(18);
             entity.Property(e => e.PhiShip).HasPrecision(18);
             entity.Property(e => e.SoDienThoaiNhan).HasMaxLength(15);

@@ -18,6 +18,7 @@ import {
 
 import { getCurrentUser } from "../services/userService";
 import { getNotifications } from "../services/notificationService";
+import { resolveMediaUrl } from "../services/api";
 interface User {
   email: string;
   role: string;
@@ -35,15 +36,8 @@ interface User {
   };
 }
 
-const AVATAR_REMOVED = "__avatar_removed__";
-
 function getUserAvatar(user: User) {
-  if (user.role !== "KhachHang") return user.anhDaiDien || null;
-
-  const savedAvatar = localStorage.getItem(`customer-avatar:${user.maTaiKhoan}`);
-
-  if (savedAvatar === AVATAR_REMOVED) return null;
-  return savedAvatar || user.anhDaiDien || null;
+  return resolveMediaUrl(user.anhDaiDien);
 }
 
 function Header() {

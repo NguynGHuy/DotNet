@@ -13,6 +13,8 @@ public partial class Donhang
 
     public int MaNhaHang { get; set; }
 
+    public string? TenNhaHangLucDat { get; set; }
+
     public int? MaDiaChi { get; set; }
 
     public int MaTrangThai { get; set; }

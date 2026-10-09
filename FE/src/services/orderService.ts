@@ -130,6 +130,9 @@ export interface OrderDetails {
   maNhaHang: number;
   tenNhaHang: string;
   trangThai: string;
+  tenPhuongThuc: string | null;
+  trangThaiThanhToan: string | null;
+  maThanhToan: number | null;
   thoiGianDat: string;
   tenNguoiNhan: string;
   soDienThoaiNhan: string;

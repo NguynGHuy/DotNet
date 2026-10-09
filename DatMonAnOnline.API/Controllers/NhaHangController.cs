@@ -55,7 +55,10 @@ namespace DatMonAnOnline.API.Controllers
         {
             var danhSach = await _context.Nhahangs
                 .AsNoTracking()
-                .Where(x => x.TrangThaiDuyet == "DaDuyet")
+                .Include(x => x.MaTaiKhoanNavigation)
+                .Where(x =>
+                    x.TrangThaiDuyet == "DaDuyet" &&
+                    x.MaTaiKhoanNavigation.TrangThai == true)
                 .OrderBy(x => x.TenNhaHang)
                 .ToListAsync();
 
@@ -100,9 +103,11 @@ namespace DatMonAnOnline.API.Controllers
         {
             var nhaHang = await _context.Nhahangs
                 .AsNoTracking()
+                .Include(x => x.MaTaiKhoanNavigation)
                 .FirstOrDefaultAsync(x =>
                     x.MaNhaHang == id &&
-                    x.TrangThaiDuyet == "DaDuyet"
+                    x.TrangThaiDuyet == "DaDuyet" &&
+                    x.MaTaiKhoanNavigation.TrangThai == true
                 );
 
             if (nhaHang == null)
@@ -428,6 +433,15 @@ namespace DatMonAnOnline.API.Controllers
             DateTime? thoiDiem = null
         )
         {
+            if (nhaHang.MaTaiKhoanNavigation != null &&
+                nhaHang.MaTaiKhoanNavigation.TrangThai != true)
+            {
+                return (
+                    false,
+                    "Nhà hàng đang tạm ngưng hoạt động"
+                );
+            }
+
             if (nhaHang.TrangThaiDuyet != "DaDuyet")
             {
                 return (
