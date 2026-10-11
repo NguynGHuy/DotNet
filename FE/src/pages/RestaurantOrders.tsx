@@ -23,6 +23,8 @@ import {
   getOrderStatuses,
   getRestaurantOrders,
 } from "../services/orderService";
+import ScrollReveal from "../components/ScrollReveal";
+import Pagination from "../components/Pagination";
 
 interface OrderStatus {
   maTrangThai: number;
@@ -119,11 +121,15 @@ function getPaymentMeta(order: RestaurantOrderSummary) {
 }
 
 function RestaurantOrders() {
+  const PAGE_SIZE = 10;
   const [orders, setOrders] = useState<RestaurantOrderSummary[]>([]);
 
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
 
   const [selectedStatus, setSelectedStatus] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -156,11 +162,16 @@ function RestaurantOrders() {
 
         setError("");
 
-        const data = await getRestaurantOrders(selectedStatus ?? undefined);
+        const data = await getRestaurantOrders<RestaurantOrderSummary>({
+          pageNumber,
+          pageSize: PAGE_SIZE,
+          maTrangThai: selectedStatus ?? undefined,
+        });
 
-        setOrders(
-          Array.isArray(data) ? (data as RestaurantOrderSummary[]) : [],
-        );
+        setOrders(data.items);
+        setTotalItems(data.totalItems);
+        setTotalPages(data.totalPages);
+        if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Không tải được đơn hàng.",
@@ -178,7 +189,7 @@ function RestaurantOrders() {
         }
       }
     },
-    [selectedStatus],
+    [pageNumber, selectedStatus],
   );
 
   useEffect(() => {
@@ -221,7 +232,8 @@ function RestaurantOrders() {
 
   return (
     <main className="quan-orders merchant-orders-page">
-      <header className="merchant-orders-header">
+      <ScrollReveal className="merchant-orders-header-reveal" delay={40}>
+        <header className="merchant-orders-header">
         <div className="merchant-orders-heading">
           <span className="merchant-orders-heading-icon">
             <ClipboardList size={22} />
@@ -236,13 +248,15 @@ function RestaurantOrders() {
         </div>
 
         <div className="merchant-orders-count">
-          <strong>{loading ? "—" : orders.length}</strong>
+          <strong>{loading ? "—" : totalItems}</strong>
 
           <span>đơn đang hiển thị</span>
         </div>
-      </header>
+        </header>
+      </ScrollReveal>
 
-      <section className="merchant-order-filter-section">
+      <ScrollReveal className="merchant-orders-filter-reveal" delay={100}>
+        <section className="merchant-order-filter-section">
         <div className="merchant-order-filter-heading">
           <div>
             <strong>Lọc theo trạng thái</strong>
@@ -269,7 +283,10 @@ function RestaurantOrders() {
             className={`merchant-order-tab tab-all ${
               selectedStatus === null ? "is-active" : ""
             }`}
-            onClick={() => setSelectedStatus(null)}
+            onClick={() => {
+              setSelectedStatus(null);
+              setPageNumber(1);
+            }}
           >
             <ClipboardList size={14} />
             Tất cả
@@ -287,7 +304,10 @@ function RestaurantOrders() {
                 className={`merchant-order-tab tab-${meta.className} ${
                   selectedStatus === status.maTrangThai ? "is-active" : ""
                 }`}
-                onClick={() => setSelectedStatus(status.maTrangThai)}
+                onClick={() => {
+                  setSelectedStatus(status.maTrangThai);
+                  setPageNumber(1);
+                }}
               >
                 <StatusIcon size={14} />
                 {meta.label}
@@ -295,7 +315,8 @@ function RestaurantOrders() {
             );
           })}
         </nav>
-      </section>
+        </section>
+      </ScrollReveal>
 
       {loading ? (
         <section className="merchant-orders-loading">
@@ -326,75 +347,93 @@ function RestaurantOrders() {
           <p>Hiện chưa có đơn nào thuộc trạng thái “{currentFilterLabel}”.</p>
 
           {selectedStatus !== null && (
-            <button type="button" onClick={() => setSelectedStatus(null)}>
+            <button type="button" onClick={() => {
+              setSelectedStatus(null);
+              setPageNumber(1);
+            }}>
               Xem tất cả đơn hàng
             </button>
           )}
         </section>
       ) : (
+        <>
         <section className="merchant-order-list">
-          {orders.map((order) => {
+          {orders.map((order, index) => {
             const status = getStatusMeta(order.trangThai);
             const payment = getPaymentMeta(order);
 
             const StatusIcon = status.icon;
 
             return (
-              <Link
+              <ScrollReveal
                 key={order.maDonHang}
-                to={`/quan/don-hang/${order.maDonHang}`}
-                className={`merchant-order-card order-${status.className}`}
-                aria-label={`Xem chi tiết đơn ${order.maDonHangHienThi}`}
+                className="merchant-order-card-reveal"
+                delay={Math.min(index, 8) * 75}
               >
-                <div className="merchant-order-status-mark">
-                  <StatusIcon size={18} />
-                </div>
+                <Link
+                  to={`/quan/don-hang/${order.maDonHang}`}
+                  className={`merchant-order-card order-${status.className}`}
+                  aria-label={`Xem chi tiết đơn ${order.maDonHangHienThi}`}
+                >
+                  <div className="merchant-order-status-mark">
+                    <StatusIcon size={18} />
+                  </div>
 
-                <div className="merchant-order-primary">
-                  <div className="merchant-order-code-row">
-                    <strong>{order.maDonHangHienThi}</strong>
+                  <div className="merchant-order-primary">
+                    <div className="merchant-order-code-row">
+                      <strong>{order.maDonHangHienThi}</strong>
 
-                    <span
-                      className={`merchant-order-status status-${status.className}`}
-                    >
-                      <StatusIcon size={13} />
+                      <span
+                        className={`merchant-order-status status-${status.className}`}
+                      >
+                        <StatusIcon size={13} />
 
-                      {status.label}
+                        {status.label}
+                      </span>
+                    </div>
+
+                    <div className="merchant-order-customer">
+                      <UserRound size={13} />
+
+                      <span>{order.tenNguoiNhan}</span>
+                    </div>
+
+                    <time>
+                      <Clock3 size={12} />
+
+                      {formatOrderTime(order.thoiGianDat)}
+                    </time>
+
+                    <span className={`merchant-order-payment payment-${payment.className}`}>
+                      <Banknote size={12} />
+                      {payment.label}
                     </span>
                   </div>
 
-                  <div className="merchant-order-customer">
-                    <UserRound size={13} />
+                  <div className="merchant-order-price">
+                    <span>Thành tiền</span>
 
-                    <span>{order.tenNguoiNhan}</span>
+                    <strong>{formatMoney(order.thanhTien)}</strong>
                   </div>
 
-                  <time>
-                    <Clock3 size={12} />
-
-                    {formatOrderTime(order.thoiGianDat)}
-                  </time>
-
-                  <span className={`merchant-order-payment payment-${payment.className}`}>
-                    <Banknote size={12} />
-                    {payment.label}
-                  </span>
-                </div>
-
-                <div className="merchant-order-price">
-                  <span>Thành tiền</span>
-
-                  <strong>{formatMoney(order.thanhTien)}</strong>
-                </div>
-
-                <div className="merchant-order-open">
-                  <span>Xem đơn</span>
-                  <ArrowRight size={16} />
-                </div>
-              </Link>
+                  <div className="merchant-order-open">
+                    <span>Xem đơn</span>
+                    <ArrowRight size={16} />
+                  </div>
+                </Link>
+              </ScrollReveal>
             );
           })}
         </section>
+        {totalPages > 1 && (
+          <Pagination
+            pageNumber={pageNumber}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            onPageChange={setPageNumber}
+          />
+        )}
+        </>
       )}
     </main>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRestaurantReviews } from "../services/reviewService";
 import type { RestaurantReview } from "../services/reviewService";
+import Pagination from "./Pagination";
 
 interface Props {
     maNhaHang: number;
@@ -10,19 +11,28 @@ function RestaurantReviews({ maNhaHang }: Props) {
     const [reviews, setReviews] = useState<RestaurantReview[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
     useEffect(() => {
-        getRestaurantReviews(maNhaHang)
-            .then(setReviews)
+        setLoading(true);
+        getRestaurantReviews(maNhaHang, { pageNumber, pageSize: 5 })
+            .then((data) => {
+                setReviews(data.items);
+                setTotalItems(data.totalItems);
+                setTotalPages(data.totalPages);
+                if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
+            })
             .catch((err: Error) => setError(err.message))
             .finally(() => setLoading(false));
-    }, [maNhaHang]);
+    }, [maNhaHang, pageNumber]);
 
     return (
         <section className="restaurant-reviews">
             <div className="restaurant-reviews-heading">
                 <h2>Đánh giá nhà hàng</h2>
-                {!loading && !error && <span>{reviews.length} đánh giá</span>}
+                {!loading && !error && <span>{totalItems} đánh giá</span>}
             </div>
 
             {error && <p className="auth-error">{error}</p>}
@@ -60,6 +70,14 @@ function RestaurantReviews({ maNhaHang }: Props) {
                             <p>{review.noiDung || "Khách hàng không để lại nhận xét."}</p>
                         </article>
                     ))}
+                    {totalPages > 1 && (
+                        <Pagination
+                            pageNumber={pageNumber}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            onPageChange={setPageNumber}
+                        />
+                    )}
                 </div>
             )}
         </section>

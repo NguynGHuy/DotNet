@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 export interface DatHangRequest {
   maGioHang: number;
@@ -45,9 +45,22 @@ export async function placeOrder(data: DatHangRequest): Promise<DatHangResult> {
   });
 }
 
-export async function getMyOrders() {
+export interface CustomerOrderListResult<T> extends PagedResult<T> {
+  counts: {
+    all: number;
+    processing: number;
+    completed: number;
+    cancelled: number;
+  };
+}
+
+export async function getMyOrders<T = unknown>(
+  params: PaginationParams & {
+    filter?: "processing" | "completed" | "cancelled";
+  } = {},
+): Promise<CustomerOrderListResult<T>> {
   const token = localStorage.getItem("token");
-  return apiFetch("/don-hang/cua-toi", {
+  return apiFetch(`/don-hang/cua-toi${buildQuery(params)}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -79,10 +92,21 @@ export async function getOrderStatusHistory(
   });
 }
 
-export async function getRestaurantOrders(maTrangThai?: number) {
+export interface RestaurantOrderListResult<T> extends PagedResult<T> {
+  summary: {
+    all: number;
+    pending: number;
+    processing: number;
+    completedToday: number;
+    revenueToday: number;
+  };
+}
+
+export async function getRestaurantOrders<T = unknown>(
+  params: PaginationParams & { maTrangThai?: number } = {},
+): Promise<RestaurantOrderListResult<T>> {
   const token = localStorage.getItem("token");
-  const query = maTrangThai ? `?maTrangThai=${maTrangThai}` : "";
-  return apiFetch(`/nha-hang/don-hang${query}`, {
+  return apiFetch(`/nha-hang/don-hang${buildQuery(params)}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });

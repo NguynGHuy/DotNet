@@ -155,12 +155,14 @@ function QuanLayout() {
 
     const loadUnreadCount = async () => {
       try {
-        const data = await getNotifications();
+        const data = await getNotifications({
+          pageNumber: 1,
+          pageSize: 1,
+          filter: "unread",
+        });
 
         if (!cancelled) {
-          setUnreadCount(
-            Array.isArray(data) ? data.filter((item) => !item.daDoc).length : 0,
-          );
+          setUnreadCount(data.counts.unread);
         }
       } catch {
         if (!cancelled) {

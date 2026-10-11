@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 // =====================================================
 // TYPES
@@ -47,6 +47,14 @@ export interface MonAnChiTiet extends MonAn {
     nhomToppings: NhomToppingMonAn[];
 }
 
+export interface MenuListResult extends PagedResult<MonAn> {
+    counts: {
+        all: number;
+        selling: number;
+        hidden: number;
+    };
+}
+
 export interface TaoMonAnRequest {
     maDanhMuc: number;
 
@@ -85,10 +93,15 @@ function getAuthHeaders() {
 // =====================================================
 
 export async function getMonAns(
-    maNhaHang: number
-): Promise<MonAn[]> {
+    maNhaHang: number,
+    params: PaginationParams & {
+        search?: string;
+        maDanhMuc?: number;
+        trangThai?: boolean;
+    } = {}
+): Promise<MenuListResult> {
     return apiFetch(
-        `/mon-an?maNhaHang=${maNhaHang}`
+        `/mon-an${buildQuery({ maNhaHang, ...params })}`
     );
 }
 

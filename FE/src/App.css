@@ -5348,6 +5348,85 @@ img {
   }
 }
 
+/* Shared server-side pagination */
+.app-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid #e8e4df;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 20px rgba(48, 43, 39, 0.045);
+}
+
+.app-pagination-total {
+  color: #817971;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.app-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-pagination-controls > button {
+  display: inline-flex;
+  min-width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid #e3ded8;
+  border-radius: 8px;
+  background: #fff;
+  color: #625b55;
+  font: 650 11.5px/1 "Be Vietnam Pro", sans-serif;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.app-pagination-controls > button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #ffb197;
+  color: var(--food-primary);
+  box-shadow: 0 6px 14px rgba(249, 115, 22, 0.1);
+}
+
+.app-pagination-controls > button.is-active {
+  border-color: var(--food-primary);
+  background: var(--food-primary);
+  color: #fff;
+}
+
+.app-pagination-controls > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.app-pagination-controls > span {
+  padding: 0 3px;
+  color: #a49c95;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .app-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* =========================================================
    RESPONSIVE - 600PX
 ========================================================= */
@@ -22034,6 +22113,385 @@ img {
   color: #827a73;
 }
 
+/* Merchant orders motion */
+.merchant-orders-header-reveal,
+.merchant-orders-filter-reveal,
+.merchant-order-card-reveal {
+  width: 100%;
+}
+
+.merchant-orders-header-reveal:not(.is-visible) .merchant-orders-header,
+.merchant-orders-header-reveal:not(.is-visible) .merchant-orders-heading-icon,
+.merchant-orders-header-reveal:not(.is-visible) .merchant-orders-heading > div,
+.merchant-orders-header-reveal:not(.is-visible) .merchant-orders-count,
+.merchant-orders-filter-reveal:not(.is-visible) .merchant-order-filter-section,
+.merchant-orders-filter-reveal:not(.is-visible) .merchant-order-filter-heading,
+.merchant-orders-filter-reveal:not(.is-visible) .merchant-order-tab,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-card,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-status-mark,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-status,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-payment,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-price,
+.merchant-order-card-reveal:not(.is-visible) .merchant-order-open {
+  opacity: 0;
+}
+
+.merchant-orders-header-reveal.is-visible > .merchant-orders-header {
+  animation: merchantOrdersHeroIn 0.95s
+    calc(40ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-orders-header-reveal.is-visible .merchant-orders-heading-icon {
+  animation: merchantOrdersIconPop 0.72s
+    calc(280ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.merchant-orders-header-reveal.is-visible .merchant-orders-heading > div {
+  animation: merchantOrdersHeadingIn 0.75s
+    calc(340ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-orders-header-reveal.is-visible .merchant-orders-count {
+  animation: merchantOrdersCountIn 0.72s
+    calc(430ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.2, 1.35, 0.4, 1) both;
+}
+
+.merchant-orders-filter-reveal.is-visible > .merchant-order-filter-section {
+  animation: merchantOrdersFilterIn 0.85s
+    calc(40ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-filter-heading {
+  animation: merchantOrdersHeadingIn 0.7s
+    calc(230ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab {
+  animation: merchantOrdersTabIn 0.58s cubic-bezier(0.2, 1.35, 0.4, 1) both;
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(1) {
+  animation-delay: calc(300ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(2) {
+  animation-delay: calc(360ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(3) {
+  animation-delay: calc(420ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(4) {
+  animation-delay: calc(480ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(5) {
+  animation-delay: calc(540ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(6) {
+  animation-delay: calc(600ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-orders-filter-reveal.is-visible .merchant-order-tab:nth-child(7) {
+  animation-delay: calc(660ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-order-tab {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.merchant-order-tab:hover:not(.is-active) {
+  transform: translateY(-2px);
+  border-color: #d4cdc7;
+  box-shadow: 0 7px 16px rgba(43, 35, 30, 0.07);
+}
+
+.merchant-order-tab.is-active {
+  box-shadow: 0 8px 18px rgba(48, 41, 36, 0.16);
+}
+
+.merchant-orders-refresh {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.merchant-orders-refresh:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 16px rgba(43, 35, 30, 0.07);
+}
+
+.merchant-order-card-reveal {
+  min-width: 0;
+}
+
+.merchant-order-card-reveal > .merchant-order-card {
+  width: 100%;
+}
+
+.merchant-order-card-reveal.is-visible > .merchant-order-card {
+  animation: merchantOrderCardIn 0.9s var(--scroll-reveal-delay, 0ms)
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-order-card-reveal.is-visible .merchant-order-status-mark {
+  animation: merchantOrdersIconPop 0.68s
+    calc(230ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.merchant-order-card-reveal.is-visible .merchant-order-status,
+.merchant-order-card-reveal.is-visible .merchant-order-payment {
+  animation: merchantOrderBadgeIn 0.6s
+    calc(310ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.merchant-order-card-reveal.is-visible .merchant-order-payment {
+  animation-delay: calc(390ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-order-card-reveal.is-visible .merchant-order-price,
+.merchant-order-card-reveal.is-visible .merchant-order-open {
+  animation: merchantOrderSideIn 0.68s
+    calc(350ms + var(--scroll-reveal-delay, 0ms))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-order-card-reveal.is-visible .merchant-order-open {
+  animation-delay: calc(430ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-order-card-reveal.is-visible
+  .order-pending
+  .merchant-order-status-mark
+  svg {
+  animation: merchantPendingOrderPulse 2.4s
+    calc(900ms + var(--scroll-reveal-delay, 0ms)) ease-in-out infinite;
+}
+
+.merchant-order-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px rgba(35, 30, 26, 0.09);
+}
+
+.merchant-order-card:hover .merchant-order-open svg {
+  transform: translateX(3px);
+}
+
+.merchant-order-open,
+.merchant-order-open svg,
+.merchant-order-status-mark {
+  transition:
+    transform 0.22s ease,
+    color 0.22s ease,
+    background-color 0.22s ease;
+}
+
+.merchant-order-card:hover .merchant-order-status-mark {
+  transform: scale(1.06) rotate(-2deg);
+}
+
+.merchant-orders-loading,
+.merchant-orders-error,
+.merchant-orders-empty {
+  animation: merchantOrdersStateIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes merchantOrdersHeroIn {
+  0% {
+    opacity: 0;
+    translate: 0 48px;
+    scale: 0.97;
+    filter: blur(3px);
+  }
+  68% {
+    opacity: 1;
+    translate: 0 -5px;
+    scale: 1.005;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOrdersIconPop {
+  from {
+    opacity: 0;
+    scale: 0.52;
+    rotate: -12deg;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes merchantOrdersHeadingIn {
+  from {
+    opacity: 0;
+    translate: -24px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes merchantOrdersCountIn {
+  from {
+    opacity: 0;
+    translate: 22px 0;
+    scale: 0.78;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOrdersFilterIn {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOrdersTabIn {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.88;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOrderCardIn {
+  0% {
+    opacity: 0;
+    translate: 0 48px;
+    scale: 0.965;
+    filter: blur(3px);
+  }
+  70% {
+    opacity: 1;
+    translate: 0 -5px;
+    scale: 1.006;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOrderBadgeIn {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.85;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOrderSideIn {
+  from {
+    opacity: 0;
+    translate: 22px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes merchantPendingOrderPulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.13;
+  }
+}
+
+@keyframes merchantOrdersStateIn {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .merchant-orders-header-reveal .merchant-orders-header,
+  .merchant-orders-header-reveal .merchant-orders-heading-icon,
+  .merchant-orders-header-reveal .merchant-orders-heading > div,
+  .merchant-orders-header-reveal .merchant-orders-count,
+  .merchant-orders-filter-reveal .merchant-order-filter-section,
+  .merchant-orders-filter-reveal .merchant-order-filter-heading,
+  .merchant-orders-filter-reveal .merchant-order-tab,
+  .merchant-order-card-reveal .merchant-order-card,
+  .merchant-order-card-reveal .merchant-order-status-mark,
+  .merchant-order-card-reveal .merchant-order-status-mark svg,
+  .merchant-order-card-reveal .merchant-order-status,
+  .merchant-order-card-reveal .merchant-order-payment,
+  .merchant-order-card-reveal .merchant-order-price,
+  .merchant-order-card-reveal .merchant-order-open,
+  .merchant-orders-loading,
+  .merchant-orders-error,
+  .merchant-orders-empty {
+    opacity: 1 !important;
+    translate: none !important;
+    scale: 1 !important;
+    rotate: 0deg !important;
+    filter: none !important;
+    animation: none !important;
+  }
+}
+
 @keyframes merchantRefreshSpin {
   to {
     transform: rotate(360deg);
@@ -23985,6 +24443,417 @@ img {
   cursor: pointer;
 }
 
+/* Merchant overview motion — đồng bộ hiệu ứng reveal của các trang khách hàng */
+.merchant-live-hero-reveal,
+.merchant-live-stats-reveal,
+.merchant-live-layout-reveal {
+  width: 100%;
+}
+
+.merchant-live-hero-reveal:not(.is-visible) .merchant-live-hero,
+.merchant-live-hero-reveal:not(.is-visible) .merchant-live-welcome,
+.merchant-live-hero-reveal:not(.is-visible) .merchant-live-status,
+.merchant-live-stats-reveal:not(.is-visible) .merchant-live-stats article,
+.merchant-live-layout-reveal:not(.is-visible) .merchant-recent-orders,
+.merchant-live-layout-reveal:not(.is-visible) .merchant-live-side > section,
+.merchant-live-layout-reveal:not(.is-visible) .merchant-recent-list > button,
+.merchant-live-layout-reveal:not(.is-visible) .merchant-live-quick > div > button {
+  opacity: 0;
+}
+
+.merchant-live-hero-reveal.is-visible > .merchant-live-hero {
+  background-size: 165% 165%;
+  animation:
+    merchantOverviewHeroIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) both,
+    merchantOverviewHeroAmbient 10s 1.1s ease-in-out infinite;
+}
+
+.merchant-live-hero-reveal.is-visible .merchant-live-welcome {
+  animation: merchantOverviewTextIn 0.85s 0.3s cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.merchant-live-hero-reveal.is-visible .merchant-live-status {
+  animation: merchantOverviewStatusIn 0.8s 0.48s
+    cubic-bezier(0.2, 1.45, 0.4, 1) both;
+}
+
+.merchant-live-status {
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    background-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.merchant-live-status:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 28px rgba(15, 11, 9, 0.2);
+}
+
+.merchant-live-status:hover > svg,
+.merchant-recent-orders header button:hover > svg,
+.merchant-live-operation > button:hover > svg,
+.merchant-live-quick > div > button:hover > svg {
+  transform: translateX(3px);
+}
+
+.merchant-live-status > svg,
+.merchant-recent-orders header button > svg,
+.merchant-live-operation > button > svg,
+.merchant-live-quick > div > button > svg {
+  transition: transform 0.22s ease;
+}
+
+.merchant-live-status.is-open .merchant-live-status-dot {
+  animation: merchantOverviewOpenPulse 2.2s 1.2s ease-in-out infinite;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article {
+  animation: merchantOverviewStatIn 0.85s cubic-bezier(0.2, 1.35, 0.4, 1)
+    both;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(1) {
+  animation-delay: 0.12s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(2) {
+  animation-delay: 0.23s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(3) {
+  animation-delay: 0.34s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+.merchant-live-stats article {
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.merchant-live-stats article:hover {
+  transform: translateY(-5px);
+  border-color: #ddd6d0;
+  box-shadow: 0 15px 30px rgba(38, 31, 27, 0.09);
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article > span {
+  animation: merchantOverviewIconPop 0.68s cubic-bezier(0.2, 1.5, 0.4, 1)
+    both;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(1) > span {
+  animation-delay: 0.34s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(2) > span {
+  animation-delay: 0.45s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(3) > span {
+  animation-delay: 0.56s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article:nth-child(4) > span {
+  animation-delay: 0.67s;
+}
+
+.merchant-live-stats-reveal.is-visible .merchant-live-stats article strong {
+  animation: merchantOverviewValuePop 0.65s 0.5s
+    cubic-bezier(0.2, 1.35, 0.4, 1) both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-orders {
+  animation: merchantOverviewPanelLeft 0.95s 0.12s
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-operation {
+  animation: merchantOverviewPanelRight 0.9s 0.25s
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick {
+  animation: merchantOverviewPanelRight 0.9s 0.38s
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button {
+  animation: merchantOverviewRowIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button:nth-child(1) {
+  animation-delay: 0.43s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button:nth-child(2) {
+  animation-delay: 0.52s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button:nth-child(3) {
+  animation-delay: 0.61s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button:nth-child(4) {
+  animation-delay: 0.7s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-recent-list > button:nth-child(5) {
+  animation-delay: 0.79s;
+}
+
+.merchant-recent-list > button {
+  transition:
+    padding 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.merchant-recent-list > button:hover {
+  padding-right: 7px;
+  padding-left: 7px;
+  background: #fdfaf8;
+}
+
+.merchant-recent-list > button:hover .merchant-recent-arrow {
+  transform: translateX(3px);
+  color: var(--food-primary);
+}
+
+.merchant-recent-arrow {
+  transition:
+    transform 0.22s ease,
+    color 0.22s ease;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick > div > button {
+  animation: merchantOverviewQuickIn 0.65s cubic-bezier(0.2, 1.3, 0.4, 1)
+    both;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick > div > button:nth-child(1) {
+  animation-delay: 0.58s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick > div > button:nth-child(2) {
+  animation-delay: 0.66s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick > div > button:nth-child(3) {
+  animation-delay: 0.74s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-live-quick > div > button:nth-child(4) {
+  animation-delay: 0.82s;
+}
+
+.merchant-live-layout-reveal.is-visible .merchant-operation-heading > span {
+  animation: merchantOverviewOperationPulse 3s 1.1s ease-in-out infinite;
+}
+
+@keyframes merchantOverviewHeroIn {
+  0% {
+    opacity: 0;
+    translate: 0 55px;
+    scale: 0.96;
+    filter: blur(4px);
+  }
+  68% {
+    opacity: 1;
+    translate: 0 -6px;
+    scale: 1.006;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOverviewHeroAmbient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes merchantOverviewTextIn {
+  from {
+    opacity: 0;
+    translate: -30px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes merchantOverviewStatusIn {
+  from {
+    opacity: 0;
+    translate: 28px 0;
+    scale: 0.88;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOverviewOpenPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 5px rgba(66, 213, 138, 0.14);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(66, 213, 138, 0.03);
+  }
+}
+
+@keyframes merchantOverviewStatIn {
+  0% {
+    opacity: 0;
+    translate: 0 46px;
+    scale: 0.9;
+    filter: blur(3px);
+  }
+  70% {
+    opacity: 1;
+    translate: 0 -6px;
+    scale: 1.015;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOverviewIconPop {
+  from {
+    opacity: 0;
+    scale: 0.5;
+    rotate: -12deg;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes merchantOverviewValuePop {
+  from {
+    opacity: 0;
+    scale: 0.7;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOverviewPanelLeft {
+  from {
+    opacity: 0;
+    translate: -44px 32px;
+    scale: 0.97;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOverviewPanelRight {
+  from {
+    opacity: 0;
+    translate: 42px 34px;
+    scale: 0.96;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes merchantOverviewRowIn {
+  from {
+    opacity: 0;
+    translate: 24px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes merchantOverviewQuickIn {
+  from {
+    opacity: 0;
+    translate: 18px 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes merchantOverviewOperationPulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.07;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .merchant-live-hero-reveal .merchant-live-hero,
+  .merchant-live-hero-reveal .merchant-live-welcome,
+  .merchant-live-hero-reveal .merchant-live-status,
+  .merchant-live-stats-reveal .merchant-live-stats article,
+  .merchant-live-stats-reveal .merchant-live-stats article > span,
+  .merchant-live-stats-reveal .merchant-live-stats article strong,
+  .merchant-live-layout-reveal .merchant-recent-orders,
+  .merchant-live-layout-reveal .merchant-live-side > section,
+  .merchant-live-layout-reveal .merchant-recent-list > button,
+  .merchant-live-layout-reveal .merchant-live-quick > div > button,
+  .merchant-live-layout-reveal .merchant-operation-heading > span,
+  .merchant-live-status-dot {
+    opacity: 1 !important;
+    translate: none !important;
+    scale: 1 !important;
+    rotate: 0deg !important;
+    filter: none !important;
+    animation: none !important;
+  }
+}
+
 @media (max-width: 1000px) {
   .merchant-live-stats {
     grid-template-columns: 1fr 1fr;
@@ -24606,6 +25475,314 @@ img {
 @keyframes merchantStatusSpin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Merchant status reveal motion */
+.merchant-status-header-reveal,
+.merchant-current-status-reveal,
+.merchant-status-layout-reveal {
+  width: 100%;
+}
+
+.merchant-status-header-reveal.is-visible > .merchant-status-header {
+  animation: merchantStatusHeroIn 0.72s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-status-header-reveal.is-visible .merchant-status-heading > span {
+  animation: merchantStatusIconPop 0.62s
+    calc(230ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+}
+
+.merchant-status-header-reveal.is-visible .merchant-status-heading > div {
+  animation: merchantStatusTextIn 0.62s
+    calc(280ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-status-header-reveal.is-visible .merchant-status-refresh {
+  animation: merchantStatusRefreshIn 0.58s
+    calc(350ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-status-refresh {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.merchant-status-refresh:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #ffb59d;
+  color: var(--food-primary);
+  box-shadow: 0 7px 18px rgba(255, 90, 54, 0.11);
+}
+
+.merchant-status-notice {
+  animation: merchantStatusNoticeIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.merchant-current-status {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.merchant-current-status::after {
+  position: absolute;
+  z-index: -1;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  content: "";
+  filter: blur(8px);
+  opacity: 0.24;
+  pointer-events: none;
+  right: -105px;
+  top: -130px;
+}
+
+.merchant-current-status.is-open::after {
+  background: #9ce0bb;
+}
+
+.merchant-current-status.is-closed::after {
+  background: #f4b3ac;
+}
+
+.merchant-current-status-reveal.is-visible > .merchant-current-status {
+  animation: merchantCurrentStatusIn 0.78s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-current-status-reveal.is-visible .merchant-current-status-icon {
+  animation: merchantStatusIconPop 0.66s
+    calc(240ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+}
+
+.merchant-current-status-reveal.is-visible .merchant-current-status-content {
+  animation: merchantStatusTextIn 0.58s
+    calc(300ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-current-status-reveal.is-visible .merchant-current-mode {
+  animation: merchantStatusRefreshIn 0.58s
+    calc(370ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-current-status-reveal.is-visible .is-open .merchant-current-status-icon {
+  box-shadow: 0 0 0 0 rgba(32, 130, 88, 0.2);
+  animation:
+    merchantStatusIconPop 0.66s
+      calc(240ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+      both,
+    merchantStatusOpenPulse 2.7s
+      calc(920ms + var(--scroll-reveal-delay, 0ms)) ease-out infinite;
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-mode-section {
+  animation: merchantStatusPanelLeft 0.76s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-mode-option {
+  animation: merchantStatusOptionIn 0.58s cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-mode-option:nth-child(1) {
+  animation-delay: calc(230ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-mode-option:nth-child(2) {
+  animation-delay: calc(300ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-mode-option:nth-child(3) {
+  animation-delay: calc(370ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-status-side > section {
+  animation: merchantStatusPanelRight 0.66s cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-status-side > section:nth-child(1) {
+  animation-delay: calc(150ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-status-side > section:nth-child(2) {
+  animation-delay: calc(230ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-layout-reveal.is-visible .merchant-status-side > section:nth-child(3) {
+  animation-delay: calc(310ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-status-card {
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.merchant-status-side .merchant-status-card:hover {
+  transform: translateY(-3px);
+  border-color: #f1c6b8;
+  box-shadow: 0 12px 28px rgba(81, 59, 49, 0.08);
+}
+
+.merchant-mode-option:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(65, 59, 54, 0.07);
+}
+
+.merchant-mode-option:hover:not(:disabled) .merchant-mode-icon {
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.merchant-mode-icon {
+  transition: transform 0.2s ease;
+}
+
+@keyframes merchantStatusHeroIn {
+  from {
+    transform: translateY(-18px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusIconPop {
+  0% {
+    transform: scale(0.58) rotate(-9deg);
+    opacity: 0;
+  }
+  68% {
+    transform: scale(1.08) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusTextIn {
+  from {
+    transform: translateX(-15px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusRefreshIn {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusNoticeIn {
+  from {
+    transform: translateY(-9px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCurrentStatusIn {
+  from {
+    transform: translateY(20px) scale(0.975);
+    opacity: 0;
+    box-shadow: 0 0 0 rgba(61, 49, 42, 0);
+  }
+  70% {
+    transform: translateY(-2px) scale(1.004);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    box-shadow: 0 10px 28px rgba(61, 49, 42, 0.06);
+  }
+}
+
+@keyframes merchantStatusOpenPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(32, 130, 88, 0.18);
+  }
+  55% {
+    box-shadow: 0 0 0 8px rgba(32, 130, 88, 0);
+  }
+}
+
+@keyframes merchantStatusPanelLeft {
+  from {
+    transform: translateX(-22px) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusPanelRight {
+  from {
+    transform: translateX(22px) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantStatusOptionIn {
+  from {
+    transform: translateY(14px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .merchant-status-page *,
+  .merchant-status-page *::before,
+  .merchant-status-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -25270,6 +26447,351 @@ img {
 
 .merchant-info-system > div > strong.closed {
   color: #dc2626;
+}
+
+/* Merchant information reveal motion */
+.merchant-info-header-reveal,
+.merchant-info-section-reveal,
+.merchant-info-actions-reveal,
+.merchant-info-preview-reveal,
+.merchant-info-system-reveal {
+  width: 100%;
+  min-width: 0;
+}
+
+.merchant-info-header-reveal.is-visible > .merchant-info-header {
+  animation: merchantInfoHeaderIn 0.72s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-info-header-reveal.is-visible .merchant-info-header > div:first-child {
+  animation: merchantInfoTextIn 0.62s
+    calc(210ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-info-header-reveal.is-visible .merchant-info-approval {
+  animation: merchantInfoBadgePop 0.62s
+    calc(300ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+}
+
+.merchant-info-notice {
+  animation: merchantInfoNoticeIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.merchant-info-section-reveal.is-visible > .merchant-info-section {
+  animation: merchantInfoSectionIn 0.76s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-section-title {
+  animation: merchantInfoTextIn 0.58s
+    calc(210ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-field {
+  animation: merchantInfoFieldIn 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-field:nth-child(1) {
+  animation-delay: calc(290ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-field:nth-child(2) {
+  animation-delay: calc(350ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-field:nth-child(3) {
+  animation-delay: calc(410ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-section-reveal.is-visible .merchant-info-field:nth-child(4) {
+  animation-delay: calc(470ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-section,
+.merchant-info-preview,
+.merchant-info-system {
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.merchant-info-section:hover,
+.merchant-info-preview:hover,
+.merchant-info-system:hover {
+  transform: translateY(-3px);
+  border-color: #f2c8ba;
+  box-shadow: 0 13px 30px rgba(73, 55, 46, 0.075);
+}
+
+.merchant-info-input-icon > svg,
+.merchant-info-price-input > svg {
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.merchant-info-input-icon:focus-within > svg,
+.merchant-info-price-input:focus-within > svg {
+  transform: scale(1.08);
+  color: #f97316;
+}
+
+.merchant-info-actions-reveal.is-visible .merchant-info-actions {
+  animation: merchantInfoActionsIn 0.6s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.merchant-info-actions button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.merchant-info-save:hover:not(:disabled) {
+  box-shadow: 0 9px 22px rgba(249, 115, 22, 0.25);
+}
+
+.merchant-info-save:hover:not(:disabled) svg {
+  animation: merchantInfoSaveWiggle 0.45s ease;
+}
+
+.merchant-info-preview-reveal.is-visible > .merchant-info-preview {
+  animation: merchantInfoPreviewIn 0.78s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-cover > img {
+  animation: merchantInfoCoverIn 0.95s
+    calc(180ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-cover-empty {
+  animation: merchantInfoBadgePop 0.64s
+    calc(200ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-open-badge {
+  animation: merchantInfoBadgePop 0.62s
+    calc(310ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    both;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-open-badge.open i {
+  animation: merchantInfoOpenPulse 2.4s
+    calc(850ms + var(--scroll-reveal-delay, 0ms)) ease-in-out infinite;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > * {
+  animation: merchantInfoFieldIn 0.54s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > *:nth-child(1) {
+  animation-delay: calc(300ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > *:nth-child(2) {
+  animation-delay: calc(350ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > *:nth-child(3) {
+  animation-delay: calc(400ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > *:nth-child(4) {
+  animation-delay: calc(450ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-preview-reveal.is-visible .merchant-info-preview-body > *:nth-child(5) {
+  animation-delay: calc(500ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-cover > img {
+  transition: transform 0.45s ease;
+}
+
+.merchant-info-preview:hover .merchant-info-cover > img {
+  transform: scale(1.035);
+}
+
+.merchant-info-system-reveal.is-visible > .merchant-info-system {
+  animation: merchantInfoPreviewIn 0.7s
+    calc(40ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-info-system-reveal.is-visible .merchant-info-system > div {
+  animation: merchantInfoSystemRowIn 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.merchant-info-system-reveal.is-visible .merchant-info-system > div:nth-of-type(1) {
+  animation-delay: calc(220ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-system-reveal.is-visible .merchant-info-system > div:nth-of-type(2) {
+  animation-delay: calc(290ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-info-system-reveal.is-visible .merchant-info-system > div:nth-of-type(3) {
+  animation-delay: calc(360ms + var(--scroll-reveal-delay, 0ms));
+}
+
+@keyframes merchantInfoHeaderIn {
+  from {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoTextIn {
+  from {
+    transform: translateX(-15px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoBadgePop {
+  0% {
+    transform: scale(0.62) rotate(-5deg);
+    opacity: 0;
+  }
+  68% {
+    transform: scale(1.08) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoNoticeIn {
+  from {
+    transform: translateY(-9px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoSectionIn {
+  from {
+    transform: translateX(-22px) translateY(10px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoFieldIn {
+  from {
+    transform: translateY(13px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoActionsIn {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoPreviewIn {
+  from {
+    transform: translateX(22px) translateY(9px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoCoverIn {
+  from {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoSystemRowIn {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantInfoOpenPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.18);
+  }
+  50% {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 5px rgba(21, 128, 61, 0);
+  }
+}
+
+@keyframes merchantInfoSaveWiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  35% {
+    transform: rotate(-10deg) scale(1.08);
+  }
+  70% {
+    transform: rotate(7deg) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .merchant-info-page *,
+  .merchant-info-page *::before,
+  .merchant-info-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 860px) {
@@ -40846,5 +42368,430 @@ fieldset.merchant-promo-form-body {
   .qr-code-frame .fake-qr {
     width: 172px;
     height: 172px;
+  }
+}
+
+/* =========================================================
+   MERCHANT CATALOG PAGES - REVEAL MOTION
+   Category, menu, toppings, promotions and notifications
+========================================================= */
+
+:is(
+  .merchant-category-header-reveal,
+  .merchant-category-panel-header-reveal,
+  .merchant-category-empty-reveal,
+  .merchant-category-row-reveal,
+  .merchant-menu-header-reveal,
+  .merchant-menu-toolbar-reveal,
+  .merchant-menu-empty-reveal,
+  .merchant-menu-card-reveal,
+  .merchant-options-header-reveal,
+  .merchant-options-groups-reveal,
+  .merchant-options-toppings-reveal,
+  .merchant-options-group-reveal,
+  .merchant-options-topping-row-reveal,
+  .merchant-promotions-header-reveal,
+  .merchant-promotions-tabs-reveal,
+  .merchant-promotions-empty-reveal,
+  .merchant-promotion-card-reveal,
+  .merchant-notifications-header-reveal,
+  .merchant-notifications-tabs-reveal,
+  .merchant-notifications-state-reveal,
+  .merchant-notifications-panel-reveal
+) {
+  width: 100%;
+  min-width: 0;
+}
+
+.merchant-menu-card-reveal,
+.merchant-promotion-card-reveal {
+  height: 100%;
+}
+
+.merchant-menu-card-reveal > .merchant-menu-card,
+.merchant-promotion-card-reveal > .merchant-promotion-card {
+  height: 100%;
+}
+
+.merchant-category-list > .merchant-category-row-reveal:not(:last-child) .merchant-category-row,
+.merchant-options-topping-list > .merchant-options-topping-row-reveal:not(:last-child) .merchant-options-topping-row {
+  border-bottom: 1px solid #f0f0f1;
+}
+
+.merchant-category-list > .merchant-category-row-reveal:last-child .merchant-category-row,
+.merchant-options-topping-list > .merchant-options-topping-row-reveal:last-child .merchant-options-topping-row {
+  border-bottom: 0;
+}
+
+.merchant-options-groups-reveal {
+  position: sticky;
+  top: 86px;
+}
+
+.merchant-options-groups-reveal > .merchant-options-groups {
+  position: static;
+}
+
+:is(
+  .merchant-category-header-reveal,
+  .merchant-menu-header-reveal,
+  .merchant-options-header-reveal,
+  .merchant-promotions-header-reveal,
+  .merchant-notifications-header-reveal
+).is-visible > header {
+  animation: merchantCatalogHeaderIn 0.72s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-header-reveal,
+  .merchant-menu-header-reveal,
+  .merchant-options-header-reveal,
+  .merchant-promotions-header-reveal,
+  .merchant-notifications-header-reveal
+).is-visible > header > div:first-child {
+  animation: merchantCatalogTextIn 0.6s
+    calc(200ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-header-reveal,
+  .merchant-menu-header-reveal,
+  .merchant-options-header-reveal,
+  .merchant-promotions-header-reveal,
+  .merchant-notifications-header-reveal
+).is-visible > header > button {
+  animation: merchantCatalogButtonPop 0.62s
+    calc(280ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-panel-header-reveal,
+  .merchant-menu-toolbar-reveal,
+  .merchant-promotions-tabs-reveal,
+  .merchant-notifications-tabs-reveal
+).is-visible > * {
+  animation: merchantCatalogPanelIn 0.68s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-menu-toolbar-reveal.is-visible .merchant-menu-summary > div,
+.merchant-promotions-tabs-reveal.is-visible .merchant-promotions-tabs > button,
+.merchant-notifications-tabs-reveal.is-visible .merchant-notifications-tabs > button {
+  animation: merchantCatalogItemIn 0.5s cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-menu-toolbar-reveal.is-visible .merchant-menu-summary > div:nth-child(1),
+.merchant-promotions-tabs-reveal.is-visible .merchant-promotions-tabs > button:nth-child(1),
+.merchant-notifications-tabs-reveal.is-visible .merchant-notifications-tabs > button:nth-child(1) {
+  animation-delay: calc(210ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-menu-toolbar-reveal.is-visible .merchant-menu-summary > div:nth-child(2),
+.merchant-promotions-tabs-reveal.is-visible .merchant-promotions-tabs > button:nth-child(2),
+.merchant-notifications-tabs-reveal.is-visible .merchant-notifications-tabs > button:nth-child(2) {
+  animation-delay: calc(270ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-menu-toolbar-reveal.is-visible .merchant-menu-summary > div:nth-child(3),
+.merchant-promotions-tabs-reveal.is-visible .merchant-promotions-tabs > button:nth-child(3),
+.merchant-notifications-tabs-reveal.is-visible .merchant-notifications-tabs > button:nth-child(3) {
+  animation-delay: calc(330ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-promotions-tabs-reveal.is-visible .merchant-promotions-tabs > button:nth-child(4) {
+  animation-delay: calc(390ms + var(--scroll-reveal-delay, 0ms));
+}
+
+.merchant-menu-toolbar-reveal.is-visible .merchant-menu-filters {
+  animation: merchantCatalogTextRightIn 0.58s
+    calc(300ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-row-reveal,
+  .merchant-menu-card-reveal,
+  .merchant-options-group-reveal,
+  .merchant-options-topping-row-reveal,
+  .merchant-promotion-card-reveal
+).is-visible > * {
+  animation: merchantCatalogCardIn 0.68s
+    calc(20ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-empty-reveal,
+  .merchant-menu-empty-reveal,
+  .merchant-promotions-empty-reveal,
+  .merchant-notifications-state-reveal
+).is-visible > * {
+  animation: merchantCatalogEmptyIn 0.72s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-menu-card-reveal.is-visible .merchant-menu-image > img {
+  animation: merchantCatalogImageIn 0.82s
+    calc(150ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-menu-card-reveal.is-visible .merchant-menu-image > span,
+.merchant-promotion-card-reveal.is-visible .merchant-promotion-status {
+  animation: merchantCatalogButtonPop 0.58s
+    calc(230ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.34, 1.56, 0.64, 1)
+    backwards;
+}
+
+.merchant-menu-card-reveal.is-visible .merchant-menu-card-body,
+.merchant-promotion-card-reveal.is-visible .merchant-promotion-card > * {
+  animation: merchantCatalogItemIn 0.54s
+    calc(250ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-promotion-card-reveal.is-visible .merchant-promotion-progress i {
+  transform-origin: left center;
+  animation: merchantCatalogProgressIn 0.8s
+    calc(430ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-options-groups-reveal.is-visible > .merchant-options-groups {
+  animation: merchantCatalogLeftPanelIn 0.72s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-options-toppings-reveal.is-visible > .merchant-options-toppings {
+  animation: merchantCatalogRightPanelIn 0.72s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-options-group:hover .merchant-options-group-select > span,
+.merchant-options-topping-row:hover .merchant-options-topping-icon {
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.merchant-options-group-select > span,
+.merchant-options-topping-icon {
+  transition: transform 0.2s ease;
+}
+
+.merchant-notifications-panel-reveal.is-visible > .merchant-notifications-panel {
+  animation: merchantCatalogPanelIn 0.72s
+    calc(30ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+.merchant-notifications-panel-reveal.is-visible .merchant-notifications-panel-title {
+  animation: merchantCatalogTextIn 0.56s
+    calc(200ms + var(--scroll-reveal-delay, 0ms)) cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+:is(
+  .merchant-category-notice,
+  .merchant-menu-notice,
+  .merchant-options-notice,
+  .merchant-promotions-notice,
+  .merchant-notifications-error
+) {
+  animation: merchantCatalogNoticeIn 0.48s cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
+
+@keyframes merchantCatalogHeaderIn {
+  from {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogTextIn {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogTextRightIn {
+  from {
+    transform: translateX(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogButtonPop {
+  0% {
+    transform: scale(0.68) rotate(-4deg);
+    opacity: 0;
+  }
+  68% {
+    transform: scale(1.07) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogPanelIn {
+  from {
+    transform: translateY(18px) scale(0.988);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogCardIn {
+  0% {
+    transform: translateY(24px) scale(0.97);
+    opacity: 0;
+  }
+  72% {
+    transform: translateY(-2px) scale(1.004);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogItemIn {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogEmptyIn {
+  0% {
+    transform: translateY(20px) scale(0.975);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-2px) scale(1.004);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogImageIn {
+  from {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogProgressIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes merchantCatalogLeftPanelIn {
+  from {
+    transform: translateX(-22px) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogRightPanelIn {
+  from {
+    transform: translateX(22px) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes merchantCatalogNoticeIn {
+  from {
+    transform: translateY(-9px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 780px) {
+  .merchant-options-groups-reveal {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .merchant-category-page,
+    .merchant-menu-page,
+    .merchant-options-page,
+    .merchant-promotions-page,
+    .merchant-notifications-page
+  ) *,
+  :is(
+    .merchant-category-page,
+    .merchant-menu-page,
+    .merchant-options-page,
+    .merchant-promotions-page,
+    .merchant-notifications-page
+  ) *::before,
+  :is(
+    .merchant-category-page,
+    .merchant-menu-page,
+    .merchant-options-page,
+    .merchant-promotions-page,
+    .merchant-notifications-page
+  ) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -1,4 +1,10 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import {
   Building2,
   CheckCircle2,
@@ -15,6 +21,7 @@ import {
   updateRestaurantProfile,
   type Restaurant,
 } from "../services/restaurantService";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface RestaurantForm {
   tenNhaHang: string;
@@ -62,7 +69,7 @@ function QuanRestaurantInfo() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const loadRestaurant = async (showLoading = true) => {
+  const loadRestaurant = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError("");
@@ -80,11 +87,15 @@ function QuanRestaurantInfo() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void loadRestaurant();
-  }, []);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadRestaurant();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
+  }, [loadRestaurant]);
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -177,7 +188,8 @@ function QuanRestaurantInfo() {
 
   return (
     <div className="merchant-info-page">
-      <header className="merchant-info-header">
+      <ScrollReveal className="merchant-info-header-reveal" delay={40}>
+        <header className="merchant-info-header">
         <div>
           <span className="merchant-info-eyebrow">HỒ SƠ NHÀ HÀNG</span>
           <h1>Thông tin quán</h1>
@@ -192,7 +204,8 @@ function QuanRestaurantInfo() {
           <CheckCircle2 size={16} />
           {approvalText}
         </div>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {message && (
         <div className="merchant-info-notice success">
@@ -205,7 +218,8 @@ function QuanRestaurantInfo() {
 
       <form className="merchant-info-layout" onSubmit={handleSubmit}>
         <div className="merchant-info-editor">
-          <section className="merchant-info-section">
+          <ScrollReveal className="merchant-info-section-reveal" delay={70}>
+            <section className="merchant-info-section">
             <div className="merchant-info-section-title">
               <Building2 size={18} />
               <div>
@@ -271,9 +285,11 @@ function QuanRestaurantInfo() {
                 </div>
               </label>
             </div>
-          </section>
+            </section>
+          </ScrollReveal>
 
-          <section className="merchant-info-section">
+          <ScrollReveal className="merchant-info-section-reveal" delay={110}>
+            <section className="merchant-info-section">
             <div className="merchant-info-section-title">
               <Clock3 size={18} />
               <div>
@@ -319,9 +335,11 @@ function QuanRestaurantInfo() {
                 </div>
               </label>
             </div>
-          </section>
+            </section>
+          </ScrollReveal>
 
-          <div className="merchant-info-actions">
+          <ScrollReveal className="merchant-info-actions-reveal" delay={130}>
+            <div className="merchant-info-actions">
             <button
               type="button"
               className="merchant-info-reset"
@@ -340,11 +358,13 @@ function QuanRestaurantInfo() {
               <Save size={16} />
               {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </button>
-          </div>
+            </div>
+          </ScrollReveal>
         </div>
 
         <aside className="merchant-info-sidebar">
-          <section className="merchant-info-preview">
+          <ScrollReveal className="merchant-info-preview-reveal" delay={90}>
+            <section className="merchant-info-preview">
             <div className="merchant-info-cover">
               <div className="merchant-info-cover-empty">
                 <ImageIcon size={27} />
@@ -396,9 +416,11 @@ function QuanRestaurantInfo() {
                 </span>
               </div>
             </div>
-          </section>
+            </section>
+          </ScrollReveal>
 
-          <section className="merchant-info-system">
+          <ScrollReveal className="merchant-info-system-reveal" delay={140}>
+            <section className="merchant-info-system">
             <h3>Thông tin hệ thống</h3>
 
             <div>
@@ -420,7 +442,8 @@ function QuanRestaurantInfo() {
                 {Number(form.phiShipMacDinh || 0).toLocaleString("vi-VN")} đ
               </strong>
             </div>
-          </section>
+            </section>
+          </ScrollReveal>
         </aside>
       </form>
     </div>

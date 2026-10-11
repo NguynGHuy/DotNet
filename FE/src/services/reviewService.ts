@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 export interface RestaurantReview {
     maDanhGia: number;
@@ -10,9 +10,10 @@ export interface RestaurantReview {
 }
 
 export function getRestaurantReviews(
-    maNhaHang: number
-): Promise<RestaurantReview[]> {
-    return apiFetch(`/nha-hang/${maNhaHang}/danh-gia`);
+    maNhaHang: number,
+    params: PaginationParams = {}
+): Promise<PagedResult<RestaurantReview>> {
+    return apiFetch(`/nha-hang/${maNhaHang}/danh-gia${buildQuery(params)}`);
 }
 
 export interface CreateFoodReviewRequest {
@@ -65,9 +66,10 @@ export interface FoodReview {
 }
 
 export function getFoodReviews(
-    maMonAn: number
-): Promise<FoodReview[]> {
-    return apiFetch(`/mon-an/${maMonAn}/danh-gia`);
+    maMonAn: number,
+    params: PaginationParams = {}
+): Promise<PagedResult<FoodReview>> {
+    return apiFetch(`/mon-an/${maMonAn}/danh-gia${buildQuery(params)}`);
 }
 
 export interface SavedReview {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Link } from "react-router-dom";
 
@@ -21,6 +21,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { cancelOrder, getMyOrders } from "../services/orderService";
+import Pagination from "../components/Pagination";
 
 interface CustomerOrder {
   maDonHang: number;
@@ -41,12 +42,12 @@ interface StatusMeta {
   icon: LucideIcon;
 }
 
-const PROCESSING_STATUSES = [
-  "ChoXacNhan",
-  "DaXacNhan",
-  "DangChuanBi",
-  "DangGiao",
-];
+const FILTER_VALUES: Record<FilterKey, "processing" | "completed" | "cancelled" | undefined> = {
+  TatCa: undefined,
+  DangXuLy: "processing",
+  HoanThanh: "completed",
+  DaHuy: "cancelled",
+};
 
 const STATUS_META: Record<string, StatusMeta> = {
   ChoXacNhan: {
@@ -105,11 +106,21 @@ function getPaymentLabel(order: CustomerOrder) {
 }
 
 function Orders() {
+  const PAGE_SIZE = 8;
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   const [activeFilter, setActiveFilter] = useState<FilterKey>("TatCa");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [counts, setCounts] = useState({
+    all: 0,
+    processing: 0,
+    completed: 0,
+    cancelled: 0,
+  });
 
   const [cancelTarget, setCancelTarget] = useState<CustomerOrder | null>(null);
 
@@ -126,9 +137,17 @@ function Orders() {
 
       setLoadError("");
 
-      const data = await getMyOrders();
+      const data = await getMyOrders<CustomerOrder>({
+        pageNumber,
+        pageSize: PAGE_SIZE,
+        filter: FILTER_VALUES[activeFilter],
+      });
 
-      setOrders(Array.isArray(data) ? (data as CustomerOrder[]) : []);
+      setOrders(data.items);
+      setTotalItems(data.totalItems);
+      setTotalPages(data.totalPages);
+      setCounts(data.counts);
+      if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
     } catch (error) {
       // Lỗi làm mới nền không làm mất danh sách đang hiển thị.
       if (showFullLoading) {
@@ -143,7 +162,7 @@ function Orders() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [activeFilter, pageNumber]);
 
   useEffect(() => {
     const handleRealtimeUpdate = () => {
@@ -165,46 +184,26 @@ function Orders() {
     };
   }, [loadOrders]);
 
-  const filteredOrders = useMemo(() => {
-    switch (activeFilter) {
-      case "DangXuLy":
-        return orders.filter((order) =>
-          PROCESSING_STATUSES.includes(order.trangThai),
-        );
-
-      case "HoanThanh":
-        return orders.filter((order) => order.trangThai === "HoanThanh");
-
-      case "DaHuy":
-        return orders.filter((order) => order.trangThai === "DaHuy");
-
-      default:
-        return orders;
-    }
-  }, [activeFilter, orders]);
-
   const filterItems = [
     {
       key: "TatCa" as const,
       label: "Tất cả",
-      count: orders.length,
+      count: counts.all,
     },
     {
       key: "DangXuLy" as const,
       label: "Đang xử lý",
-      count: orders.filter((order) =>
-        PROCESSING_STATUSES.includes(order.trangThai),
-      ).length,
+      count: counts.processing,
     },
     {
       key: "HoanThanh" as const,
       label: "Hoàn thành",
-      count: orders.filter((order) => order.trangThai === "HoanThanh").length,
+      count: counts.completed,
     },
     {
       key: "DaHuy" as const,
       label: "Đã hủy",
-      count: orders.filter((order) => order.trangThai === "DaHuy").length,
+      count: counts.cancelled,
     },
   ];
 
@@ -279,7 +278,7 @@ function Orders() {
           </div>
 
           <div className="customer-orders-total">
-            <strong>{orders.length}</strong>
+            <strong>{counts.all}</strong>
             <span>đơn hàng</span>
           </div>
         </header>
@@ -315,7 +314,7 @@ function Orders() {
           </div>
         )}
 
-        {!loadError && orders.length === 0 ? (
+        {!loadError && counts.all === 0 ? (
           <section className="customer-orders-empty">
             <span>
               <ReceiptText size={31} />
@@ -339,7 +338,10 @@ function Orders() {
                     key={filter.key}
                     type="button"
                     className={activeFilter === filter.key ? "active" : ""}
-                    onClick={() => setActiveFilter(filter.key)}
+                    onClick={() => {
+                      setActiveFilter(filter.key);
+                      setPageNumber(1);
+                    }}
                   >
                     <span>{filter.label}</span>
                     <strong>{filter.count}</strong>
@@ -347,7 +349,7 @@ function Orders() {
                 ))}
               </nav>
 
-              {filteredOrders.length === 0 ? (
+              {orders.length === 0 ? (
                 <section className="customer-orders-filter-empty">
                   <ReceiptText size={26} />
 
@@ -355,14 +357,17 @@ function Orders() {
 
                   <button
                     type="button"
-                    onClick={() => setActiveFilter("TatCa")}
+                    onClick={() => {
+                      setActiveFilter("TatCa");
+                      setPageNumber(1);
+                    }}
                   >
                     Xem tất cả đơn hàng
                   </button>
                 </section>
               ) : (
                 <div className="customer-order-list">
-                  {filteredOrders.map((order, index) => {
+                  {orders.map((order, index) => {
                     const status = getStatusMeta(order.trangThai);
 
                     const StatusIcon = status.icon;
@@ -457,6 +462,15 @@ function Orders() {
                     );
                   })}
                 </div>
+              )}
+
+              {totalPages > 1 && (
+                <Pagination
+                  pageNumber={pageNumber}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  onPageChange={setPageNumber}
+                />
               )}
             </>
           )

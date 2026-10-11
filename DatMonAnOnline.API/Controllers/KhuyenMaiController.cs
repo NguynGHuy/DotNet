@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DatMonAnOnline.API.Models;
 using System.Security.Claims;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -121,7 +122,10 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpGet("cua-toi")]
         [Authorize(Roles = "Quan")]
-        public async Task<IActionResult> LayDanhSachKhuyenMaiCuaQuan()
+        public async Task<IActionResult> LayDanhSachKhuyenMaiCuaQuan(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? search = null,
+            [FromQuery] string? state = null)
         {
             var nhaHang = await _context.Nhahangs
                 .FirstOrDefaultAsync(
@@ -131,8 +135,39 @@ namespace DatMonAnOnline.API.Controllers
             if (nhaHang == null)
                 return BadRequest("Không tìm thấy thông tin nhà hàng.");
 
-            var list = await _context.Khuyenmais
-                .Where(x => x.MaNhaHang == nhaHang.MaNhaHang)
+            var now = DateTime.Now;
+            var query = _context.Khuyenmais
+                .AsNoTracking()
+                .Where(x => x.MaNhaHang == nhaHang.MaNhaHang);
+
+            var counts = new
+            {
+                all = await query.CountAsync(),
+                active = await query.CountAsync(x => x.TrangThai == true && x.NgayBatDau <= now && x.NgayKetThuc >= now),
+                upcoming = await query.CountAsync(x => x.TrangThai == true && x.NgayBatDau > now),
+                ended = await query.CountAsync(x => x.TrangThai != true || x.NgayKetThuc < now),
+                inactive = await query.CountAsync(x => x.TrangThai != true),
+                expired = await query.CountAsync(x => x.TrangThai == true && x.NgayKetThuc < now)
+            };
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x =>
+                    x.MaCode.Contains(keyword) ||
+                    (x.MoTa != null && x.MoTa.Contains(keyword)));
+            }
+
+            query = state?.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(x => x.TrangThai == true && x.NgayBatDau <= now && x.NgayKetThuc >= now),
+                "upcoming" => query.Where(x => x.TrangThai == true && x.NgayBatDau > now),
+                "ended" => query.Where(x => x.TrangThai != true || x.NgayKetThuc < now),
+                _ => query
+            };
+
+            var list = await query
+                .OrderByDescending(x => x.MaKhuyenMai)
                 .Select(x => new
                 {
                     x.MaKhuyenMai,
@@ -149,9 +184,19 @@ namespace DatMonAnOnline.API.Controllers
                     x.MaNhaHang,
                     x.TrangThai
                 })
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
 
-            return Ok(list);
+            return Ok(new
+            {
+                list.Items,
+                list.PageNumber,
+                list.PageSize,
+                list.TotalItems,
+                list.TotalPages,
+                list.HasPreviousPage,
+                list.HasNextPage,
+                counts
+            });
         }
 
         // =========================

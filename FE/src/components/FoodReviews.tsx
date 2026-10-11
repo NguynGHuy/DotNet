@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getFoodReviews } from "../services/reviewService";
 import type { FoodReview } from "../services/reviewService";
+import Pagination from "./Pagination";
 
 interface Props {
     maMonAn: number;
@@ -10,13 +11,22 @@ function FoodReviewList({ maMonAn }: Props) {
     const [reviews, setReviews] = useState<FoodReview[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
 
-        getFoodReviews(maMonAn)
+        setLoading(true);
+        getFoodReviews(maMonAn, { pageNumber, pageSize: 3 })
             .then((data) => {
-                if (!cancelled) setReviews(data);
+                if (!cancelled) {
+                    setReviews(data.items);
+                    setTotalItems(data.totalItems);
+                    setTotalPages(data.totalPages);
+                    if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
+                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -34,7 +44,7 @@ function FoodReviewList({ maMonAn }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [maMonAn]);
+    }, [maMonAn, pageNumber]);
 
     if (loading) return <p>Đang tải đánh giá...</p>;
     if (error) return <p className="auth-error">{error}</p>;
@@ -46,7 +56,7 @@ function FoodReviewList({ maMonAn }: Props) {
     return (
         <div className="food-reviews-list">
             <span className="food-reviews-count">
-                {reviews.length} đánh giá
+                {totalItems} đánh giá
             </span>
 
             {reviews.map((review) => {
@@ -84,6 +94,14 @@ function FoodReviewList({ maMonAn }: Props) {
                     </article>
                 );
             })}
+            {totalPages > 1 && (
+                <Pagination
+                    pageNumber={pageNumber}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPageNumber}
+                />
+            )}
         </div>
     );
 }

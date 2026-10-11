@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     CalendarDays,
     Clock3,
@@ -18,6 +18,7 @@ import {
     togglePromotionStatus,
 } from "../services/promotionService";
 import type { Promotion } from "../services/promotionService";
+import Pagination from "../components/Pagination";
 
 type PromotionFilter =
     | "all"
@@ -66,6 +67,7 @@ function formatDate(value: string) {
 }
 
 function AdminPromotions() {
+    const PAGE_SIZE = 10;
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [keyword, setKeyword] = useState("");
     const [filter, setFilter] = useState<PromotionFilter>("all");
@@ -76,14 +78,34 @@ function AdminPromotions() {
         useState<Promotion | null>(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [counts, setCounts] = useState({
+        all: 0,
+        active: 0,
+        upcoming: 0,
+        ended: 0,
+        inactive: 0,
+        expired: 0,
+    });
 
     const loadPromotions = useCallback(async (showLoading = true) => {
         try {
             if (showLoading) setLoading(true);
             setError("");
 
-            const result = await getSystemPromotions();
-            setPromotions(Array.isArray(result) ? result : []);
+            const result = await getSystemPromotions({
+                pageNumber,
+                pageSize: PAGE_SIZE,
+                search: keyword.trim() || undefined,
+                state: filter === "all" ? undefined : filter,
+            });
+            setPromotions(result.items);
+            setTotalItems(result.totalItems);
+            setTotalPages(result.totalPages);
+            setCounts(result.counts);
+            if (result.pageNumber !== pageNumber) setPageNumber(result.pageNumber);
         } catch (err) {
             setError(
                 err instanceof Error
@@ -93,48 +115,11 @@ function AdminPromotions() {
         } finally {
             if (showLoading) setLoading(false);
         }
-    }, []);
+    }, [filter, keyword, pageNumber]);
 
     useEffect(() => {
         void loadPromotions();
     }, [loadPromotions]);
-
-    const filteredPromotions = useMemo(() => {
-        const searchValue = keyword
-            .trim()
-            .toLocaleLowerCase("vi-VN");
-
-        return promotions
-            .filter((item) => {
-                const state = getPromotionState(item);
-                const matchesFilter =
-                    filter === "all" || state.code === filter;
-
-                const matchesKeyword =
-                    !searchValue ||
-                    item.maCode
-                        .toLocaleLowerCase("vi-VN")
-                        .includes(searchValue) ||
-                    (item.moTa ?? "")
-                        .toLocaleLowerCase("vi-VN")
-                        .includes(searchValue);
-
-                return matchesFilter && matchesKeyword;
-            })
-            .sort(
-                (a, b) =>
-                    new Date(b.ngayBatDau).getTime() -
-                    new Date(a.ngayBatDau).getTime()
-            );
-    }, [filter, keyword, promotions]);
-
-    const activeCount = promotions.filter(
-        (item) => getPromotionState(item).code === "active"
-    ).length;
-
-    const upcomingCount = promotions.filter(
-        (item) => getPromotionState(item).code === "upcoming"
-    ).length;
 
     const handleToggle = async (item: Promotion) => {
         if (busyId !== null) return;
@@ -226,7 +211,7 @@ function AdminPromotions() {
                     </span>
                     <div>
                         <small>Tổng mã hệ thống</small>
-                        <strong>{promotions.length}</strong>
+                        <strong>{counts.all}</strong>
                     </div>
                 </article>
 
@@ -236,7 +221,7 @@ function AdminPromotions() {
                     </span>
                     <div>
                         <small>Đang hoạt động</small>
-                        <strong>{activeCount}</strong>
+                        <strong>{counts.active}</strong>
                     </div>
                 </article>
 
@@ -246,7 +231,7 @@ function AdminPromotions() {
                     </span>
                     <div>
                         <small>Sắp diễn ra</small>
-                        <strong>{upcomingCount}</strong>
+                        <strong>{counts.upcoming}</strong>
                     </div>
                 </article>
             </section>
@@ -271,9 +256,10 @@ function AdminPromotions() {
                             type="search"
                             placeholder="Tìm mã hoặc mô tả..."
                             value={keyword}
-                            onChange={(event) =>
-                                setKeyword(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setKeyword(event.target.value);
+                                setPageNumber(1);
+                            }}
                         />
                     </label>
 
@@ -293,7 +279,10 @@ function AdminPromotions() {
                                 className={
                                     filter === value ? "active" : ""
                                 }
-                                onClick={() => setFilter(value)}
+                                onClick={() => {
+                                    setFilter(value);
+                                    setPageNumber(1);
+                                }}
                             >
                                 {label}
                             </button>
@@ -303,7 +292,7 @@ function AdminPromotions() {
 
                 <div className="admin-promotions-result">
                     Hiển thị{" "}
-                    <strong>{filteredPromotions.length}</strong> khuyến mãi
+                    <strong>{totalItems}</strong> khuyến mãi
                 </div>
 
                 {loading ? (
@@ -311,7 +300,7 @@ function AdminPromotions() {
                         <RefreshCw size={21} />
                         <span>Đang tải khuyến mãi...</span>
                     </div>
-                ) : filteredPromotions.length === 0 ? (
+                ) : promotions.length === 0 ? (
                     <div className="admin-promotions-empty">
                         <TicketPercent size={28} />
                         <strong>Không có khuyến mãi phù hợp</strong>
@@ -334,7 +323,7 @@ function AdminPromotions() {
                             </thead>
 
                             <tbody>
-                                {filteredPromotions.map((item) => {
+                                {promotions.map((item) => {
                                     const state =
                                         getPromotionState(item);
 
@@ -501,6 +490,15 @@ function AdminPromotions() {
                             </tbody>
                         </table>
                     </div>
+                )}
+
+                {!loading && !error && totalPages > 1 && (
+                    <Pagination
+                        pageNumber={pageNumber}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        onPageChange={setPageNumber}
+                    />
                 )}
             </section>
 

@@ -25,6 +25,7 @@ import {
   type Topping,
 } from "../services/toppingService";
 import { getCurrentUser } from "../services/userService";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface CurrentUser {
   nhaHang?: { maNhaHang: number };
@@ -146,7 +147,11 @@ function RestaurantTopping() {
   };
 
   useEffect(() => {
-    void loadGroups();
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadGroups();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
   }, []);
 
   const showMessage = (message: string) => {
@@ -417,7 +422,8 @@ function RestaurantTopping() {
 
   return (
     <div className="merchant-options-page">
-      <header className="merchant-options-header">
+      <ScrollReveal className="merchant-options-header-reveal" delay={40}>
+        <header className="merchant-options-header">
         <div>
           <span className="merchant-options-eyebrow">TÙY CHỌN MÓN ĂN</span>
           <h1>Topping</h1>
@@ -432,7 +438,8 @@ function RestaurantTopping() {
           <Plus size={16} />
           Thêm nhóm
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {error && !groupEditorOpen && !toppingEditorOpen && (
         <div className="merchant-options-notice error">{error}</div>
@@ -443,7 +450,8 @@ function RestaurantTopping() {
       )}
 
       <div className="merchant-options-layout">
-        <aside className="merchant-options-groups">
+        <ScrollReveal className="merchant-options-groups-reveal" delay={80}>
+          <aside className="merchant-options-groups">
           <div className="merchant-options-panel-title">
             <div>
               <h2>Nhóm topping</h2>
@@ -462,16 +470,20 @@ function RestaurantTopping() {
             </div>
           ) : (
             <div className="merchant-options-group-list">
-              {groups.map((group) => {
+              {groups.map((group, index) => {
                 const selected = group.maNhomTopping === selectedGroupId;
 
                 return (
-                  <article
+                  <ScrollReveal
                     key={group.maNhomTopping}
-                    className={`merchant-options-group ${
-                      selected ? "selected" : ""
-                    }`}
+                    className="merchant-options-group-reveal"
+                    delay={Math.min(index * 40, 200)}
                   >
+                    <article
+                      className={`merchant-options-group ${
+                        selected ? "selected" : ""
+                      }`}
+                    >
                     <button
                       type="button"
                       className="merchant-options-group-select"
@@ -515,14 +527,17 @@ function RestaurantTopping() {
                         <Trash2 size={14} />
                       </button>
                     </div>
-                  </article>
+                    </article>
+                  </ScrollReveal>
                 );
               })}
             </div>
           )}
-        </aside>
+          </aside>
+        </ScrollReveal>
 
-        <section className="merchant-options-toppings">
+        <ScrollReveal className="merchant-options-toppings-reveal" delay={120}>
+          <section className="merchant-options-toppings">
           {selectedGroup ? (
             <>
               <div className="merchant-options-topping-header">
@@ -575,13 +590,17 @@ function RestaurantTopping() {
                 </div>
               ) : (
                 <div className="merchant-options-topping-list">
-                  {toppings.map((item) => (
-                    <article
+                  {toppings.map((item, index) => (
+                    <ScrollReveal
                       key={item.maTopping}
-                      className={`merchant-options-topping-row ${
-                        item.trangThai ? "" : "is-hidden"
-                      }`}
+                      className="merchant-options-topping-row-reveal"
+                      delay={Math.min(index * 40, 200)}
                     >
+                      <article
+                        className={`merchant-options-topping-row ${
+                          item.trangThai ? "" : "is-hidden"
+                        }`}
+                      >
                       <div className="merchant-options-topping-icon">
                         <CircleDollarSign size={17} />
                       </div>
@@ -630,7 +649,8 @@ function RestaurantTopping() {
                           <Trash2 size={14} />
                         </button>
                       </div>
-                    </article>
+                      </article>
+                    </ScrollReveal>
                   ))}
                 </div>
               )}
@@ -642,7 +662,8 @@ function RestaurantTopping() {
               <p>Hãy tạo một nhóm trước khi thêm topping.</p>
             </div>
           )}
-        </section>
+          </section>
+        </ScrollReveal>
       </div>
 
       {groupEditorOpen && (

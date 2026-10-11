@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Building2,
     Check,
@@ -17,6 +17,7 @@ import {
     rejectRestaurant,
 } from "../services/adminService";
 import type { PendingRestaurant } from "../services/adminService";
+import Pagination from "../components/Pagination";
 
 interface DecisionState {
     restaurant: PendingRestaurant;
@@ -24,20 +25,31 @@ interface DecisionState {
 }
 
 function AdminRestaurants() {
+    const PAGE_SIZE = 10;
     const [restaurants, setRestaurants] = useState<PendingRestaurant[]>([]);
     const [keyword, setKeyword] = useState("");
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [decision, setDecision] = useState<DecisionState | null>(null);
     const [error, setError] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
     const loadRestaurants = useCallback(async (showLoading = true) => {
         try {
             if (showLoading) setLoading(true);
             setError("");
 
-            const result = await getPendingRestaurants();
-            setRestaurants(Array.isArray(result) ? result : []);
+            const result = await getPendingRestaurants({
+                pageNumber,
+                pageSize: PAGE_SIZE,
+                search: keyword.trim() || undefined,
+            });
+            setRestaurants(result.items);
+            setTotalItems(result.totalItems);
+            setTotalPages(result.totalPages);
+            if (result.pageNumber !== pageNumber) setPageNumber(result.pageNumber);
         } catch (err) {
             setError(
                 err instanceof Error
@@ -47,30 +59,11 @@ function AdminRestaurants() {
         } finally {
             if (showLoading) setLoading(false);
         }
-    }, []);
+    }, [keyword, pageNumber]);
 
     useEffect(() => {
         void loadRestaurants();
     }, [loadRestaurants]);
-
-    const filteredRestaurants = useMemo(() => {
-        const value = keyword.trim().toLocaleLowerCase("vi-VN");
-
-        if (!value) return restaurants;
-
-        return restaurants.filter((restaurant) => {
-            const name = restaurant.tenNhaHang.toLocaleLowerCase("vi-VN");
-            const address = (restaurant.diaChiQuan ?? "")
-                .toLocaleLowerCase("vi-VN");
-            const id = String(restaurant.maNhaHang);
-
-            return (
-                name.includes(value) ||
-                address.includes(value) ||
-                id.includes(value)
-            );
-        });
-    }, [keyword, restaurants]);
 
     const closeDecision = () => {
         if (busyId !== null) return;
@@ -137,7 +130,7 @@ function AdminRestaurants() {
 
                     <div>
                         <small>Đang chờ xử lý</small>
-                        <strong>{restaurants.length}</strong>
+                        <strong>{totalItems}</strong>
                     </div>
                 </div>
 
@@ -158,14 +151,15 @@ function AdminRestaurants() {
                             type="search"
                             placeholder="Tìm tên, địa chỉ hoặc mã nhà hàng..."
                             value={keyword}
-                            onChange={(event) =>
-                                setKeyword(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setKeyword(event.target.value);
+                                setPageNumber(1);
+                            }}
                         />
                     </label>
 
                     <span>
-                        <strong>{filteredRestaurants.length}</strong> yêu cầu
+                        <strong>{totalItems}</strong> yêu cầu
                     </span>
                 </div>
 
@@ -186,20 +180,20 @@ function AdminRestaurants() {
                         <span>
                             <CheckCircle2 size={27} />
                         </span>
-                        <strong>Đã xử lý hết yêu cầu</strong>
-                        <p>Hiện không có nhà hàng nào đang chờ duyệt.</p>
-                    </div>
-                ) : filteredRestaurants.length === 0 ? (
-                    <div className="admin-restaurants-empty">
-                        <span>
-                            <Search size={25} />
-                        </span>
-                        <strong>Không tìm thấy nhà hàng</strong>
-                        <p>Hãy thử tìm bằng tên hoặc mã nhà hàng khác.</p>
+                        <strong>
+                            {keyword.trim()
+                                ? "Không tìm thấy nhà hàng"
+                                : "Đã xử lý hết yêu cầu"}
+                        </strong>
+                        <p>
+                            {keyword.trim()
+                                ? "Hãy thử tìm bằng tên, địa chỉ hoặc mã nhà hàng khác."
+                                : "Hiện không có nhà hàng nào đang chờ duyệt."}
+                        </p>
                     </div>
                 ) : (
                     <div className="admin-restaurant-request-list">
-                        {filteredRestaurants.map((restaurant) => (
+                        {restaurants.map((restaurant) => (
                             <article
                                 key={restaurant.maNhaHang}
                                 className="admin-restaurant-request"
@@ -263,6 +257,15 @@ function AdminRestaurants() {
                             </article>
                         ))}
                     </div>
+                )}
+
+                {!loading && !error && totalPages > 1 && (
+                    <Pagination
+                        pageNumber={pageNumber}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        onPageChange={setPageNumber}
+                    />
                 )}
             </section>
 

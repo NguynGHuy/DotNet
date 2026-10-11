@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -42,11 +43,45 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpGet("khuyen-mai")]
-        public async Task<IActionResult> LayKhuyenMaiHeThong()
+        public async Task<IActionResult> LayKhuyenMaiHeThong(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? search = null,
+            [FromQuery] string? state = null)
         {
-            var list = await _context.Khuyenmais
+            var now = DateTime.Now;
+            var query = _context.Khuyenmais
                 .AsNoTracking()
-                .Where(x => x.MaNhaHang == null)
+                .Where(x => x.MaNhaHang == null);
+
+            var counts = new
+            {
+                all = await query.CountAsync(),
+                active = await query.CountAsync(x => x.TrangThai == true && x.NgayBatDau <= now && x.NgayKetThuc >= now),
+                upcoming = await query.CountAsync(x => x.TrangThai == true && x.NgayBatDau > now),
+                ended = await query.CountAsync(x => x.TrangThai != true || x.NgayKetThuc < now),
+                inactive = await query.CountAsync(x => x.TrangThai != true),
+                expired = await query.CountAsync(x => x.TrangThai == true && x.NgayKetThuc < now)
+            };
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x =>
+                    x.MaCode.Contains(keyword) ||
+                    (x.MoTa != null && x.MoTa.Contains(keyword)));
+            }
+
+            query = state?.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(x => x.TrangThai == true && x.NgayBatDau <= now && x.NgayKetThuc >= now),
+                "upcoming" => query.Where(x => x.TrangThai == true && x.NgayBatDau > now),
+                "ended" => query.Where(x => x.TrangThai != true || x.NgayKetThuc < now),
+                "inactive" => query.Where(x => x.TrangThai != true),
+                "expired" => query.Where(x => x.TrangThai == true && x.NgayKetThuc < now),
+                _ => query
+            };
+
+            var list = await query
                 .OrderByDescending(x => x.MaKhuyenMai)
                 .Select(x => new
                 {
@@ -63,17 +98,43 @@ namespace DatMonAnOnline.API.Controllers
                     x.NgayKetThuc,
                     x.TrangThai
                 })
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
 
-            return Ok(list);
+            return Ok(new
+            {
+                list.Items,
+                list.PageNumber,
+                list.PageSize,
+                list.TotalItems,
+                list.TotalPages,
+                list.HasPreviousPage,
+                list.HasNextPage,
+                counts
+            });
         }
 
         [HttpGet("nha-hang/cho-duyet")]
-        public async Task<IActionResult> DanhSachNhaHangChoDuyet()
+        public async Task<IActionResult> DanhSachNhaHangChoDuyet(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? search = null)
         {
-            var list = await _context.Nhahangs
-                .Where(x => x.TrangThaiDuyet == "ChoDuyet")
-                .ToListAsync();
+            var query = _context.Nhahangs
+                .AsNoTracking()
+                .Where(x => x.TrangThaiDuyet == "ChoDuyet");
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                var hasRestaurantId = int.TryParse(keyword, out var restaurantId);
+                query = query.Where(x =>
+                    x.TenNhaHang.Contains(keyword) ||
+                    x.DiaChiQuan.Contains(keyword) ||
+                    (hasRestaurantId && x.MaNhaHang == restaurantId));
+            }
+
+            var list = await query
+                .OrderByDescending(x => x.MaNhaHang)
+                .ToPagedResultAsync(pagination);
             return Ok(list);
         }
 
@@ -123,7 +184,11 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpGet("don-hang")]
-        public async Task<IActionResult> XemToanBoDonHang([FromQuery] int? maNhaHang, [FromQuery] int? trangThai, [FromQuery] DateTime? ngay)
+        public async Task<IActionResult> XemToanBoDonHang(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] int? maNhaHang,
+            [FromQuery] int? trangThai,
+            [FromQuery] DateTime? ngay)
         {
             var query = _context.Donhangs.AsQueryable();
 
@@ -131,7 +196,10 @@ namespace DatMonAnOnline.API.Controllers
             if (trangThai.HasValue) query = query.Where(x => x.MaTrangThai == trangThai);
             if (ngay.HasValue) query = query.Where(x => x.ThoiGianDat.Date == ngay.Value.Date);
 
-            var list = await query.OrderByDescending(x => x.ThoiGianDat).ToListAsync();
+            var list = await query
+                .AsNoTracking()
+                .OrderByDescending(x => x.ThoiGianDat)
+                .ToPagedResultAsync(pagination);
             return Ok(list);
         }
         public class TaoKhuyenMaiAdminRequest

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -150,12 +151,15 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpGet("api/mon-an/{id}/danh-gia")]
-        public async Task<IActionResult> XemDanhGiaMonAn(int id)
+        public async Task<IActionResult> XemDanhGiaMonAn(
+            int id,
+            [FromQuery] PaginationQuery pagination)
         {
             var list = await _context.Danhgiamonans
+                .AsNoTracking()
                 .Where(x => x.MaMonAn == id)
                 .OrderByDescending(x => x.NgayDanhGia)
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
             return Ok(list);
         }
 
@@ -211,12 +215,15 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpGet("api/nha-hang/{id}/danh-gia")]
-        public async Task<IActionResult> XemDanhGiaNhaHang(int id)
+        public async Task<IActionResult> XemDanhGiaNhaHang(
+            int id,
+            [FromQuery] PaginationQuery pagination)
         {
             var list = await _context.Danhgianhahangs
+                .AsNoTracking()
                 .Where(x => x.MaNhaHang == id)
                 .OrderByDescending(x => x.NgayDanhGia)
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
             return Ok(list);
         }
     }

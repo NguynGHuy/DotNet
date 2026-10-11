@@ -21,6 +21,7 @@ import {
   type Restaurant,
 } from "../services/restaurantService";
 import { getRestaurantOrders } from "../services/orderService";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface RestaurantOrderSummary {
   maDonHang: number;
@@ -73,16 +74,6 @@ const formatMoney = (value: number) =>
 const formatTime = (value?: string | null) =>
   value ? value.slice(0, 5) : "--:--";
 
-const isToday = (value: string) => {
-  const date = new Date(value);
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
-};
-
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 11) return "Chào buổi sáng";
@@ -96,6 +87,13 @@ function QuanHome() {
   const [orders, setOrders] = useState<RestaurantOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [summary, setSummary] = useState({
+    all: 0,
+    pending: 0,
+    processing: 0,
+    completedToday: 0,
+    revenueToday: 0,
+  });
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -104,13 +102,12 @@ function QuanHome() {
 
       const [restaurantData, orderData] = await Promise.all([
         getRestaurantProfile(),
-        getRestaurantOrders(),
+        getRestaurantOrders<RestaurantOrderSummary>({ pageNumber: 1, pageSize: 5 }),
       ]);
 
       setRestaurant(restaurantData);
-      setOrders(
-        Array.isArray(orderData) ? (orderData as RestaurantOrderSummary[]) : [],
-      );
+      setOrders(orderData.items);
+      setSummary(orderData.summary);
     } catch (err) {
       setError(
         err instanceof Error
@@ -123,7 +120,11 @@ function QuanHome() {
   }, []);
 
   useEffect(() => {
-    void loadDashboard();
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
   }, [loadDashboard]);
 
   if (loading) {
@@ -155,25 +156,7 @@ function QuanHome() {
   const isOpen = Boolean(restaurant.dangMoCua);
   const statusText =
     restaurant.trangThaiHienThi || (isOpen ? "Đang mở cửa" : "Đang đóng cửa");
-  const pendingCount = orders.filter(
-    (x) => x.trangThai === "ChoXacNhan",
-  ).length;
-  const processingCount = orders.filter((x) =>
-    ["DaXacNhan", "DangChuanBi", "DangGiao"].includes(x.trangThai),
-  ).length;
-  const completedToday = orders.filter(
-    (x) => x.trangThai === "HoanThanh" && isToday(x.thoiGianDat),
-  );
-  const revenueToday = completedToday.reduce(
-    (total, order) => total + Number(order.thanhTien || 0),
-    0,
-  );
-  const recentOrders = [...orders]
-    .sort(
-      (a, b) =>
-        new Date(b.thoiGianDat).getTime() - new Date(a.thoiGianDat).getTime(),
-    )
-    .slice(0, 5);
+  const recentOrders = orders;
 
   const todayLabel = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -184,7 +167,8 @@ function QuanHome() {
 
   return (
     <main className="merchant-live-dashboard">
-      <header className="merchant-live-hero">
+      <ScrollReveal className="merchant-live-hero-reveal" delay={40}>
+        <header className="merchant-live-hero">
         <div className="merchant-live-welcome">
           <span>TRUNG TÂM VẬN HÀNH</span>
           <h1>
@@ -207,16 +191,18 @@ function QuanHome() {
           </div>
           <ArrowRight size={17} />
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
-      <section className="merchant-live-stats">
+      <ScrollReveal className="merchant-live-stats-reveal" delay={100}>
+        <section className="merchant-live-stats">
         <article className="stat-pending">
           <span>
             <ReceiptText size={21} />
           </span>
           <div>
             <small>Chờ xác nhận</small>
-            <strong>{pendingCount}</strong>
+            <strong>{summary.pending}</strong>
             <p>đơn cần xử lý</p>
           </div>
         </article>
@@ -227,7 +213,7 @@ function QuanHome() {
           </span>
           <div>
             <small>Đang xử lý</small>
-            <strong>{processingCount}</strong>
+            <strong>{summary.processing}</strong>
             <p>đơn đang thực hiện</p>
           </div>
         </article>
@@ -238,7 +224,7 @@ function QuanHome() {
           </span>
           <div>
             <small>Hoàn thành hôm nay</small>
-            <strong>{completedToday.length}</strong>
+            <strong>{summary.completedToday}</strong>
             <p>đơn giao thành công</p>
           </div>
         </article>
@@ -249,13 +235,15 @@ function QuanHome() {
           </span>
           <div>
             <small>Doanh thu hôm nay</small>
-            <strong>{formatMoney(revenueToday)}</strong>
+            <strong>{formatMoney(summary.revenueToday)}</strong>
             <p>từ đơn hoàn thành</p>
           </div>
         </article>
-      </section>
+        </section>
+      </ScrollReveal>
 
-      <div className="merchant-live-layout">
+      <ScrollReveal className="merchant-live-layout-reveal" delay={130}>
+        <div className="merchant-live-layout">
         <section className="merchant-recent-orders">
           <header>
             <div>
@@ -388,7 +376,8 @@ function QuanHome() {
             </div>
           </section>
         </aside>
-      </div>
+        </div>
+      </ScrollReveal>
     </main>
   );
 }

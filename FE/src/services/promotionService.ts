@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 export interface Promotion {
     maKhuyenMai: number;
@@ -40,8 +40,24 @@ function authHeaders() {
     };
 }
 
-export function getMyPromotions(): Promise<Promotion[]> {
-    return apiFetch("/khuyen-mai/cua-toi", {
+export interface PromotionQuery extends PaginationParams {
+    search?: string;
+    state?: "active" | "upcoming" | "ended" | "inactive" | "expired";
+}
+
+export interface PromotionListResult extends PagedResult<Promotion> {
+    counts: {
+        all: number;
+        active: number;
+        upcoming: number;
+        ended: number;
+        inactive: number;
+        expired: number;
+    };
+}
+
+export function getMyPromotions(params: PromotionQuery = {}): Promise<PromotionListResult> {
+    return apiFetch(`/khuyen-mai/cua-toi${buildQuery(params)}`, {
         headers: authHeaders(),
     });
 }
@@ -96,8 +112,8 @@ export function createSystemPromotion(data: CreatePromotionRequest) {
     });
 }
 
-export function getSystemPromotions(): Promise<Promotion[]> {
-    return apiFetch("/admin/khuyen-mai", {
+export function getSystemPromotions(params: PromotionQuery = {}): Promise<PromotionListResult> {
+    return apiFetch(`/admin/khuyen-mai${buildQuery(params)}`, {
         headers: authHeaders(),
     });
 }

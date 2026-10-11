@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -63,7 +64,12 @@ namespace DatMonAnOnline.API.Controllers
         // Public: giữ nguyên contract hiện tại để không làm hỏng FE quản lý món.
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> GetMonAns([FromQuery] int maNhaHang)
+        public async Task<IActionResult> GetMonAns(
+            [FromQuery] int maNhaHang,
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? search = null,
+            [FromQuery] int? maDanhMuc = null,
+            [FromQuery] bool? trangThai = null)
         {
             if (maNhaHang <= 0)
             {
@@ -82,9 +88,36 @@ namespace DatMonAnOnline.API.Controllers
                 return NotFound(new { message = "Không tìm thấy nhà hàng hoặc nhà hàng chưa được duyệt." });
             }
 
-            var result = await _context.Monans
+            var query = _context.Monans
                 .AsNoTracking()
-                .Where(x => x.MaNhaHang == maNhaHang)
+                .Where(x => x.MaNhaHang == maNhaHang);
+
+            var counts = new
+            {
+                all = await query.CountAsync(),
+                selling = await query.CountAsync(x => x.TrangThai == true),
+                hidden = await query.CountAsync(x => x.TrangThai != true)
+            };
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x =>
+                    x.TenMonAn.Contains(keyword) ||
+                    (x.MoTa != null && x.MoTa.Contains(keyword)));
+            }
+
+            if (maDanhMuc.HasValue)
+            {
+                query = query.Where(x => x.MaDanhMuc == maDanhMuc.Value);
+            }
+
+            if (trangThai.HasValue)
+            {
+                query = query.Where(x => x.TrangThai == trangThai.Value);
+            }
+
+            var result = await query
                 .OrderBy(x => x.MaDanhMuc)
                 .ThenBy(x => x.TenMonAn)
                 .Select(x => new
@@ -100,9 +133,19 @@ namespace DatMonAnOnline.API.Controllers
                     x.TrangThai,
                     x.DanhGiaTrungBinh
                 })
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
 
-            return Ok(result);
+            return Ok(new
+            {
+                result.Items,
+                result.PageNumber,
+                result.PageSize,
+                result.TotalItems,
+                result.TotalPages,
+                result.HasPreviousPage,
+                result.HasNextPage,
+                counts
+            });
         }
 
         // GET /api/mon-an/{id}

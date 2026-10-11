@@ -56,19 +56,18 @@ function Home() {
 
     const loadRestaurants = async () => {
       try {
-        const data = await getRestaurants();
+        const data = await getRestaurants({
+          pageNumber: 1,
+          pageSize: 6,
+          sort: "rating",
+        });
         if (cancelled) return;
 
         console.log("Danh sách nhà hàng:", data);
 
         // Sắp xếp theo đánh giá cao → thấp
         // rồi lấy tối đa 6 nhà hàng
-        const featuredRestaurants = [...data]
-          .sort(
-            (a: Restaurant, b: Restaurant) =>
-              (b.danhGiaTrungBinh ?? 0) - (a.danhGiaTrungBinh ?? 0),
-          )
-          .slice(0, 6);
+        const featuredRestaurants = data.items;
 
         setRestaurants(featuredRestaurants);
         setError("");

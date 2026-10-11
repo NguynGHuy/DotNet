@@ -154,10 +154,10 @@ function RealtimeToast() {
         // Payload SignalR thiếu đường dẫn thì lấy lại từ API.
         if (!targetPath) {
             const latestNotifications =
-                await getNotifications();
+                await getNotifications({ pageNumber: 1, pageSize: 20 });
 
             targetPath =
-                latestNotifications.find(
+                latestNotifications.items.find(
                     (item) =>
                         item.maThongBao ===
                         notification.maThongBao

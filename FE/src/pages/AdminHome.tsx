@@ -48,15 +48,15 @@ function AdminHome() {
             const [overview, accounts, pending, topRestaurants] =
                 await Promise.all([
                     getAdminOverview(),
-                    getAdminAccounts(),
-                    getPendingRestaurants(),
+                    getAdminAccounts({ pageNumber: 1, pageSize: 1 }),
+                    getPendingRestaurants({ pageNumber: 1, pageSize: 1 }),
                     getTopRestaurants(),
                 ]);
 
             setData({
                 overview,
-                accountCount: accounts.length,
-                pendingCount: pending.length,
+                accountCount: accounts.totalItems,
+                pendingCount: pending.totalItems,
                 topRestaurants: Array.isArray(topRestaurants)
                     ? topRestaurants
                     : [],

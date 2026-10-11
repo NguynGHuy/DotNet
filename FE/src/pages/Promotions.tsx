@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CalendarDays,
   Pencil,
@@ -15,6 +15,8 @@ import {
 } from "../services/promotionService";
 import CreatePromotionForm from "../components/CreatePromotionForm";
 import EditPromotionForm from "../components/EditPromotionForm";
+import ScrollReveal from "../components/ScrollReveal";
+import Pagination from "../components/Pagination";
 
 type PromotionFilter = "all" | "active" | "upcoming" | "ended";
 type PromotionState = "active" | "upcoming" | "expired" | "inactive";
@@ -56,6 +58,7 @@ function formatDate(value: string) {
 }
 
 function Promotions() {
+  const PAGE_SIZE = 8;
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [filter, setFilter] = useState<PromotionFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -64,14 +67,26 @@ function Promotions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [counts, setCounts] = useState({ all: 0, active: 0, upcoming: 0, ended: 0 });
 
-  const loadPromotions = async (showLoading = true) => {
+  const loadPromotions = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError("");
 
-      const data = await getMyPromotions();
-      setPromotions(Array.isArray(data) ? data : []);
+      const data = await getMyPromotions({
+        pageNumber,
+        pageSize: PAGE_SIZE,
+        state: filter === "all" ? undefined : filter,
+      });
+      setPromotions(data.items);
+      setTotalItems(data.totalItems);
+      setTotalPages(data.totalPages);
+      setCounts(data.counts);
+      if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
     } catch (err) {
       console.error("Lỗi lấy danh sách khuyến mãi:", err);
       setError(
@@ -82,11 +97,15 @@ function Promotions() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [filter, pageNumber]);
 
   useEffect(() => {
-    void loadPromotions();
-  }, []);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadPromotions();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
+  }, [loadPromotions]);
 
   const showMessage = (message: string) => {
     setSuccess(message);
@@ -119,31 +138,7 @@ function Promotions() {
     }
   };
 
-  const filteredPromotions = useMemo(() => {
-    return promotions.filter((item) => {
-      if (filter === "all") return true;
-
-      const state = getPromotionState(item);
-
-      if (filter === "active") return state === "active";
-      if (filter === "upcoming") return state === "upcoming";
-
-      return state === "inactive" || state === "expired";
-    });
-  }, [promotions, filter]);
-
-  const countByFilter = (value: PromotionFilter) => {
-    if (value === "all") return promotions.length;
-
-    return promotions.filter((item) => {
-      const state = getPromotionState(item);
-
-      if (value === "active") return state === "active";
-      if (value === "upcoming") return state === "upcoming";
-
-      return state === "inactive" || state === "expired";
-    }).length;
-  };
+  const countByFilter = (value: PromotionFilter) => counts[value];
 
   if (loading) {
     return (
@@ -156,7 +151,8 @@ function Promotions() {
 
   return (
     <div className="merchant-promotions-page">
-      <header className="merchant-promotions-header">
+      <ScrollReveal className="merchant-promotions-header-reveal" delay={40}>
+        <header className="merchant-promotions-header">
         <div>
           <span className="merchant-promotions-eyebrow">
             CHƯƠNG TRÌNH ƯU ĐÃI
@@ -178,7 +174,8 @@ function Promotions() {
           <Plus size={16} />
           Tạo mã mới
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {error && !createOpen && editingId === null && (
         <div className="merchant-promotions-notice error">{error}</div>
@@ -188,7 +185,8 @@ function Promotions() {
         <div className="merchant-promotions-notice success">✓ {success}</div>
       )}
 
-      <nav className="merchant-promotions-tabs">
+      <ScrollReveal className="merchant-promotions-tabs-reveal" delay={80}>
+        <nav className="merchant-promotions-tabs">
         {(
           [
             ["all", "Tất cả"],
@@ -201,40 +199,46 @@ function Promotions() {
             key={value}
             type="button"
             className={filter === value ? "active" : ""}
-            onClick={() => setFilter(value)}
+            onClick={() => {
+              setFilter(value);
+              setPageNumber(1);
+            }}
           >
             {label}
             <span>{countByFilter(value)}</span>
           </button>
         ))}
-      </nav>
+        </nav>
+      </ScrollReveal>
 
-      {filteredPromotions.length === 0 ? (
-        <div className="merchant-promotions-empty">
+      {promotions.length === 0 ? (
+        <ScrollReveal className="merchant-promotions-empty-reveal" delay={110}>
+          <div className="merchant-promotions-empty">
           <span>
             <TicketPercent size={28} />
           </span>
           <h3>
-            {promotions.length === 0
+            {counts.all === 0
               ? "Chưa có mã giảm giá"
               : "Không có mã phù hợp"}
           </h3>
           <p>
-            {promotions.length === 0
+            {counts.all === 0
               ? "Tạo chương trình ưu đãi đầu tiên cho khách hàng."
               : "Không có mã giảm giá thuộc trạng thái này."}
           </p>
 
-          {promotions.length === 0 && (
+          {counts.all === 0 && (
             <button type="button" onClick={() => setCreateOpen(true)}>
               <Plus size={15} />
               Tạo mã mới
             </button>
           )}
-        </div>
+          </div>
+        </ScrollReveal>
       ) : (
         <div className="merchant-promotions-grid">
-          {filteredPromotions.map((item) => {
+          {promotions.map((item, index) => {
             const state = getPromotionState(item);
             const status = STATUS_INFO[state];
             const usagePercent =
@@ -243,10 +247,14 @@ function Promotions() {
                 : 0;
 
             return (
-              <article
+              <ScrollReveal
                 key={item.maKhuyenMai}
-                className={`merchant-promotion-card state-${status.className}`}
+                className="merchant-promotion-card-reveal"
+                delay={Math.min(index * 50, 250)}
               >
+                <article
+                  className={`merchant-promotion-card state-${status.className}`}
+                >
                 <header className="merchant-promotion-card-header">
                   <div className="merchant-promotion-code">
                     <span>
@@ -361,10 +369,20 @@ function Promotions() {
                         : "Bật mã"}
                   </button>
                 </footer>
-              </article>
+                </article>
+              </ScrollReveal>
             );
           })}
         </div>
+      )}
+
+      {totalPages > 1 && (
+        <Pagination
+          pageNumber={pageNumber}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPageNumber}
+        />
       )}
 
       {createOpen && (

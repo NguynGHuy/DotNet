@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 export interface Notification {
     maThongBao: number;
@@ -19,8 +19,14 @@ function authHeaders() {
     };
 }
 
-export function getNotifications(): Promise<Notification[]> {
-    return apiFetch("/thong-bao", {
+export interface NotificationResult extends PagedResult<Notification> {
+    counts: { all: number; unread: number; read: number };
+}
+
+export function getNotifications(
+    params: PaginationParams & { filter?: "unread" | "read" } = {}
+): Promise<NotificationResult> {
+    return apiFetch(`/thong-bao${buildQuery(params)}`, {
         headers: authHeaders(),
     });
 }

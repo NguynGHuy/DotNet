@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 export interface AdminAccount {
   maTaiKhoan: number;
@@ -24,8 +24,18 @@ function authHeaders() {
   };
 }
 
-export function getAdminAccounts(): Promise<AdminAccount[]> {
-  return apiFetch("/admin/tai-khoan", {
+export interface AdminAccountQuery extends PaginationParams {
+  search?: string;
+  role?: string;
+  trangThai?: boolean;
+}
+
+export interface AdminAccountListResult extends PagedResult<AdminAccount> {
+  counts: { all: number; active: number; locked: number };
+}
+
+export function getAdminAccounts(params: AdminAccountQuery = {}): Promise<AdminAccountListResult> {
+  return apiFetch(`/admin/tai-khoan${buildQuery(params)}`, {
     headers: authHeaders(),
   });
 }
@@ -44,8 +54,12 @@ export function unlockAccount(id: number) {
   });
 }
 
-export function getPendingRestaurants(): Promise<PendingRestaurant[]> {
-  return apiFetch("/admin/nha-hang/cho-duyet", {
+export interface PendingRestaurantQuery extends PaginationParams {
+  search?: string;
+}
+
+export function getPendingRestaurants(params: PendingRestaurantQuery = {}): Promise<PagedResult<PendingRestaurant>> {
+  return apiFetch(`/admin/nha-hang/cho-duyet${buildQuery(params)}`, {
     headers: authHeaders(),
   });
 }

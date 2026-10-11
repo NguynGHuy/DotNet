@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   CircleDollarSign,
   ImageIcon,
@@ -28,6 +28,8 @@ import {
 import { getDanhMucs, type DanhMuc } from "../services/categoryService";
 import { getNhomToppings, type NhomTopping } from "../services/toppingService";
 import { getCurrentUser } from "../services/userService";
+import ScrollReveal from "../components/ScrollReveal";
+import Pagination from "../components/Pagination";
 
 interface CurrentUser {
   nhaHang?: { maNhaHang: number };
@@ -56,6 +58,7 @@ function formatMoney(value: number) {
 }
 
 function RestaurantMenu() {
+  const PAGE_SIZE = 9;
   const [monAns, setMonAns] = useState<MonAn[]>([]);
   const [danhMucs, setDanhMucs] = useState<DanhMuc[]>([]);
   const [nhomToppings, setNhomToppings] = useState<NhomTopping[]>([]);
@@ -73,6 +76,10 @@ function RestaurantMenu() {
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [menuCounts, setMenuCounts] = useState({ all: 0, selling: 0, hidden: 0 });
 
   const getRestaurantId = async () => {
     const user = (await getCurrentUser()) as CurrentUser;
@@ -85,19 +92,30 @@ function RestaurantMenu() {
     return maNhaHang;
   };
 
-  const loadData = async (showLoading = true) => {
+  const loadData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError("");
 
       const maNhaHang = await getRestaurantId();
       const [menuData, categoryData, toppingData] = await Promise.all([
-        getMonAns(maNhaHang),
+        getMonAns(maNhaHang, {
+          pageNumber,
+          pageSize: PAGE_SIZE,
+          search: searchText.trim() || undefined,
+          maDanhMuc: categoryFilter || undefined,
+          trangThai:
+            statusFilter === "all" ? undefined : statusFilter === "selling",
+        }),
         getDanhMucs(maNhaHang),
         getNhomToppings(maNhaHang),
       ]);
 
-      setMonAns(Array.isArray(menuData) ? menuData : []);
+      setMonAns(menuData.items);
+      setTotalItems(menuData.totalItems);
+      setTotalPages(menuData.totalPages);
+      setMenuCounts(menuData.counts);
+      if (menuData.pageNumber !== pageNumber) setPageNumber(menuData.pageNumber);
       setDanhMucs(Array.isArray(categoryData) ? categoryData : []);
       setNhomToppings(Array.isArray(toppingData) ? toppingData : []);
     } catch (err) {
@@ -106,11 +124,15 @@ function RestaurantMenu() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [categoryFilter, pageNumber, searchText, statusFilter]);
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
+  }, [loadData]);
 
   const showMessage = (message: string) => {
     setSuccess(message);
@@ -317,36 +339,14 @@ function RestaurantMenu() {
     }
   };
 
-  const filteredMonAns = useMemo(() => {
-    const keyword = searchText.trim().toLowerCase();
-
-    return monAns.filter((item) => {
-      const matchesKeyword =
-        !keyword ||
-        item.tenMonAn.toLowerCase().includes(keyword) ||
-        (item.tenDanhMuc ?? "").toLowerCase().includes(keyword);
-
-      const matchesCategory =
-        categoryFilter === 0 || item.maDanhMuc === categoryFilter;
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "selling" && Boolean(item.trangThai)) ||
-        (statusFilter === "hidden" && !Boolean(item.trangThai));
-
-      return matchesKeyword && matchesCategory && matchesStatus;
-    });
-  }, [monAns, searchText, categoryFilter, statusFilter]);
-
-  const sellingCount = monAns.filter((item) => item.trangThai).length;
-
   if (loading) {
     return <div className="quan-page-loading">Đang tải thực đơn...</div>;
   }
 
   return (
     <div className="merchant-menu-page">
-      <header className="merchant-menu-header">
+      <ScrollReveal className="merchant-menu-header-reveal" delay={40}>
+        <header className="merchant-menu-header">
         <div>
           <span className="merchant-menu-eyebrow">QUẢN LÝ THỰC ĐƠN</span>
           <h1>Món ăn</h1>
@@ -362,7 +362,8 @@ function RestaurantMenu() {
           <Plus size={16} />
           Thêm món
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {danhMucs.length === 0 && (
         <div className="merchant-menu-notice warning">
@@ -378,18 +379,19 @@ function RestaurantMenu() {
         <div className="merchant-menu-notice success">✓ {success}</div>
       )}
 
-      <section className="merchant-menu-toolbar">
+      <ScrollReveal className="merchant-menu-toolbar-reveal" delay={80}>
+        <section className="merchant-menu-toolbar">
         <div className="merchant-menu-summary">
           <div>
-            <strong>{monAns.length}</strong>
+            <strong>{menuCounts.all}</strong>
             <span>Tổng món</span>
           </div>
           <div>
-            <strong>{sellingCount}</strong>
+            <strong>{menuCounts.selling}</strong>
             <span>Đang bán</span>
           </div>
           <div>
-            <strong>{monAns.length - sellingCount}</strong>
+            <strong>{menuCounts.hidden}</strong>
             <span>Tạm ngưng</span>
           </div>
         </div>
@@ -401,7 +403,10 @@ function RestaurantMenu() {
               type="search"
               value={searchText}
               placeholder="Tìm tên món..."
-              onChange={(event) => setSearchText(event.target.value)}
+              onChange={(event) => {
+                setSearchText(event.target.value);
+                setPageNumber(1);
+              }}
             />
           </label>
 
@@ -409,9 +414,10 @@ function RestaurantMenu() {
             <Tag size={15} />
             <select
               value={categoryFilter}
-              onChange={(event) =>
-                setCategoryFilter(Number(event.target.value))
-              }
+              onChange={(event) => {
+                setCategoryFilter(Number(event.target.value));
+                setPageNumber(1);
+              }}
             >
               <option value={0}>Tất cả danh mục</option>
               {danhMucs.map((item) => (
@@ -426,9 +432,10 @@ function RestaurantMenu() {
             <SlidersHorizontal size={15} />
             <select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as StatusFilter)
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value as StatusFilter);
+                setPageNumber(1);
+              }}
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="selling">Đang bán</option>
@@ -436,39 +443,46 @@ function RestaurantMenu() {
             </select>
           </label>
         </div>
-      </section>
+        </section>
+      </ScrollReveal>
 
-      {filteredMonAns.length === 0 ? (
-        <div className="merchant-menu-empty">
+      {monAns.length === 0 ? (
+        <ScrollReveal className="merchant-menu-empty-reveal" delay={110}>
+          <div className="merchant-menu-empty">
           <span>
             <UtensilsCrossed size={28} />
           </span>
           <h3>
-            {monAns.length === 0
+            {menuCounts.all === 0
               ? "Chưa có món ăn"
               : "Không tìm thấy món phù hợp"}
           </h3>
           <p>
-            {monAns.length === 0
+            {menuCounts.all === 0
               ? "Thêm món đầu tiên để bắt đầu xây dựng thực đơn."
               : "Hãy thay đổi từ khóa hoặc bộ lọc đang chọn."}
           </p>
-          {monAns.length === 0 && danhMucs.length > 0 && (
+          {menuCounts.all === 0 && danhMucs.length > 0 && (
             <button type="button" onClick={openCreate}>
               <Plus size={15} />
               Thêm món
             </button>
           )}
-        </div>
+          </div>
+        </ScrollReveal>
       ) : (
         <div className="merchant-menu-grid">
-          {filteredMonAns.map((item) => (
-            <article
+          {monAns.map((item, index) => (
+            <ScrollReveal
               key={item.maMonAn}
-              className={`merchant-menu-card ${
-                item.trangThai ? "is-selling" : "is-hidden"
-              }`}
+              className="merchant-menu-card-reveal"
+              delay={Math.min(index * 45, 225)}
             >
+              <article
+                className={`merchant-menu-card ${
+                  item.trangThai ? "is-selling" : "is-hidden"
+                }`}
+              >
               <div className="merchant-menu-image">
                 <ImageIcon size={25} />
 
@@ -542,9 +556,19 @@ function RestaurantMenu() {
                   </button>
                 </div>
               </div>
-            </article>
+              </article>
+            </ScrollReveal>
           ))}
         </div>
+      )}
+
+      {totalPages > 1 && (
+        <Pagination
+          pageNumber={pageNumber}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPageNumber}
+        />
       )}
 
       {editorOpen && (

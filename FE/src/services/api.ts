@@ -1,5 +1,33 @@
 export const API_URL = "http://localhost:5038/api";
 
+export interface PagedResult<T> {
+    items: T[];
+    pageNumber: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+}
+
+export interface PaginationParams {
+    pageNumber?: number;
+    pageSize?: number;
+}
+
+export function buildQuery<T extends object>(params: T) {
+    const query = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+            query.set(key, String(value));
+        }
+    });
+
+    const value = query.toString();
+    return value ? `?${value}` : "";
+}
+
 export function resolveMediaUrl(path: string | null | undefined) {
     if (!path) return null;
     if (/^(https?:|data:|blob:)/i.test(path)) return path;

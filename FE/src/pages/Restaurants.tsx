@@ -4,6 +4,7 @@ import { getRestaurants } from "../services/restaurantService";
 import type { Restaurant } from "../services/restaurantService";
 import ScrollReveal from "../components/ScrollReveal";
 import RestaurantCardSkeleton from "../components/RestaurantCardSkeleton";
+import Pagination from "../components/Pagination";
 import {
   CircleDot,
   Search,
@@ -49,6 +50,7 @@ function getRestaurantStatusLabel(restaurant: Restaurant): string {
   return "Đã đóng";
 }
 function Restaurants() {
+  const PAGE_SIZE = 12;
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -59,16 +61,29 @@ function Restaurants() {
 
   const [filter, setFilter] = useState<"all" | "open" | "rating">("all");
 
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
 
     const loadRestaurants = async () => {
       try {
-        const data = await getRestaurants();
+        const data = await getRestaurants({
+          pageNumber,
+          pageSize: PAGE_SIZE,
+          search: search.trim() || undefined,
+          sort: filter === "rating" ? "rating" : undefined,
+          openOnly: filter === "open" ? true : undefined,
+        });
         if (cancelled) return;
 
         console.log("Danh sách nhà hàng:", data);
-        setRestaurants(data);
+        setRestaurants(data.items);
+        setTotalItems(data.totalItems);
+        setTotalPages(data.totalPages);
+        if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
         setError("");
       } catch (error) {
         if (cancelled) return;
@@ -90,33 +105,7 @@ function Restaurants() {
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
     };
-  }, []);
-
-  const filteredRestaurants = restaurants
-    .filter((restaurant) => {
-      const keyword = search.trim().toLowerCase();
-
-      if (!keyword) return true;
-
-      return (
-        restaurant.tenNhaHang.toLowerCase().includes(keyword) ||
-        restaurant.diaChiQuan?.toLowerCase().includes(keyword)
-      );
-    })
-    .filter((restaurant) => {
-      if (filter === "open") {
-        return isRestaurantOpen(restaurant);
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (filter === "rating") {
-        return (b.danhGiaTrungBinh ?? 0) - (a.danhGiaTrungBinh ?? 0);
-      }
-
-      return 0;
-    });
+  }, [filter, pageNumber, search]);
 
   return (
     <main className="restaurants-page">
@@ -173,7 +162,7 @@ function Restaurants() {
 
               {!loading && !error && (
                 <p>
-                  {filteredRestaurants.length} nhà hàng
+                  {totalItems} nhà hàng
                   {search && <> phù hợp với "{search}"</>}
                 </p>
               )}
@@ -185,7 +174,10 @@ function Restaurants() {
                 className={`restaurant-filter ${
                   filter === "all" ? "active" : ""
                 }`}
-                onClick={() => setFilter("all")}
+                onClick={() => {
+                  setFilter("all");
+                  setPageNumber(1);
+                }}
               >
                 <SlidersHorizontal size={15} strokeWidth={2} />
 
@@ -197,7 +189,10 @@ function Restaurants() {
                 className={`restaurant-filter ${
                   filter === "open" ? "active" : ""
                 }`}
-                onClick={() => setFilter("open")}
+                onClick={() => {
+                  setFilter("open");
+                  setPageNumber(1);
+                }}
               >
                 <CircleDot size={15} strokeWidth={2} />
 
@@ -209,7 +204,10 @@ function Restaurants() {
                 className={`restaurant-filter ${
                   filter === "rating" ? "active" : ""
                 }`}
-                onClick={() => setFilter("rating")}
+                onClick={() => {
+                  setFilter("rating");
+                  setPageNumber(1);
+                }}
               >
                 <Star size={15} strokeWidth={2} />
 
@@ -235,7 +233,7 @@ function Restaurants() {
         )}
 
         {/* EMPTY */}
-        {!loading && !error && filteredRestaurants.length === 0 && (
+        {!loading && !error && restaurants.length === 0 && (
           <div className="restaurants-empty">
             <div className="restaurants-empty-icon">
               <SearchX size={28} strokeWidth={1.8} />
@@ -260,9 +258,9 @@ function Restaurants() {
         )}
 
         {/* RESTAURANTS */}
-        {!loading && !error && filteredRestaurants.length > 0 && (
+        {!loading && !error && restaurants.length > 0 && (
           <div className="restaurants-grid">
-            {filteredRestaurants.map((restaurant, index) => {
+            {restaurants.map((restaurant, index) => {
               const isOpen = isRestaurantOpen(restaurant);
 
               const statusLabel = getRestaurantStatusLabel(restaurant);
@@ -370,6 +368,15 @@ function Restaurants() {
               );
             })}
           </div>
+        )}
+
+        {!loading && !error && totalPages > 1 && (
+          <Pagination
+            pageNumber={pageNumber}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            onPageChange={setPageNumber}
+          />
         )}
       </section>
     </main>

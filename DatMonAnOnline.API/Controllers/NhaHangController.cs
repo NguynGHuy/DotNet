@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -51,18 +52,52 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> GetDanhSachNhaHang()
+        public async Task<IActionResult> GetDanhSachNhaHang(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? search = null,
+            [FromQuery] string? sort = null,
+            [FromQuery] bool openOnly = false)
         {
-            var danhSach = await _context.Nhahangs
+            var query = _context.Nhahangs
                 .AsNoTracking()
                 .Include(x => x.MaTaiKhoanNavigation)
                 .Where(x =>
                     x.TrangThaiDuyet == "DaDuyet" &&
-                    x.MaTaiKhoanNavigation.TrangThai == true)
-                .OrderBy(x => x.TenNhaHang)
-                .ToListAsync();
+                    x.MaTaiKhoanNavigation.TrangThai == true);
 
-            var result = danhSach.Select(x =>
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x =>
+                    x.TenNhaHang.Contains(keyword) ||
+                    x.DiaChiQuan.Contains(keyword) ||
+                    (x.MoTa != null && x.MoTa.Contains(keyword)));
+            }
+
+            if (openOnly)
+            {
+                var currentTime = TimeOnly.FromDateTime(DateTime.Now);
+                query = query.Where(x =>
+                    x.CheDoHoatDong == "MoThuCong" ||
+                    (x.CheDoHoatDong == "TuDong" &&
+                     x.GioMoCua.HasValue &&
+                     x.GioDongCua.HasValue &&
+                     x.GioMoCua.Value != x.GioDongCua.Value &&
+                     ((x.GioMoCua.Value < x.GioDongCua.Value &&
+                       currentTime >= x.GioMoCua.Value &&
+                       currentTime < x.GioDongCua.Value) ||
+                      (x.GioMoCua.Value > x.GioDongCua.Value &&
+                       (currentTime >= x.GioMoCua.Value ||
+                        currentTime < x.GioDongCua.Value)))));
+            }
+
+            query = string.Equals(sort, "rating", StringComparison.OrdinalIgnoreCase)
+                ? query.OrderByDescending(x => x.DanhGiaTrungBinh).ThenBy(x => x.TenNhaHang)
+                : query.OrderBy(x => x.TenNhaHang);
+
+            var page = await query.ToPagedResultAsync(pagination);
+
+            var items = page.Items.Select(x =>
             {
                 var trangThai =
                     TrangThaiNhaHangHelper.KiemTra(x);
@@ -90,7 +125,16 @@ namespace DatMonAnOnline.API.Controllers
                 };
             });
 
-            return Ok(result);
+            return Ok(new
+            {
+                items,
+                page.PageNumber,
+                page.PageSize,
+                page.TotalItems,
+                page.TotalPages,
+                page.HasPreviousPage,
+                page.HasNextPage
+            });
         }
 
         // =====================================================

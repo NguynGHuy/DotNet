@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, buildQuery, type PagedResult, type PaginationParams } from "./api";
 
 /* =========================================================
    CÁC CHẾ ĐỘ HOẠT ĐỘNG CỦA NHÀ HÀNG
@@ -90,10 +90,16 @@ function getAuthHeaders() {
    PUBLIC
 ========================================================= */
 
-export async function getRestaurants(): Promise<
-    Restaurant[]
-> {
-    return apiFetch("/nha-hang", {
+export interface RestaurantQuery extends PaginationParams {
+    search?: string;
+    sort?: "rating";
+    openOnly?: boolean;
+}
+
+export async function getRestaurants(
+    params: RestaurantQuery = {}
+): Promise<PagedResult<Restaurant>> {
+    return apiFetch(`/nha-hang${buildQuery(params)}`, {
         method: "GET",
         cache: "no-store",
     });

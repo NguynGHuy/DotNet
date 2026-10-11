@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -12,6 +12,7 @@ import {
   type MonAn,
   type MonAnChiTiet,
 } from "../services/menuService";
+import Pagination from "../components/Pagination";
 
 import {
   addToCart,
@@ -86,6 +87,7 @@ function formatMoney(value: number) {
 ========================================================= */
 
 function RestaurantDetail() {
+  const MENU_PAGE_SIZE = 12;
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -116,6 +118,9 @@ function RestaurantDetail() {
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [menuPageNumber, setMenuPageNumber] = useState(1);
+  const [menuTotalItems, setMenuTotalItems] = useState(0);
+  const [menuTotalPages, setMenuTotalPages] = useState(0);
 
   /* =========================
        GIỎ HÀNG CỦA QUÁN
@@ -208,7 +213,13 @@ function RestaurantDetail() {
         const [categoryData, menuData] = await Promise.all([
           getDanhMucs(restaurant.maNhaHang),
 
-          getMonAns(restaurant.maNhaHang),
+          getMonAns(restaurant.maNhaHang, {
+            pageNumber: menuPageNumber,
+            pageSize: MENU_PAGE_SIZE,
+            search: searchTerm.trim() || undefined,
+            maDanhMuc: selectedCategory || undefined,
+            trangThai: true,
+          }),
         ]);
 
         /* =========================
@@ -225,9 +236,12 @@ function RestaurantDetail() {
                     Khách chỉ thấy món
                     đang được quán bật bán.
                 */
-        const activeFoods = menuData.filter((item) => item.trangThai);
-
-        setMonAns(activeFoods);
+        setMonAns(menuData.items);
+        setMenuTotalItems(menuData.totalItems);
+        setMenuTotalPages(menuData.totalPages);
+        if (menuData.pageNumber !== menuPageNumber) {
+          setMenuPageNumber(menuData.pageNumber);
+        }
       } catch (err) {
         console.error("Lỗi tải thực đơn:", err);
 
@@ -243,7 +257,7 @@ function RestaurantDetail() {
     };
 
     loadMenu();
-  }, [restaurant?.maNhaHang]);
+  }, [menuPageNumber, restaurant?.maNhaHang, searchTerm, selectedCategory]);
 
   const currentRestaurantId = restaurant?.maNhaHang;
 
@@ -290,26 +304,6 @@ function RestaurantDetail() {
 
     return () => window.clearTimeout(timer);
   }, [cart?.chiTiet.length, cart?.ngayCapNhat, loadCurrentRestaurantCart]);
-
-  /* =========================================================
-       FILTER MENU
-    ========================================================= */
-
-  const filteredFoods = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-
-    return monAns.filter((item) => {
-      const matchCategory =
-        selectedCategory === 0 || item.maDanhMuc === selectedCategory;
-
-      const matchSearch =
-        !keyword ||
-        item.tenMonAn.toLowerCase().includes(keyword) ||
-        (item.moTa ?? "").toLowerCase().includes(keyword);
-
-      return matchCategory && matchSearch;
-    });
-  }, [monAns, selectedCategory, searchTerm]);
 
   /* =========================================================
        SCROLL ĐẾN MENU
@@ -616,7 +610,7 @@ function RestaurantDetail() {
             </div>
 
             <div className="customer-menu-count">
-              {filteredFoods.length} món
+              {menuTotalItems} món
             </div>
           </div>
 
@@ -628,7 +622,10 @@ function RestaurantDetail() {
                 type="text"
                 placeholder="Tìm kiếm món ăn..."
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setMenuPageNumber(1);
+                }}
               />
             </div>
 
@@ -640,7 +637,10 @@ function RestaurantDetail() {
                     ? "customer-category-button active"
                     : "customer-category-button"
                 }
-                onClick={() => setSelectedCategory(0)}
+                onClick={() => {
+                  setSelectedCategory(0);
+                  setMenuPageNumber(1);
+                }}
               >
                 Tất cả
               </button>
@@ -654,7 +654,10 @@ function RestaurantDetail() {
                       ? "customer-category-button active"
                       : "customer-category-button"
                   }
-                  onClick={() => setSelectedCategory(category.maDanhMuc)}
+                  onClick={() => {
+                    setSelectedCategory(category.maDanhMuc);
+                    setMenuPageNumber(1);
+                  }}
                 >
                   {category.tenDanhMuc}
                 </button>
@@ -687,7 +690,7 @@ function RestaurantDetail() {
               <h3>Nhà hàng chưa có món ăn</h3>
               <p>Thực đơn đang được cập nhật.</p>
             </div>
-          ) : filteredFoods.length === 0 ? (
+          ) : monAns.length === 0 ? (
             <div className="customer-menu-state">
               <div className="customer-menu-empty-icon">
                 <SearchX size={28} />
@@ -699,7 +702,7 @@ function RestaurantDetail() {
             </div>
           ) : (
             <div className="customer-menu-grid">
-              {filteredFoods.map((item, index) => (
+              {monAns.map((item, index) => (
                 <ScrollReveal
                   key={item.maMonAn}
                   className="customer-food-reveal-item"
@@ -784,6 +787,15 @@ function RestaurantDetail() {
                 </ScrollReveal>
               ))}
             </div>
+          )}
+
+          {!menuLoading && !menuError && menuTotalPages > 1 && (
+            <Pagination
+              pageNumber={menuPageNumber}
+              totalPages={menuTotalPages}
+              totalItems={menuTotalItems}
+              onPageChange={setMenuPageNumber}
+            />
           )}
         </section>
 

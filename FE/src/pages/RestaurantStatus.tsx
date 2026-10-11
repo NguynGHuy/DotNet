@@ -20,6 +20,7 @@ import type {
   Restaurant,
   RestaurantOperatingMode,
 } from "../services/restaurantService";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface ModeOption {
   value: RestaurantOperatingMode;
@@ -91,7 +92,9 @@ function QuanRestaurantStatus() {
   }, []);
 
   useEffect(() => {
-    void loadRestaurant(true);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadRestaurant(true);
+    }, 0);
 
     const timer = window.setInterval(() => {
       void loadRestaurant(false);
@@ -104,6 +107,7 @@ function QuanRestaurantStatus() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      window.clearTimeout(initialLoadTimer);
       window.clearInterval(timer);
       window.removeEventListener("focus", handleFocus);
     };
@@ -174,7 +178,8 @@ function QuanRestaurantStatus() {
 
   return (
     <main className="merchant-status-page">
-      <header className="merchant-status-header">
+      <ScrollReveal className="merchant-status-header-reveal" delay={40}>
+        <header className="merchant-status-header">
         <div className="merchant-status-heading">
           <span>
             <Power size={21} />
@@ -195,7 +200,8 @@ function QuanRestaurantStatus() {
           <RefreshCw size={14} className={updating ? "is-spinning" : ""} />
           Làm mới
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {message && (
         <div className="merchant-status-notice success" role="status">
@@ -211,9 +217,10 @@ function QuanRestaurantStatus() {
         </div>
       )}
 
-      <section
-        className={`merchant-current-status ${isOpen ? "is-open" : "is-closed"}`}
-      >
+      <ScrollReveal className="merchant-current-status-reveal" delay={90}>
+        <section
+          className={`merchant-current-status ${isOpen ? "is-open" : "is-closed"}`}
+        >
         <span className="merchant-current-status-icon">
           {isOpen ? <Check size={24} /> : <Power size={24} />}
         </span>
@@ -235,9 +242,11 @@ function QuanRestaurantStatus() {
           <small>Chế độ điều khiển</small>
           <strong>{MODE_LABEL[currentMode] || currentMode}</strong>
         </div>
-      </section>
+        </section>
+      </ScrollReveal>
 
-      <div className="merchant-status-layout">
+      <ScrollReveal className="merchant-status-layout-reveal" delay={130}>
+        <div className="merchant-status-layout">
         <section className="merchant-status-card merchant-mode-section">
           <header>
             <div>
@@ -334,7 +343,8 @@ function QuanRestaurantStatus() {
             </div>
           </section>
         </aside>
-      </div>
+        </div>
+      </ScrollReveal>
     </main>
   );
 }

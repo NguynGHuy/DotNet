@@ -3,6 +3,7 @@ using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using DatMonAnOnline.API.Common;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
@@ -382,7 +383,9 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpGet("cua-toi")]
         [Authorize(Roles = "KhachHang")]
-        public async Task<IActionResult> DonHangCuaToi()
+        public async Task<IActionResult> DonHangCuaToi(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? filter = null)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
             if (maTaiKhoan == null) return Unauthorized();
@@ -392,22 +395,41 @@ namespace DatMonAnOnline.API.Controllers
 
             if (khachHang == null) return Unauthorized();
 
-            var donHangs = await _context.Donhangs
+            var baseQuery = _context.Donhangs
+                .AsNoTracking()
                 .Where(d => d.MaKhachHang == khachHang.MaKhachHang)
-                .Include(d => d.MaNhaHangNavigation)
-                .Include(d => d.MaTrangThaiNavigation)
-                .Include(d => d.Thanhtoans)
-                    .ThenInclude(payment => payment.MaPhuongThucNavigation)
-                .OrderByDescending(d => d.ThoiGianDat)
-                .ToListAsync();
+                .AsQueryable();
 
-            var danhSach = donHangs.Select(d =>
+            var processingStatuses = new[]
             {
-                var payment = d.Thanhtoans
-                    .OrderByDescending(item => item.MaThanhToan)
-                    .FirstOrDefault();
+                "ChoXacNhan", "DaXacNhan", "DangChuanBi", "DangGiao"
+            };
 
-                return new
+            var counts = new
+            {
+                all = await baseQuery.CountAsync(),
+                processing = await baseQuery.CountAsync(d =>
+                    processingStatuses.Contains(d.MaTrangThaiNavigation!.TenTrangThai)),
+                completed = await baseQuery.CountAsync(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh"),
+                cancelled = await baseQuery.CountAsync(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "DaHuy")
+            };
+
+            var query = filter?.Trim().ToLowerInvariant() switch
+            {
+                "processing" => baseQuery.Where(d =>
+                    processingStatuses.Contains(d.MaTrangThaiNavigation!.TenTrangThai)),
+                "completed" => baseQuery.Where(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh"),
+                "cancelled" => baseQuery.Where(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "DaHuy"),
+                _ => baseQuery
+            };
+
+            var page = await query
+                .OrderByDescending(d => d.ThoiGianDat)
+                .Select(d => new
                 {
                     d.MaDonHang,
                     d.MaDonHangHienThi,
@@ -415,12 +437,28 @@ namespace DatMonAnOnline.API.Controllers
                     TenNhaHang = d.TenNhaHangLucDat ?? d.MaNhaHangNavigation!.TenNhaHang,
                     TrangThai = d.MaTrangThaiNavigation!.TenTrangThai,
                     d.ThanhTien,
-                    TenPhuongThuc = payment?.MaPhuongThucNavigation.TenPhuongThuc,
-                    TrangThaiThanhToan = payment?.TrangThaiThanhToan
-                };
-            }).ToList();
+                    TenPhuongThuc = d.Thanhtoans
+                        .OrderByDescending(item => item.MaThanhToan)
+                        .Select(item => item.MaPhuongThucNavigation.TenPhuongThuc)
+                        .FirstOrDefault(),
+                    TrangThaiThanhToan = d.Thanhtoans
+                        .OrderByDescending(item => item.MaThanhToan)
+                        .Select(item => item.TrangThaiThanhToan)
+                        .FirstOrDefault()
+                })
+                .ToPagedResultAsync(pagination);
 
-            return Ok(danhSach);
+            return Ok(new
+            {
+                page.Items,
+                page.PageNumber,
+                page.PageSize,
+                page.TotalItems,
+                page.TotalPages,
+                page.HasPreviousPage,
+                page.HasNextPage,
+                counts
+            });
         }
 
         [HttpGet("{id}")]
@@ -523,6 +561,7 @@ namespace DatMonAnOnline.API.Controllers
         [HttpGet("~/api/nha-hang/don-hang")]
         [Authorize(Roles = "Quan")]
         public async Task<IActionResult> DanhSachDonHangCuaQuan(
+            [FromQuery] PaginationQuery pagination,
             [FromQuery] int? maTrangThai)
         {
             var maTaiKhoan = await LayMaTaiKhoan();
@@ -534,24 +573,51 @@ namespace DatMonAnOnline.API.Controllers
             if (nhaHang == null) return Unauthorized();
 
             var query = _context.Donhangs
+                .AsNoTracking()
                 .Where(d => d.MaNhaHang == nhaHang.MaNhaHang);
+
+            query = query.Where(d =>
+                !d.Thanhtoans.Any() ||
+                d.Thanhtoans
+                    .OrderByDescending(payment => payment.MaThanhToan)
+                    .Select(payment => payment.MaPhuongThucNavigation.TenPhuongThuc)
+                    .FirstOrDefault() == "COD" ||
+                (d.Thanhtoans
+                    .OrderByDescending(payment => payment.MaThanhToan)
+                    .Select(payment => payment.TrangThaiThanhToan)
+                    .FirstOrDefault() != "ChoThanhToan" &&
+                 d.Thanhtoans
+                    .OrderByDescending(payment => payment.MaThanhToan)
+                    .Select(payment => payment.TrangThaiThanhToan)
+                    .FirstOrDefault() != "ThatBai"));
+
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            var summary = new
+            {
+                all = await query.CountAsync(),
+                pending = await query.CountAsync(d => d.MaTrangThaiNavigation!.TenTrangThai == "ChoXacNhan"),
+                processing = await query.CountAsync(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "DaXacNhan" ||
+                    d.MaTrangThaiNavigation!.TenTrangThai == "DangChuanBi" ||
+                    d.MaTrangThaiNavigation!.TenTrangThai == "DangGiao"),
+                completedToday = await query.CountAsync(d =>
+                    d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh" &&
+                    d.ThoiGianDat >= today && d.ThoiGianDat < tomorrow),
+                revenueToday = await query
+                    .Where(d =>
+                        d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh" &&
+                        d.ThoiGianDat >= today && d.ThoiGianDat < tomorrow)
+                    .SumAsync(d => (decimal?)d.ThanhTien) ?? 0
+            };
 
             if (maTrangThai.HasValue)
             {
-                query = query.Where(d =>
-                    d.MaTrangThai == maTrangThai
-                );
+                query = query.Where(d => d.MaTrangThai == maTrangThai);
             }
 
-            var donHangQuan = await query
-                .Include(d => d.MaTrangThaiNavigation)
-                .Include(d => d.Thanhtoans)
-                    .ThenInclude(t => t.MaPhuongThucNavigation)
+            var danhSach = await query
                 .OrderByDescending(d => d.ThoiGianDat)
-                .ToListAsync();
-
-            var danhSach = donHangQuan
-                .Where(HienThiDonChoQuan)
                 .Select(d => new
                 {
                     d.MaDonHang,
@@ -570,9 +636,19 @@ namespace DatMonAnOnline.API.Controllers
                         .Select(payment => payment.TrangThaiThanhToan)
                         .FirstOrDefault()
                 })
-                .ToList();
+                .ToPagedResultAsync(pagination);
 
-            return Ok(danhSach);
+            return Ok(new
+            {
+                danhSach.Items,
+                danhSach.PageNumber,
+                danhSach.PageSize,
+                danhSach.TotalItems,
+                danhSach.TotalPages,
+                danhSach.HasPreviousPage,
+                danhSach.HasNextPage,
+                summary
+            });
         }
 
         [HttpPut("{id}/huy")]

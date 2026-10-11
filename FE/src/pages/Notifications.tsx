@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
     Bell,
@@ -14,6 +14,8 @@ import {
     markNotificationAsRead,
     type Notification,
 } from "../services/notificationService";
+import ScrollReveal from "../components/ScrollReveal";
+import Pagination from "../components/Pagination";
 
 type NotificationFilter = "all" | "unread" | "read";
 
@@ -43,6 +45,7 @@ function formatNotificationDate(value: string) {
 }
 
 function Notifications() {
+    const PAGE_SIZE = 10;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -53,85 +56,55 @@ function Notifications() {
     const [markingAll, setMarkingAll] = useState(false);
     const [markingId, setMarkingId] = useState<number | null>(null);
     const [error, setError] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [counts, setCounts] = useState({ all: 0, unread: 0, read: 0 });
+
+    const loadNotifications = useCallback(async (showLoading = true) => {
+        try {
+            if (showLoading) setLoading(true);
+
+            const data = await getNotifications({
+                pageNumber,
+                pageSize: PAGE_SIZE,
+                filter: filter === "all" ? undefined : filter,
+            });
+
+            setNotifications(data.items);
+            setTotalItems(data.totalItems);
+            setTotalPages(data.totalPages);
+            setCounts(data.counts);
+            if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
+            setError("");
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể tải thông báo."
+            );
+        } finally {
+            if (showLoading) setLoading(false);
+        }
+    }, [filter, pageNumber]);
 
     useEffect(() => {
-        let cancelled = false;
-
-        const loadNotifications = async () => {
-            try {
-                const data = await getNotifications();
-
-                if (!cancelled) {
-                    setNotifications(
-                        Array.isArray(data) ? data : []
-                    );
-                    setError("");
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setError(
-                        err instanceof Error
-                            ? err.message
-                            : "Không thể tải thông báo."
-                    );
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        const handleRealtimeNotification = (event: Event) => {
-            const realtimeEvent =
-                event as CustomEvent<Notification>;
-
-            const newNotification = realtimeEvent.detail;
-
-            if (
-                !newNotification ||
-                typeof newNotification.maThongBao !== "number"
-            ) {
-                void loadNotifications();
-                return;
-            }
-
-            setNotifications((current) => [
-                {
-                    ...newNotification,
-                    daDoc: newNotification.daDoc ?? false,
-                    duongDan: newNotification.duongDan ?? null,
-                },
-                ...current.filter(
-                    (item) =>
-                        item.maThongBao !==
-                        newNotification.maThongBao
-                ),
-            ]);
-
-            setError("");
-
-            window.dispatchEvent(
-                new Event("notifications-updated")
-            );
-        };
-
-        void loadNotifications();
-
-        window.addEventListener(
-            "notification-received",
-            handleRealtimeNotification
+        const initialTimer = window.setTimeout(
+            () => void loadNotifications(true),
+            0
         );
+        const handleRealtimeNotification = () => {
+            void loadNotifications(false);
+            window.dispatchEvent(new Event("notifications-updated"));
+        };
+
+        window.addEventListener("notification-received", handleRealtimeNotification);
 
         return () => {
-            cancelled = true;
-
-            window.removeEventListener(
-                "notification-received",
-                handleRealtimeNotification
-            );
+            window.clearTimeout(initialTimer);
+            window.removeEventListener("notification-received", handleRealtimeNotification);
         };
-    }, []);
+    }, [loadNotifications]);
 
     const markAsRead = async (id: number) => {
         try {
@@ -139,14 +112,7 @@ function Notifications() {
             setError("");
 
             await markNotificationAsRead(id);
-
-            setNotifications((current) =>
-                current.map((item) =>
-                    item.maThongBao === id
-                        ? { ...item, daDoc: true }
-                        : item
-                )
-            );
+            await loadNotifications(false);
 
             window.dispatchEvent(
                 new Event("notifications-updated")
@@ -194,13 +160,8 @@ function Notifications() {
             setError("");
 
             await markAllNotificationsAsRead();
-
-            setNotifications((current) =>
-                current.map((item) => ({
-                    ...item,
-                    daDoc: true,
-                }))
-            );
+            setPageNumber(1);
+            await loadNotifications(false);
 
             window.dispatchEvent(
                 new Event("notifications-updated")
@@ -216,43 +177,9 @@ function Notifications() {
         }
     };
 
-    const unreadCount = notifications.filter(
-        (item) => !item.daDoc
-    ).length;
+    const unreadCount = counts.unread;
 
-    const filteredNotifications = useMemo(() => {
-        return [...notifications]
-            .filter((item) => {
-                if (filter === "unread") {
-                    return !item.daDoc;
-                }
-
-                if (filter === "read") {
-                    return item.daDoc;
-                }
-
-                return true;
-            })
-            .sort(
-                (a, b) =>
-                    new Date(b.ngayTao).getTime() -
-                    new Date(a.ngayTao).getTime()
-            );
-    }, [notifications, filter]);
-
-    const countFilter = (
-        value: NotificationFilter
-    ) => {
-        if (value === "unread") {
-            return unreadCount;
-        }
-
-        if (value === "read") {
-            return notifications.length - unreadCount;
-        }
-
-        return notifications.length;
-    };
+    const countFilter = (value: NotificationFilter) => counts[value];
 
     return (
         <div
@@ -262,7 +189,8 @@ function Notifications() {
                     : ""
             }`}
         >
-            <header className="merchant-notifications-header">
+            <ScrollReveal className="merchant-notifications-header-reveal" delay={40}>
+                <header className="merchant-notifications-header">
                 <div>
                     <span className="merchant-notifications-eyebrow">
                         TRUNG TÂM THÔNG BÁO
@@ -296,7 +224,8 @@ function Notifications() {
                             : "Đọc tất cả"}
                     </button>
                 )}
-            </header>
+                </header>
+            </ScrollReveal>
 
             {error && (
                 <div className="merchant-notifications-error">
@@ -304,7 +233,8 @@ function Notifications() {
                 </div>
             )}
 
-            <nav className="merchant-notifications-tabs">
+            <ScrollReveal className="merchant-notifications-tabs-reveal" delay={80}>
+                <nav className="merchant-notifications-tabs">
                 {(
                     [
                         ["all", "Tất cả"],
@@ -320,9 +250,10 @@ function Notifications() {
                                 ? "active"
                                 : ""
                         }
-                        onClick={() =>
-                            setFilter(value)
-                        }
+                        onClick={() => {
+                            setFilter(value);
+                            setPageNumber(1);
+                        }}
                     >
                         {label}
                         <span>
@@ -330,20 +261,24 @@ function Notifications() {
                         </span>
                     </button>
                 ))}
-            </nav>
+                </nav>
+            </ScrollReveal>
 
             {loading ? (
-                <div className="merchant-notifications-loading">
+                <ScrollReveal className="merchant-notifications-state-reveal" delay={100}>
+                  <div className="merchant-notifications-loading">
                     Đang tải thông báo...
-                </div>
-            ) : filteredNotifications.length === 0 ? (
-                <div className="merchant-notifications-empty">
+                  </div>
+                </ScrollReveal>
+            ) : notifications.length === 0 ? (
+                <ScrollReveal className="merchant-notifications-state-reveal" delay={100}>
+                  <div className="merchant-notifications-empty">
                     <span>
                         <Inbox size={28} />
                     </span>
 
                     <h3>
-                        {notifications.length === 0
+                        {counts.all === 0
                             ? "Chưa có thông báo"
                             : filter === "unread"
                               ? "Không còn thông báo chưa đọc"
@@ -351,13 +286,15 @@ function Notifications() {
                     </h3>
 
                     <p>
-                        {notifications.length === 0
+                        {counts.all === 0
                             ? "Các cập nhật mới về đơn hàng và nhà hàng sẽ xuất hiện tại đây."
                             : "Hãy chọn một bộ lọc khác để xem thông báo."}
                     </p>
-                </div>
+                  </div>
+                </ScrollReveal>
             ) : (
-                <section className="merchant-notifications-panel">
+                <ScrollReveal className="merchant-notifications-panel-reveal" delay={100}>
+                  <section className="merchant-notifications-panel">
                     <div className="merchant-notifications-panel-title">
                         <div>
                             <Bell size={18} />
@@ -372,12 +309,12 @@ function Notifications() {
                         </div>
 
                         <span>
-                            {filteredNotifications.length} thông báo
+                            {totalItems} thông báo
                         </span>
                     </div>
 
                     <div className="merchant-notifications-list">
-                        {filteredNotifications.map(
+                        {notifications.map(
                             (item) => {
                                 const hasDestination =
                                     Boolean(item.duongDan);
@@ -386,14 +323,8 @@ function Notifications() {
                                     <article
                                         key={item.maThongBao}
                                         className={`merchant-notification-row ${
-                                            item.daDoc
-                                                ? "read"
-                                                : "unread"
-                                        }${
-                                            hasDestination
-                                                ? " clickable"
-                                                : ""
-                                        }`}
+                                            item.daDoc ? "read" : "unread"
+                                        }${hasDestination ? " clickable" : ""}`}
                                         role={
                                             hasDestination
                                                 ? "link"
@@ -509,7 +440,17 @@ function Notifications() {
                             }
                         )}
                     </div>
-                </section>
+                  </section>
+                </ScrollReveal>
+            )}
+
+            {!loading && !error && totalPages > 1 && (
+                <Pagination
+                    pageNumber={pageNumber}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPageNumber}
+                />
             )}
         </div>
     );

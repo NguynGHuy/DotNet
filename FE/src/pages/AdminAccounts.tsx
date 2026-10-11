@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     LockKeyhole,
     RefreshCw,
@@ -14,6 +14,7 @@ import {
     unlockAccount,
 } from "../services/adminService";
 import type { AdminAccount } from "../services/adminService";
+import Pagination from "../components/Pagination";
 
 type StatusFilter = "all" | "active" | "locked";
 
@@ -30,6 +31,7 @@ function getRoleClass(role: string) {
 }
 
 function AdminAccounts() {
+    const PAGE_SIZE = 10;
     const [accounts, setAccounts] = useState<AdminAccount[]>([]);
     const [keyword, setKeyword] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
@@ -38,13 +40,30 @@ function AdminAccounts() {
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<number | null>(null);
     const [error, setError] = useState("");
+    const [pageNumber, setPageNumber] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [counts, setCounts] = useState({ all: 0, active: 0, locked: 0 });
 
     const loadAccounts = useCallback(async () => {
         try {
             setLoading(true);
             setError("");
-            const result = await getAdminAccounts();
-            setAccounts(Array.isArray(result) ? result : []);
+            const result = await getAdminAccounts({
+                pageNumber,
+                pageSize: PAGE_SIZE,
+                search: keyword.trim() || undefined,
+                role: roleFilter === "all" ? undefined : roleFilter,
+                trangThai:
+                    statusFilter === "all"
+                        ? undefined
+                        : statusFilter === "active",
+            });
+            setAccounts(result.items);
+            setTotalItems(result.totalItems);
+            setTotalPages(result.totalPages);
+            setCounts(result.counts);
+            if (result.pageNumber !== pageNumber) setPageNumber(result.pageNumber);
         } catch (err) {
             setError(
                 err instanceof Error
@@ -54,7 +73,7 @@ function AdminAccounts() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [keyword, pageNumber, roleFilter, statusFilter]);
 
     useEffect(() => {
         void loadAccounts();
@@ -93,42 +112,7 @@ function AdminAccounts() {
         }
     };
 
-    const roles = useMemo(
-        () =>
-            Array.from(
-                new Set(accounts.map((account) => account.role))
-            ).sort(),
-        [accounts]
-    );
-
-    const filteredAccounts = useMemo(() => {
-        const searchValue = keyword.trim().toLocaleLowerCase("vi-VN");
-
-        return accounts.filter((account) => {
-            const matchesKeyword =
-                !searchValue ||
-                account.email
-                    .toLocaleLowerCase("vi-VN")
-                    .includes(searchValue) ||
-                (account.soDienThoai ?? "").includes(searchValue);
-
-            const matchesRole =
-                roleFilter === "all" || account.role === roleFilter;
-
-            const matchesStatus =
-                statusFilter === "all" ||
-                (statusFilter === "active"
-                    ? account.trangThai
-                    : !account.trangThai);
-
-            return matchesKeyword && matchesRole && matchesStatus;
-        });
-    }, [accounts, keyword, roleFilter, statusFilter]);
-
-    const activeCount = accounts.filter(
-        (account) => account.trangThai
-    ).length;
-    const lockedCount = accounts.length - activeCount;
+    const roles = ["Admin", "Quan", "KhachHang"];
 
     return (
         <div className="admin-accounts-pro">
@@ -159,7 +143,7 @@ function AdminAccounts() {
                     </span>
                     <div>
                         <small>Tổng tài khoản</small>
-                        <strong>{accounts.length}</strong>
+                        <strong>{counts.all}</strong>
                     </div>
                 </article>
 
@@ -169,7 +153,7 @@ function AdminAccounts() {
                     </span>
                     <div>
                         <small>Đang hoạt động</small>
-                        <strong>{activeCount}</strong>
+                        <strong>{counts.active}</strong>
                     </div>
                 </article>
 
@@ -179,7 +163,7 @@ function AdminAccounts() {
                     </span>
                     <div>
                         <small>Đã khóa</small>
-                        <strong>{lockedCount}</strong>
+                        <strong>{counts.locked}</strong>
                     </div>
                 </article>
             </section>
@@ -193,9 +177,10 @@ function AdminAccounts() {
                             placeholder="Tìm email hoặc số điện thoại..."
                             aria-label="Tìm tài khoản"
                             value={keyword}
-                            onChange={(event) =>
-                                setKeyword(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setKeyword(event.target.value);
+                                setPageNumber(1);
+                            }}
                         />
                     </label>
 
@@ -203,9 +188,10 @@ function AdminAccounts() {
                         <select
                             aria-label="Lọc theo vai trò"
                             value={roleFilter}
-                            onChange={(event) =>
-                                setRoleFilter(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setRoleFilter(event.target.value);
+                                setPageNumber(1);
+                            }}
                         >
                             <option value="all">Tất cả vai trò</option>
                             {roles.map((role) => (
@@ -218,11 +204,10 @@ function AdminAccounts() {
                         <select
                             aria-label="Lọc theo trạng thái"
                             value={statusFilter}
-                            onChange={(event) =>
-                                setStatusFilter(
-                                    event.target.value as StatusFilter
-                                )
-                            }
+                            onChange={(event) => {
+                                setStatusFilter(event.target.value as StatusFilter);
+                                setPageNumber(1);
+                            }}
                         >
                             <option value="all">Tất cả trạng thái</option>
                             <option value="active">Đang hoạt động</option>
@@ -233,8 +218,8 @@ function AdminAccounts() {
 
                 <div className="admin-accounts-result-bar">
                     <span>
-                        Hiển thị <strong>{filteredAccounts.length}</strong>{" "}
-                        trong tổng số <strong>{accounts.length}</strong> tài khoản
+                        Hiển thị <strong>{accounts.length}</strong>{" "}
+                        trong tổng số <strong>{totalItems}</strong> tài khoản phù hợp
                     </span>
                 </div>
 
@@ -249,7 +234,7 @@ function AdminAccounts() {
                         <RefreshCw size={20} />
                         <span>Đang tải tài khoản...</span>
                     </div>
-                ) : filteredAccounts.length === 0 ? (
+                ) : accounts.length === 0 ? (
                     <div className="admin-accounts-empty">
                         <UserRound size={28} />
                         <strong>Không tìm thấy tài khoản</strong>
@@ -269,7 +254,7 @@ function AdminAccounts() {
                             </thead>
 
                             <tbody>
-                                {filteredAccounts.map((account) => {
+                                {accounts.map((account) => {
                                     const isBusy =
                                         busyId === account.maTaiKhoan;
 
@@ -369,6 +354,15 @@ function AdminAccounts() {
                             </tbody>
                         </table>
                     </div>
+                )}
+
+                {!loading && !error && totalPages > 1 && (
+                    <Pagination
+                        pageNumber={pageNumber}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        onPageChange={setPageNumber}
+                    />
                 )}
             </section>
         </div>

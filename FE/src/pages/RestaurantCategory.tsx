@@ -8,6 +8,7 @@ import {
   type DanhMuc,
 } from "../services/categoryService";
 import { getCurrentUser } from "../services/userService";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface CurrentUser {
   nhaHang?: { maNhaHang: number };
@@ -65,7 +66,11 @@ function RestaurantCategory() {
   };
 
   useEffect(() => {
-    void loadDanhMucs();
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadDanhMucs();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoadTimer);
   }, []);
 
   const showMessage = (message: string) => {
@@ -178,7 +183,8 @@ function RestaurantCategory() {
 
   return (
     <div className="merchant-category-page">
-      <header className="merchant-category-header">
+      <ScrollReveal className="merchant-category-header-reveal" delay={40}>
+        <header className="merchant-category-header">
         <div>
           <span className="merchant-category-eyebrow">QUẢN LÝ THỰC ĐƠN</span>
           <h1>Danh mục món ăn</h1>
@@ -193,7 +199,8 @@ function RestaurantCategory() {
           <Plus size={16} />
           Thêm danh mục
         </button>
-      </header>
+        </header>
+      </ScrollReveal>
 
       {error && !editorOpen && (
         <div className="merchant-category-notice error">{error}</div>
@@ -204,7 +211,8 @@ function RestaurantCategory() {
       )}
 
       <section className="merchant-category-panel">
-        <div className="merchant-category-panel-header">
+        <ScrollReveal className="merchant-category-panel-header-reveal" delay={80}>
+          <div className="merchant-category-panel-header">
           <div>
             <h2>Danh sách danh mục</h2>
             <p>Danh mục có số thứ tự nhỏ hơn sẽ hiển thị trước.</p>
@@ -213,10 +221,12 @@ function RestaurantCategory() {
           <span className="merchant-category-count">
             {danhMucs.length} danh mục
           </span>
-        </div>
+          </div>
+        </ScrollReveal>
 
         {danhMucs.length === 0 ? (
-          <div className="merchant-category-empty">
+          <ScrollReveal className="merchant-category-empty-reveal" delay={110}>
+            <div className="merchant-category-empty">
             <span>
               <FolderOpen size={27} />
             </span>
@@ -226,11 +236,17 @@ function RestaurantCategory() {
               <Plus size={15} />
               Thêm danh mục
             </button>
-          </div>
+            </div>
+          </ScrollReveal>
         ) : (
           <div className="merchant-category-list">
             {danhMucs.map((item, index) => (
-              <article key={item.maDanhMuc} className="merchant-category-row">
+              <ScrollReveal
+                key={item.maDanhMuc}
+                className="merchant-category-row-reveal"
+                delay={Math.min(index * 45, 240)}
+              >
+                <article className="merchant-category-row">
                 <div className="merchant-category-position">
                   {String(index + 1).padStart(2, "0")}
                 </div>
@@ -270,7 +286,8 @@ function RestaurantCategory() {
                     {deletingId === item.maDanhMuc ? "Đang xóa..." : "Xóa"}
                   </button>
                 </div>
-              </article>
+                </article>
+              </ScrollReveal>
             ))}
           </div>
         )}

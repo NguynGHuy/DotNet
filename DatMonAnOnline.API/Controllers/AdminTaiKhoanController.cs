@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -19,18 +20,37 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetDanhSachTaiKhoan([FromQuery] string? role = null, [FromQuery] bool? trangThai = null)
+        public async Task<IActionResult> GetDanhSachTaiKhoan(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] string? role = null,
+            [FromQuery] bool? trangThai = null,
+            [FromQuery] string? search = null)
         {
             var query = _context.Taikhoans
                 .AsNoTracking()
                 .Include(x => x.MaRoleNavigation)
                 .AsQueryable();
 
+            var counts = new
+            {
+                all = await query.CountAsync(),
+                active = await query.CountAsync(x => x.TrangThai == true),
+                locked = await query.CountAsync(x => x.TrangThai != true)
+            };
+
             if (!string.IsNullOrWhiteSpace(role))
                 query = query.Where(x => x.MaRoleNavigation.TenRole == role.Trim());
 
             if (trangThai.HasValue)
                 query = query.Where(x => x.TrangThai == trangThai.Value);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var keyword = search.Trim();
+                query = query.Where(x =>
+                    x.Email.Contains(keyword) ||
+                    (x.SoDienThoai != null && x.SoDienThoai.Contains(keyword)));
+            }
 
             var result = await query
                 .OrderByDescending(x => x.MaTaiKhoan)
@@ -45,9 +65,19 @@ namespace DatMonAnOnline.API.Controllers
                     x.NgayTao,
                     x.AnhDaiDien
                 })
-                .ToListAsync();
+                .ToPagedResultAsync(pagination);
 
-            return Ok(result);
+            return Ok(new
+            {
+                result.Items,
+                result.PageNumber,
+                result.PageSize,
+                result.TotalItems,
+                result.TotalPages,
+                result.HasPreviousPage,
+                result.HasNextPage,
+                counts
+            });
         }
 
         [HttpPut("{id:int}/khoa")]
