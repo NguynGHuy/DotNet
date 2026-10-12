@@ -41,6 +41,229 @@ namespace DatMonAnOnline.API.Controllers
             );
         }
 
+        private async Task<int?> GetCurrentCustomerId()
+        {
+            if (!User.IsInRole("KhachHang"))
+                return null;
+
+            var maTaiKhoan = GetCurrentUserId();
+            return await _context.Khachhangs
+                .AsNoTracking()
+                .Where(x => x.MaTaiKhoan == maTaiKhoan)
+                .Select(x => (int?)x.MaKhachHang)
+                .FirstOrDefaultAsync();
+        }
+
+        // Voucher đang phát hành tại một nhà hàng. Khách chưa đăng nhập vẫn xem được.
+        [HttpGet("nha-hang/{maNhaHang:int}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LayVoucherCuaNhaHang(
+            int maNhaHang,
+            [FromQuery] PaginationQuery pagination)
+        {
+            var now = DateTime.Now;
+            var maKhachHang = await GetCurrentCustomerId();
+
+            var result = await _context.Khuyenmais
+                .AsNoTracking()
+                .Where(x =>
+                    x.MaNhaHang == maNhaHang &&
+                    x.TrangThai == true &&
+                    x.NgayBatDau <= now &&
+                    x.NgayKetThuc >= now &&
+                    x.SoLuongDaDung < x.SoLuong)
+                .OrderBy(x => x.NgayKetThuc)
+                .ThenByDescending(x => x.GiaTriGiam)
+                .Select(x => new
+                {
+                    x.MaKhuyenMai,
+                    x.MaCode,
+                    x.MoTa,
+                    x.LoaiGiam,
+                    x.GiaTriGiam,
+                    x.GiamToiDa,
+                    x.DonHangToiThieu,
+                    x.SoLuong,
+                    x.SoLuongDaDung,
+                    x.NgayBatDau,
+                    x.NgayKetThuc,
+                    x.MaNhaHang,
+                    TenNhaHang = x.MaNhaHangNavigation!.TenNhaHang,
+                    Nguon = "NhaHang",
+                    DaLuu = maKhachHang.HasValue && x.KhachhangKhuyenmais
+                        .Any(item => item.MaKhachHang == maKhachHang.Value)
+                })
+                .ToPagedResultAsync(pagination);
+
+            return Ok(result);
+        }
+
+        // Voucher toàn hệ thống để khách lưu vào kho.
+        [HttpGet("he-thong")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> LayVoucherHeThong(
+            [FromQuery] PaginationQuery pagination)
+        {
+            var now = DateTime.Now;
+            var maKhachHang = await GetCurrentCustomerId();
+            if (!maKhachHang.HasValue)
+                return Unauthorized(new { message = "Không tìm thấy hồ sơ khách hàng." });
+
+            var query = await _context.Khuyenmais
+                .AsNoTracking()
+                .Where(x =>
+                    x.MaNhaHang == null &&
+                    x.TrangThai == true &&
+                    x.NgayBatDau <= now &&
+                    x.NgayKetThuc >= now &&
+                    x.SoLuongDaDung < x.SoLuong)
+                .OrderBy(x => x.NgayKetThuc)
+                .ThenByDescending(x => x.GiaTriGiam)
+                .Select(x => new
+                {
+                    x.MaKhuyenMai,
+                    x.MaCode,
+                    x.MoTa,
+                    x.LoaiGiam,
+                    x.GiaTriGiam,
+                    x.GiamToiDa,
+                    x.DonHangToiThieu,
+                    x.SoLuong,
+                    x.SoLuongDaDung,
+                    x.NgayBatDau,
+                    x.NgayKetThuc,
+                    x.MaNhaHang,
+                    TenNhaHang = (string?)null,
+                    Nguon = "HeThong",
+                    DaLuu = x.KhachhangKhuyenmais
+                        .Any(item => item.MaKhachHang == maKhachHang.Value)
+                })
+                .ToPagedResultAsync(pagination);
+
+            return Ok(query);
+        }
+
+        // Kho voucher của khách. Khi checkout chỉ trả voucher hệ thống và đúng nhà hàng.
+        [HttpGet("kho-cua-toi")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> LayKhoVoucher(
+            [FromQuery] PaginationQuery pagination,
+            [FromQuery] int? maNhaHang = null,
+            [FromQuery] bool usableOnly = false)
+        {
+            var now = DateTime.Now;
+            var maKhachHang = await GetCurrentCustomerId();
+            if (!maKhachHang.HasValue)
+                return Unauthorized(new { message = "Không tìm thấy hồ sơ khách hàng." });
+
+            var query = _context.KhachhangKhuyenmais
+                .AsNoTracking()
+                .Where(x => x.MaKhachHang == maKhachHang.Value);
+
+            if (maNhaHang.HasValue)
+            {
+                query = query.Where(x =>
+                    x.MaKhuyenMaiNavigation.MaNhaHang == null ||
+                    x.MaKhuyenMaiNavigation.MaNhaHang == maNhaHang.Value);
+            }
+
+            if (usableOnly)
+            {
+                query = query.Where(x =>
+                    x.MaKhuyenMaiNavigation.TrangThai == true &&
+                    x.MaKhuyenMaiNavigation.NgayBatDau <= now &&
+                    x.MaKhuyenMaiNavigation.NgayKetThuc >= now &&
+                    x.MaKhuyenMaiNavigation.SoLuongDaDung < x.MaKhuyenMaiNavigation.SoLuong);
+            }
+
+            var result = await query
+                .OrderByDescending(x => x.NgayLuu)
+                .Select(x => new
+                {
+                    x.MaKhuyenMai,
+                    x.MaKhuyenMaiNavigation.MaCode,
+                    x.MaKhuyenMaiNavigation.MoTa,
+                    x.MaKhuyenMaiNavigation.LoaiGiam,
+                    x.MaKhuyenMaiNavigation.GiaTriGiam,
+                    x.MaKhuyenMaiNavigation.GiamToiDa,
+                    x.MaKhuyenMaiNavigation.DonHangToiThieu,
+                    x.MaKhuyenMaiNavigation.SoLuong,
+                    x.MaKhuyenMaiNavigation.SoLuongDaDung,
+                    x.MaKhuyenMaiNavigation.NgayBatDau,
+                    x.MaKhuyenMaiNavigation.NgayKetThuc,
+                    x.MaKhuyenMaiNavigation.MaNhaHang,
+                    TenNhaHang = x.MaKhuyenMaiNavigation.MaNhaHangNavigation != null
+                        ? x.MaKhuyenMaiNavigation.MaNhaHangNavigation.TenNhaHang
+                        : null,
+                    Nguon = x.MaKhuyenMaiNavigation.MaNhaHang == null ? "HeThong" : "NhaHang",
+                    DaLuu = true,
+                    x.NgayLuu,
+                    CoTheSuDung =
+                        x.MaKhuyenMaiNavigation.TrangThai == true &&
+                        x.MaKhuyenMaiNavigation.NgayBatDau <= now &&
+                        x.MaKhuyenMaiNavigation.NgayKetThuc >= now &&
+                        x.MaKhuyenMaiNavigation.SoLuongDaDung < x.MaKhuyenMaiNavigation.SoLuong
+                })
+                .ToPagedResultAsync(pagination);
+
+            return Ok(result);
+        }
+
+        [HttpPost("{id:int}/luu")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> LuuVoucher(int id)
+        {
+            var maKhachHang = await GetCurrentCustomerId();
+            if (!maKhachHang.HasValue)
+                return Unauthorized(new { message = "Không tìm thấy hồ sơ khách hàng." });
+
+            var now = DateTime.Now;
+            var voucher = await _context.Khuyenmais
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.MaKhuyenMai == id);
+
+            if (voucher == null)
+                return NotFound(new { message = "Không tìm thấy voucher." });
+
+            if (voucher.TrangThai != true || voucher.NgayBatDau > now || voucher.NgayKetThuc < now || voucher.SoLuongDaDung >= voucher.SoLuong)
+                return BadRequest(new { message = "Voucher hiện không còn khả dụng để lưu." });
+
+            var daLuu = await _context.KhachhangKhuyenmais.AnyAsync(x =>
+                x.MaKhachHang == maKhachHang.Value && x.MaKhuyenMai == id);
+
+            if (daLuu)
+                return Ok(new { message = "Voucher đã có trong kho của bạn." });
+
+            _context.KhachhangKhuyenmais.Add(new KhachhangKhuyenmai
+            {
+                MaKhachHang = maKhachHang.Value,
+                MaKhuyenMai = id,
+                NgayLuu = now
+            });
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã lưu voucher vào kho." });
+        }
+
+        [HttpDelete("{id:int}/bo-luu")]
+        [Authorize(Roles = "KhachHang")]
+        public async Task<IActionResult> BoLuuVoucher(int id)
+        {
+            var maKhachHang = await GetCurrentCustomerId();
+            if (!maKhachHang.HasValue)
+                return Unauthorized(new { message = "Không tìm thấy hồ sơ khách hàng." });
+
+            var saved = await _context.KhachhangKhuyenmais.FirstOrDefaultAsync(x =>
+                x.MaKhachHang == maKhachHang.Value && x.MaKhuyenMai == id);
+
+            if (saved == null)
+                return NotFound(new { message = "Voucher không có trong kho." });
+
+            _context.KhachhangKhuyenmais.Remove(saved);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Đã bỏ voucher khỏi kho." });
+        }
+
         // =========================
         // TẠO KHUYẾN MÃI
         // =========================

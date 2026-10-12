@@ -13,6 +13,27 @@ export interface Promotion {
     ngayBatDau: string;
     ngayKetThuc: string;
     trangThai: boolean;
+    maNhaHang?: number | null;
+}
+
+export interface CustomerVoucher {
+    maKhuyenMai: number;
+    maCode: string;
+    moTa: string | null;
+    loaiGiam: "PhanTram" | "SoTien";
+    giaTriGiam: number;
+    giamToiDa: number | null;
+    donHangToiThieu: number;
+    soLuong: number;
+    soLuongDaDung: number;
+    ngayBatDau: string;
+    ngayKetThuc: string;
+    maNhaHang: number | null;
+    tenNhaHang: string | null;
+    nguon: "HeThong" | "NhaHang";
+    daLuu: boolean;
+    ngayLuu?: string;
+    coTheSuDung?: boolean;
 }
 
 export interface CreatePromotionRequest {
@@ -40,6 +61,11 @@ function authHeaders() {
     };
 }
 
+function optionalAuthHeaders() {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
 export interface PromotionQuery extends PaginationParams {
     search?: string;
     state?: "active" | "upcoming" | "ended" | "inactive" | "expired";
@@ -58,6 +84,48 @@ export interface PromotionListResult extends PagedResult<Promotion> {
 
 export function getMyPromotions(params: PromotionQuery = {}): Promise<PromotionListResult> {
     return apiFetch(`/khuyen-mai/cua-toi${buildQuery(params)}`, {
+        headers: authHeaders(),
+    });
+}
+
+export function getRestaurantVouchers(
+    maNhaHang: number,
+    params: PaginationParams = {},
+): Promise<PagedResult<CustomerVoucher>> {
+    return apiFetch(`/khuyen-mai/nha-hang/${maNhaHang}${buildQuery(params)}`, {
+        headers: optionalAuthHeaders(),
+    });
+}
+
+export function getSystemVouchers(
+    params: PaginationParams = {},
+): Promise<PagedResult<CustomerVoucher>> {
+    return apiFetch(`/khuyen-mai/he-thong${buildQuery(params)}`, {
+        headers: authHeaders(),
+    });
+}
+
+export function getVoucherWallet(
+    params: PaginationParams & {
+        maNhaHang?: number;
+        usableOnly?: boolean;
+    } = {},
+): Promise<PagedResult<CustomerVoucher>> {
+    return apiFetch(`/khuyen-mai/kho-cua-toi${buildQuery(params)}`, {
+        headers: authHeaders(),
+    });
+}
+
+export function saveVoucher(id: number): Promise<{ message: string }> {
+    return apiFetch(`/khuyen-mai/${id}/luu`, {
+        method: "POST",
+        headers: authHeaders(),
+    });
+}
+
+export function removeSavedVoucher(id: number): Promise<{ message: string }> {
+    return apiFetch(`/khuyen-mai/${id}/bo-luu`, {
+        method: "DELETE",
         headers: authHeaders(),
     });
 }

@@ -33,5 +33,7 @@ public partial class Khuyenmai
 
     public virtual ICollection<Donhang> Donhangs { get; set; } = new List<Donhang>();
 
+    public virtual ICollection<KhachhangKhuyenmai> KhachhangKhuyenmais { get; set; } = new List<KhachhangKhuyenmai>();
+
     public virtual Nhahang? MaNhaHangNavigation { get; set; }
 }

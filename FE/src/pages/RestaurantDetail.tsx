@@ -13,6 +13,12 @@ import {
   type MonAnChiTiet,
 } from "../services/menuService";
 import Pagination from "../components/Pagination";
+import VoucherCard from "../components/VoucherCard";
+import {
+  getRestaurantVouchers,
+  saveVoucher,
+  type CustomerVoucher,
+} from "../services/promotionService";
 
 import {
   addToCart,
@@ -121,6 +127,15 @@ function RestaurantDetail() {
   const [menuPageNumber, setMenuPageNumber] = useState(1);
   const [menuTotalItems, setMenuTotalItems] = useState(0);
   const [menuTotalPages, setMenuTotalPages] = useState(0);
+
+  const [restaurantVouchers, setRestaurantVouchers] = useState<CustomerVoucher[]>([]);
+  const [voucherLoadedRestaurantId, setVoucherLoadedRestaurantId] = useState<number | null>(null);
+  const voucherLoading =
+    restaurant?.maNhaHang != null &&
+    voucherLoadedRestaurantId !== restaurant.maNhaHang;
+  const [voucherBusyId, setVoucherBusyId] = useState<number | null>(null);
+  const [voucherMessage, setVoucherMessage] = useState("");
+  const [voucherMessageKind, setVoucherMessageKind] = useState<"success" | "error">("success");
 
   /* =========================
        GIỎ HÀNG CỦA QUÁN
@@ -258,6 +273,61 @@ function RestaurantDetail() {
 
     loadMenu();
   }, [menuPageNumber, restaurant?.maNhaHang, searchTerm, selectedCategory]);
+
+  useEffect(() => {
+    if (!restaurant?.maNhaHang) return;
+
+    let cancelled = false;
+
+    getRestaurantVouchers(restaurant.maNhaHang, { pageNumber: 1, pageSize: 6 })
+      .then((result) => {
+        if (!cancelled) setRestaurantVouchers(result.items);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setVoucherMessageKind("error");
+          setVoucherMessage(
+            err instanceof Error ? err.message : "Không thể tải voucher của nhà hàng.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVoucherLoadedRestaurantId(restaurant.maNhaHang);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurant?.maNhaHang]);
+
+  const handleSaveVoucher = async (voucher: CustomerVoucher) => {
+    if (!localStorage.getItem("token")) {
+      navigate(
+        `/dang-nhap?returnUrl=${encodeURIComponent(`/nha-hang/${restaurant?.maNhaHang ?? id}`)}`,
+      );
+      return;
+    }
+
+    try {
+      setVoucherBusyId(voucher.maKhuyenMai);
+      setVoucherMessage("");
+      await saveVoucher(voucher.maKhuyenMai);
+      setRestaurantVouchers((current) =>
+        current.map((item) =>
+          item.maKhuyenMai === voucher.maKhuyenMai
+            ? { ...item, daLuu: true }
+            : item,
+        ),
+      );
+      setVoucherMessageKind("success");
+      setVoucherMessage(`Đã lưu mã ${voucher.maCode} vào kho voucher.`);
+    } catch (err) {
+      setVoucherMessageKind("error");
+      setVoucherMessage(err instanceof Error ? err.message : "Không thể lưu voucher.");
+    } finally {
+      setVoucherBusyId(null);
+    }
+  };
 
   const currentRestaurantId = restaurant?.maNhaHang;
 
@@ -592,6 +662,52 @@ function RestaurantDetail() {
             </div>
           </div>
         </section>
+
+        <ScrollReveal delay={90}>
+          <section className="restaurant-voucher-section">
+            <div className="restaurant-voucher-heading">
+              <div>
+                <span className="customer-menu-eyebrow">Ưu đãi của quán</span>
+                <h2>Lưu voucher, dùng khi thanh toán</h2>
+                <p>
+                  Voucher chỉ xuất hiện tại bước thanh toán sau khi bạn lưu vào kho.
+                </p>
+              </div>
+
+              <Link to="/kho-voucher" className="restaurant-voucher-wallet-link">
+                Mở kho voucher
+                <ChevronRight size={16} />
+              </Link>
+            </div>
+
+            {voucherMessage && (
+              <p className={`restaurant-voucher-message ${voucherMessageKind}`}>
+                {voucherMessage}
+              </p>
+            )}
+
+            {voucherLoading ? (
+              <div className="restaurant-voucher-loading">Đang tải ưu đãi...</div>
+            ) : restaurantVouchers.length > 0 ? (
+              <div className="restaurant-voucher-grid">
+                {restaurantVouchers.map((voucher) => (
+                  <VoucherCard
+                    key={voucher.maKhuyenMai}
+                    voucher={voucher}
+                    compact
+                    actionLabel={voucher.daLuu ? "Đã lưu" : "Lưu voucher"}
+                    actionDisabled={voucher.daLuu || voucherBusyId !== null}
+                    onAction={(item) => void handleSaveVoucher(item)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="restaurant-voucher-empty">
+                Nhà hàng chưa có voucher khả dụng.
+              </div>
+            )}
+          </section>
+        </ScrollReveal>
 
         {/* =================================================
                     MENU KHÁCH HÀNG

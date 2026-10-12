@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import AddressPage from "./pages/Address";
+import VoucherWallet from "./pages/VoucherWallet";
 
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -48,6 +49,7 @@ import RealtimeBridge from "./components/RealtimeBridge";
 import RealtimeToast from "./components/RealtimeToast";
 import PageLoader from "./components/PageLoader";
 import Footer from "./components/Footer";
+import RouteScrollManager from "./components/RouteScrollManager";
 
 function AppContent() {
     const location = useLocation();
@@ -75,6 +77,7 @@ function AppContent() {
             : undefined
         }
     >
+        <RouteScrollManager />
         <RealtimeBridge />
         <PageLoader key={location.key} />
         <RealtimeToast />
@@ -124,6 +127,11 @@ function AppContent() {
                 <Route
                     path="/dia-chi"
                     element={<AddressPage />}
+                />
+
+                <Route
+                    path="/kho-voucher"
+                    element={<VoucherWallet />}
                 />
 
                 <Route

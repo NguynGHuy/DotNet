@@ -41,6 +41,8 @@ public partial class DatMonAnOnlineContext : DbContext
 
     public virtual DbSet<Khachhang> Khachhangs { get; set; }
 
+    public virtual DbSet<KhachhangKhuyenmai> KhachhangKhuyenmais { get; set; }
+
     public virtual DbSet<Khuyenmai> Khuyenmais { get; set; }
 
     public virtual DbSet<Lichsutrangthaidonhang> Lichsutrangthaidonhangs { get; set; }
@@ -612,6 +614,32 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.HasOne(d => d.MaNhaHangNavigation).WithMany(p => p.Khuyenmais)
                 .HasForeignKey(d => d.MaNhaHang)
                 .HasConstraintName("FK_KhuyenMai_NhaHang");
+        });
+
+        modelBuilder.Entity<KhachhangKhuyenmai>(entity =>
+        {
+            entity.HasKey(e => new { e.MaKhachHang, e.MaKhuyenMai })
+                .HasName("PRIMARY");
+
+            entity.ToTable("khachhang_khuyenmai");
+
+            entity.HasIndex(e => e.MaKhuyenMai, "FK_KhachHangKhuyenMai_KhuyenMai");
+
+            entity.Property(e => e.NgayLuu)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.MaKhachHangNavigation)
+                .WithMany(p => p.KhachhangKhuyenmais)
+                .HasForeignKey(d => d.MaKhachHang)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_KhachHangKhuyenMai_KhachHang");
+
+            entity.HasOne(d => d.MaKhuyenMaiNavigation)
+                .WithMany(p => p.KhachhangKhuyenmais)
+                .HasForeignKey(d => d.MaKhuyenMai)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_KhachHangKhuyenMai_KhuyenMai");
         });
 
         modelBuilder.Entity<Lichsutrangthaidonhang>(entity =>

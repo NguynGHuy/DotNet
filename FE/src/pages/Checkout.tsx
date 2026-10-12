@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Banknote,
+  ChevronRight,
   CircleCheck,
   CircleX,
   PencilLine,
@@ -21,6 +22,7 @@ import {
   Store,
   TicketPercent,
   UtensilsCrossed,
+  X,
 } from "lucide-react";
 
 import {
@@ -33,7 +35,11 @@ import {
   type TienDonHang,
 } from "../services/orderService";
 import { getCart, reserveCartForCheckout } from "../services/cartService";
-import { checkPromotion } from "../services/promotionService";
+import {
+  checkPromotion,
+  getVoucherWallet,
+  type CustomerVoucher,
+} from "../services/promotionService";
 import { getRestaurantById } from "../services/restaurantService";
 import {
   changePaymentMethod,
@@ -42,6 +48,7 @@ import {
   type DongMonNho,
 } from "../services/paymentService";
 import PaymentQr from "../components/PaymentQr";
+import VoucherCard from "../components/VoucherCard";
 
 interface CheckoutData {
   tongTienHang: number;
@@ -111,6 +118,18 @@ function formatCurrency(value: number) {
   )} đ`;
 }
 
+function estimateVoucherDiscount(voucher: CustomerVoucher, subtotal: number) {
+  const rawDiscount = voucher.loaiGiam === "PhanTram"
+    ? subtotal * Number(voucher.giaTriGiam) / 100
+    : Number(voucher.giaTriGiam);
+
+  const limitedDiscount = voucher.giamToiDa === null
+    ? rawDiscount
+    : Math.min(rawDiscount, Number(voucher.giamToiDa));
+
+  return Math.max(0, Math.min(limitedDiscount, subtotal));
+}
+
 function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -138,6 +157,9 @@ function Checkout() {
   const [maCode, setMaCode] =
     useState("");
 
+  const [voucherCodeDraft, setVoucherCodeDraft] =
+    useState("");
+
   const [
     promotionId,
     setPromotionId,
@@ -153,7 +175,19 @@ function Checkout() {
     setPromoMessage,
   ] = useState("");
 
+  const [promoMessageType, setPromoMessageType] =
+    useState<"success" | "error" | "">("");
+
   const [promoBusy, setPromoBusy] =
+    useState(false);
+
+  const [savedVouchers, setSavedVouchers] =
+    useState<CustomerVoucher[]>([]);
+
+  const [voucherLoading, setVoucherLoading] =
+    useState(true);
+
+  const [showVoucherPicker, setShowVoucherPicker] =
     useState(false);
 
   const [loading, setLoading] =
@@ -311,6 +345,59 @@ function Checkout() {
   }, [maGioHang, navigate]);
 
   useEffect(() => {
+    if (restaurantId === null) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void getVoucherWallet({
+      pageNumber: 1,
+      pageSize: 100,
+      maNhaHang: restaurantId,
+      usableOnly: true,
+    })
+      .then((result) => {
+        if (!cancelled) {
+          setSavedVouchers(result.items);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSavedVouchers([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setVoucherLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (!showVoucherPicker) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !promoBusy) {
+        setShowVoucherPicker(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [promoBusy, showVoucherPicker]);
+
+  useEffect(() => {
     if (!Number.isInteger(maGioHang) || maGioHang <= 0 || !localStorage.getItem("token")) {
       return;
     }
@@ -324,23 +411,24 @@ function Checkout() {
     return () => window.clearInterval(interval);
   }, [maGioHang]);
 
-  const handleApplyPromotion =
-    async () => {
+  const applyPromotionCode =
+    async (code: string) => {
       if (
-        !maCode.trim() ||
+        !code.trim() ||
         restaurantId === null ||
         !checkoutData
       ) {
-        return;
+        return false;
       }
 
       try {
         setPromoBusy(true);
         setPromoMessage("");
+        setPromoMessageType("");
 
         const result =
           await checkPromotion(
-            maCode.trim(),
+            code.trim(),
             restaurantId,
             checkoutData.tongTienHang,
           );
@@ -359,19 +447,40 @@ function Checkout() {
           result.maKhuyenMai,
         );
 
+        setMaCode(code.trim().toUpperCase());
+
         setPromoMessage(
           "Áp dụng mã thành công.",
         );
+        setPromoMessageType("success");
+
+        return true;
       } catch (error) {
+        setPromoMessageType("error");
         setPromoMessage(
           error instanceof Error
             ? error.message
             : "Không thể áp dụng mã khuyến mãi.",
         );
+        return false;
       } finally {
         setPromoBusy(false);
       }
     };
+
+  const handleApplyPromotion = async () => {
+    const applied = await applyPromotionCode(voucherCodeDraft);
+    if (applied) setShowVoucherPicker(false);
+  };
+
+  const handleSelectSavedVoucher = async (voucher: CustomerVoucher) => {
+    if (promotionId === voucher.maKhuyenMai) {
+      return;
+    }
+
+    const applied = await applyPromotionCode(voucher.maCode);
+    if (applied) setShowVoucherPicker(false);
+  };
 
   const handleRemovePromotion =
     async () => {
@@ -390,8 +499,11 @@ function Checkout() {
 
         setPromotionId(null);
         setMaCode("");
+        setVoucherCodeDraft("");
         setPromoMessage("");
+        setPromoMessageType("");
       } catch (error) {
+        setPromoMessageType("error");
         setPromoMessage(
           error instanceof Error
             ? error.message
@@ -1189,6 +1301,24 @@ function Checkout() {
         selectedAddressId,
     );
 
+  const applicableSavedVouchers = savedVouchers
+    .filter(
+      (voucher) =>
+        Number(voucher.donHangToiThieu) <=
+        Number(checkoutData?.tongTienHang ?? 0),
+    )
+    .sort(
+      (left, right) =>
+        estimateVoucherDiscount(right, Number(checkoutData?.tongTienHang ?? 0)) -
+        estimateVoucherDiscount(left, Number(checkoutData?.tongTienHang ?? 0)),
+    );
+
+  const unavailableSavedVouchers = savedVouchers.filter(
+    (voucher) =>
+      Number(voucher.donHangToiThieu) >
+      Number(checkoutData?.tongTienHang ?? 0),
+  );
+
   return (
     <main className="checkout-page checkout-compact-page">
       <div className="checkout-compact-container">
@@ -1477,83 +1607,55 @@ function Checkout() {
 
               <div className="checkout-compact-divider" />
 
-              <div className="checkout-compact-promotion">
-                <div>
-                  <TicketPercent
-                    size={17}
-                  />
-
-                  <span>
-                    <strong>
-                      Mã khuyến mãi
-                    </strong>
-
+              <div className="checkout-voucher-select-row">
+                <div className="checkout-voucher-select-label">
+                  <span><TicketPercent size={18} /></span>
+                  <div>
+                    <strong>Voucher</strong>
                     <small>
-                      Áp dụng ưu đãi của
-                      nhà hàng
+                      {promotionId !== null
+                        ? `Đã áp dụng ${maCode}`
+                        : voucherLoading
+                          ? "Đang tìm voucher phù hợp..."
+                          : applicableSavedVouchers.length > 0
+                            ? `${applicableSavedVouchers.length} voucher có thể sử dụng`
+                            : "Chọn voucher hoặc nhập mã cá nhân"}
                     </small>
-                  </span>
+                  </div>
                 </div>
 
-                <div className="checkout-promotion-inline">
-                  <input
-                    aria-label="Mã giảm giá"
-                    placeholder="Nhập mã"
-                    value={maCode}
-                    disabled={
-                      promotionId !==
-                        null ||
-                      promoBusy ||
-                      donDaTao !== null
-                    }
-                    onChange={(event) =>
-                      setMaCode(
-                        event.target.value.toUpperCase(),
-                      )
-                    }
-                  />
-
-                  {promotionId === null ? (
+                <div className="checkout-voucher-select-actions">
+                  {promotionId !== null && (
                     <button
                       type="button"
-                      disabled={
-                        promoBusy ||
-                        !maCode.trim() ||
-                        donDaTao !== null
-                      }
-                      onClick={() =>
-                        void handleApplyPromotion()
-                      }
-                    >
-                      {promoBusy
-                        ? "Đang kiểm tra"
-                        : "Áp dụng"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="remove"
-                      disabled={
-                        promoBusy ||
-                        donDaTao !== null
-                      }
-                      onClick={() =>
-                        void handleRemovePromotion()
-                      }
+                      className="checkout-voucher-remove"
+                      disabled={promoBusy || donDaTao !== null}
+                      onClick={() => void handleRemovePromotion()}
                     >
                       Bỏ mã
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    className="checkout-voucher-open"
+                    disabled={donDaTao !== null}
+                    onClick={() => {
+                      setPromoMessage("");
+                      setPromoMessageType("");
+                      setVoucherCodeDraft("");
+                      setShowVoucherPicker(true);
+                    }}
+                  >
+                    {promotionId !== null ? "Đổi" : "Chọn voucher"}
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
 
               {promoMessage && (
                 <p
-                  className={`checkout-promotion-message ${
-                    promotionId !== null
-                      ? "success"
-                      : "error"
-                  }`}
+                  className={`checkout-promotion-message ${promoMessageType || "error"}`}
                 >
                   {promoMessage}
                 </p>
@@ -1729,6 +1831,163 @@ function Checkout() {
           </aside>
         </div>
       </div>
+
+      {showVoucherPicker && (
+        <div
+          className="checkout-voucher-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !promoBusy) {
+              setShowVoucherPicker(false);
+            }
+          }}
+        >
+          <section
+            className="checkout-voucher-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkout-voucher-title"
+          >
+            <header className="checkout-voucher-dialog-header">
+              <div>
+                <span><TicketPercent size={20} /></span>
+                <div>
+                  <h2 id="checkout-voucher-title">Chọn Foodie Voucher</h2>
+                  <p>Chỉ hiển thị voucher đã lưu của hệ thống và nhà hàng này.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Đóng danh sách voucher"
+                disabled={promoBusy}
+                onClick={() => setShowVoucherPicker(false)}
+              >
+                <X size={19} />
+              </button>
+            </header>
+
+            <div className="checkout-voucher-dialog-body">
+              <form
+                className="checkout-voucher-code-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleApplyPromotion();
+                }}
+              >
+                <label htmlFor="checkout-personal-voucher">Mã voucher</label>
+                <div>
+                  <input
+                    id="checkout-personal-voucher"
+                    aria-label="Mã voucher cá nhân"
+                    placeholder="Nhập mã voucher của bạn"
+                    value={voucherCodeDraft}
+                    disabled={promoBusy || donDaTao !== null}
+                    onChange={(event) => {
+                      setVoucherCodeDraft(event.target.value.toUpperCase());
+                      setPromoMessage("");
+                      setPromoMessageType("");
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      promoBusy ||
+                      !voucherCodeDraft.trim() ||
+                      donDaTao !== null
+                    }
+                  >
+                    {promoBusy ? "Đang kiểm tra" : "Áp dụng"}
+                  </button>
+                </div>
+              </form>
+
+              {promoMessage && (
+                <p
+                  className={`checkout-voucher-dialog-message ${
+                    promoMessageType || "error"
+                  }`}
+                >
+                  {promoMessage}
+                </p>
+              )}
+
+              <div className="checkout-voucher-dialog-section-heading">
+                <div>
+                  <strong>Voucher có thể áp dụng</strong>
+                  <small>Chọn một voucher cho đơn hàng này</small>
+                </div>
+                <Link to="/kho-voucher">Xem kho voucher</Link>
+              </div>
+
+              {voucherLoading ? (
+                <p className="checkout-voucher-dialog-empty">Đang tải voucher...</p>
+              ) : applicableSavedVouchers.length > 0 ? (
+                <div className="checkout-voucher-dialog-list">
+                  {applicableSavedVouchers.map((voucher) => (
+                    <VoucherCard
+                      key={voucher.maKhuyenMai}
+                      voucher={voucher}
+                      compact
+                      selected={promotionId === voucher.maKhuyenMai}
+                      actionLabel={
+                        promotionId === voucher.maKhuyenMai
+                          ? "Đang dùng"
+                          : "Áp dụng"
+                      }
+                      actionDisabled={
+                        promoBusy ||
+                        donDaTao !== null ||
+                        promotionId === voucher.maKhuyenMai
+                      }
+                      onAction={(item) => void handleSelectSavedVoucher(item)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="checkout-voucher-dialog-empty">
+                  <TicketPercent size={24} />
+                  <strong>Chưa có voucher phù hợp</strong>
+                  <span>Bạn có thể nhập mã cá nhân phía trên hoặc lưu thêm voucher vào kho.</span>
+                </div>
+              )}
+
+              {unavailableSavedVouchers.length > 0 && (
+                <div className="checkout-voucher-unavailable">
+                  <div className="checkout-voucher-dialog-section-heading">
+                    <div>
+                      <strong>Chưa đủ điều kiện</strong>
+                      <small>Thêm món để đạt giá trị đơn tối thiểu</small>
+                    </div>
+                  </div>
+
+                  <div className="checkout-voucher-dialog-list">
+                    {unavailableSavedVouchers.map((voucher) => (
+                      <div key={voucher.maKhuyenMai} className="checkout-voucher-disabled-item">
+                        <VoucherCard
+                          voucher={voucher}
+                          compact
+                          actionLabel="Chưa đủ điều kiện"
+                          actionDisabled
+                        />
+                        <p>
+                          Mua thêm {formatCurrency(
+                            Math.max(
+                              0,
+                              Number(voucher.donHangToiThieu) -
+                                Number(checkoutData?.tongTienHang ?? 0),
+                            ),
+                          )} để dùng voucher này.
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

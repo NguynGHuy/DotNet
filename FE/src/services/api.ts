@@ -65,7 +65,14 @@ export async function apiFetch(
         let message = `Request thất bại (${response.status})`;
 
         if (typeof data === "string" && data.trim()) {
-            message = data;
+            const serverMessage = data.trim();
+            const looksLikeServerTrace =
+                serverMessage.length > 500 ||
+                /(?:\bat\s+[\w.]+\(|stack trace|exception\s*\()/i.test(serverMessage);
+
+            message = looksLikeServerTrace
+                ? "Máy chủ đang gặp lỗi. Vui lòng thử lại sau."
+                : serverMessage;
         } else if (data && typeof data === "object") {
             if ("message" in data && typeof data.message === "string") {
                 message = data.message;

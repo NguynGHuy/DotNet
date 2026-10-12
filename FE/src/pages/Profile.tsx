@@ -507,17 +507,17 @@ function Profile() {
               <span className="profile-tool-status">Chưa có khoản hoàn tiền</span>
             </article>
 
-            <article className="profile-tool-card profile-voucher-card">
+            <Link to="/kho-voucher" className="profile-tool-card profile-voucher-card">
               <div className="profile-tool-card-top">
                 <span className="profile-tool-icon"><TicketPercent size={22} /></span>
-                <span className="profile-tool-coming">Sắp ra mắt</span>
+                <span className="profile-tool-coming">Mở kho</span>
               </div>
               <h3>Kho voucher</h3>
               <p>Lưu trữ và quản lý các mã giảm giá dành riêng cho bạn.</p>
               <span className="profile-voucher-preview">
                 <TicketPercent size={15} /> Voucher của bạn sẽ xuất hiện tại đây
               </span>
-            </article>
+            </Link>
           </div>
         </section>
       </ScrollReveal>

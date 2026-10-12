@@ -6,6 +6,12 @@ Trước khi chạy phiên bản API này lần đầu, hãy thực thi script i
 
 `DatMonAnOnline.API/DatabaseMigrations/20261009_order_snapshots_and_system_history.sql`
 
+Để sử dụng Kho voucher, chạy thêm script idempotent:
+
+`DatMonAnOnline.API/DatabaseMigrations/20261011_customer_voucher_wallet.sql`
+
+Script này tạo bảng liên kết lưu các voucher mà từng khách hàng đã chọn. Có thể chạy lại an toàn.
+
 Script bổ sung snapshot tên nhà hàng/món/topping cho lịch sử đơn và cho phép lịch sử trạng thái do hệ thống tự động tạo. Có thể chạy lại script an toàn.
 
 ## Cấu hình email đặt lại mật khẩu
