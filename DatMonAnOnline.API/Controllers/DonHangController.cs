@@ -400,16 +400,14 @@ namespace DatMonAnOnline.API.Controllers
                 .Where(d => d.MaKhachHang == khachHang.MaKhachHang)
                 .AsQueryable();
 
-            var processingStatuses = new[]
-            {
-                "ChoXacNhan", "DaXacNhan", "DangChuanBi", "DangGiao"
-            };
-
             var counts = new
             {
                 all = await baseQuery.CountAsync(),
                 processing = await baseQuery.CountAsync(d =>
-                    processingStatuses.Contains(d.MaTrangThaiNavigation!.TenTrangThai)),
+                    d.MaTrangThaiNavigation!.TenTrangThai == "ChoXacNhan" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DaXacNhan" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DangChuanBi" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DangGiao"),
                 completed = await baseQuery.CountAsync(d =>
                     d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh"),
                 cancelled = await baseQuery.CountAsync(d =>
@@ -419,7 +417,10 @@ namespace DatMonAnOnline.API.Controllers
             var query = filter?.Trim().ToLowerInvariant() switch
             {
                 "processing" => baseQuery.Where(d =>
-                    processingStatuses.Contains(d.MaTrangThaiNavigation!.TenTrangThai)),
+                    d.MaTrangThaiNavigation!.TenTrangThai == "ChoXacNhan" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DaXacNhan" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DangChuanBi" ||
+                    d.MaTrangThaiNavigation.TenTrangThai == "DangGiao"),
                 "completed" => baseQuery.Where(d =>
                     d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh"),
                 "cancelled" => baseQuery.Where(d =>
