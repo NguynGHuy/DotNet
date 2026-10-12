@@ -11,6 +11,8 @@ public partial class DatMonAnOnlineContext : DbContext
     {
     }
 
+    public virtual DbSet<Hosophaplynhahang> Hosophaplynhahangs { get; set; }
+
     public virtual DbSet<Chitietdoisoat> Chitietdoisoats { get; set; }
 
     public virtual DbSet<Chitietdonhang> Chitietdonhangs { get; set; }
@@ -516,11 +518,79 @@ public partial class DatMonAnOnlineContext : DbContext
                 .HasConstraintName("FK_HoanTien_ThanhToan_DonHang");
         });
 
+        modelBuilder.Entity<Hosophaplynhahang>(entity =>
+        {
+            entity.HasKey(e => e.MaNhaHang).HasName("PRIMARY");
+
+            entity.ToTable("hosophaplynhahang");
+
+            // Mã nhà hàng được lấy từ nhà hàng hiện có.
+            entity.Property(e => e.MaNhaHang)
+                .ValueGeneratedNever();
+
+            entity.Property(e => e.NguoiDaiDien)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.ChucVuNguoiDaiDien)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.SoGiayToNguoiDaiDien)
+                .HasMaxLength(30);
+
+            entity.Property(e => e.TenPhapLy)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.MaSoThue)
+                .HasMaxLength(30);
+
+            entity.Property(e => e.DiaChiPhapLy)
+                .HasMaxLength(255);
+
+            entity.Property(e => e.SoGiayPhepKinhDoanh)
+                .HasMaxLength(50);
+
+            entity.Property(e => e.FileGiayPhepKinhDoanh)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.FileGiayToNguoiDaiDien)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.Property(e => e.NgayCapNhat)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(e => e.MaNhaHangNavigation)
+                .WithOne()
+                .HasForeignKey<Hosophaplynhahang>(e => e.MaNhaHang)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HoSoPhapLy_NhaHang");
+        });
+
         modelBuilder.Entity<Hopdongnhahang>(entity =>
         {
             entity.HasKey(e => e.MaHopDong).HasName("PRIMARY");
 
             entity.ToTable("hopdongnhahang");
+
+            entity.Property(e => e.TenPhapLy)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.DiaChiPhapLy)
+                .HasMaxLength(255);
+
+            entity.Property(e => e.NoiDungHopDong)
+                .HasColumnType("longtext");
+
+            entity.Property(e => e.ThoiGianDongYDieuKhoan)
+                .HasColumnType("datetime");
+
+            entity.Property(e => e.ThoiGianGuiDuyet)
+                .HasColumnType("datetime");
 
             entity.HasIndex(e => e.MaTaiKhoanDuyet, "FK_HopDongNhaHang_NguoiDuyet");
 
@@ -557,7 +627,7 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.Property(e => e.ThoiGianKy).HasColumnType("datetime");
             entity.Property(e => e.TrangThai)
                 .HasDefaultValueSql("'Nhap'")
-                .HasColumnType("enum('Nhap','ChoKy','ChoDuyet','HieuLuc','HetHan','TuChoi','ChamDut')");
+                .HasColumnType("enum('Nhap','ChoKy','DaKy','ChoDuyet','HieuLuc','HetHan','TuChoi','ChamDut')");
             entity.Property(e => e.TyLePhiNenTang)
                 .HasPrecision(5, 2)
                 .HasDefaultValueSql("'5.00'");
@@ -746,7 +816,7 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.Property(e => e.TenNhaHang).HasMaxLength(150);
             entity.Property(e => e.TrangThaiDuyet)
                 .HasMaxLength(20)
-                .HasDefaultValueSql("'ChoDuyet'");
+                .HasDefaultValueSql("'ChuaHoanTat'");
             entity.Property(e => e.TrangThaiHoatDong)
                 .HasDefaultValueSql("'MoCua'")
                 .HasColumnType("enum('MoCua','DongCua','TamNgung')");

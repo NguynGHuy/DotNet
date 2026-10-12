@@ -220,7 +220,7 @@ namespace DatMonAnOnline.API.Controllers
                     AnhBia = Normalize(request.AnhBia),
                     GioMoCua = request.GioMoCua,
                     GioDongCua = request.GioDongCua,
-                    TrangThaiDuyet = "ChoDuyet",
+                    TrangThaiDuyet = "ChuaHoanTat",
                     TrangThaiHoatDong = "MoCua",
                     CheDoHoatDong = "TuDong",
                     DanhGiaTrungBinh = 0,
@@ -229,11 +229,21 @@ namespace DatMonAnOnline.API.Controllers
 
                 _context.Nhahangs.Add(nhaHang);
                 await _context.SaveChangesAsync();
+
+                _context.Hosophaplynhahangs.Add(new Hosophaplynhahang
+                {
+                    MaNhaHang = nhaHang.MaNhaHang,
+                    NgayTao = DateTime.Now
+                });
+
+                await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
                 return Created("/api/auth/me", new
                 {
-                    message = "Đăng ký quán thành công, đang chờ Admin duyệt.",
+                    message = "Đăng ký quán thành công. Vui lòng đăng nhập để hoàn thiện hồ sơ và ký hợp đồng.",
+                    trangThaiDuyet = nhaHang.TrangThaiDuyet,
                     maTaiKhoan = taiKhoan.MaTaiKhoan,
                     maNhaHang = nhaHang.MaNhaHang
                 });

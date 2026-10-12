@@ -51,6 +51,16 @@ public partial class Hopdongnhahang
 
     public DateTime NgayCapNhat { get; set; }
 
+    public string? TenPhapLy { get; set; }
+
+    public string? DiaChiPhapLy { get; set; }
+
+    public string? NoiDungHopDong { get; set; }
+
+    public DateTime? ThoiGianDongYDieuKhoan { get; set; }
+
+    public DateTime? ThoiGianGuiDuyet { get; set; }
+
     public virtual ICollection<Donhang> Donhangs { get; set; } = new List<Donhang>();
 
     public virtual Nhahang MaNhaHangNavigation { get; set; } = null!;

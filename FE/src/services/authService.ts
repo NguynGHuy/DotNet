@@ -84,7 +84,7 @@ export interface RegisterRestaurantRequest {
     gioMoCua?: string | null;
     gioDongCua?: string | null;
 
-    phiShipMacDinh: number;
+    phiShipMacDinh?: number;
 }
 
 export async function registerRestaurant(
