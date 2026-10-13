@@ -82,7 +82,24 @@ public class AdminHopDongController : ControllerBase
             })
             .FirstOrDefaultAsync();
 
-        return Ok(new { nhaHang, hopDong });
+        var thamDinh = hopDong == null
+            ? null
+            : await _context.Thamdinhhosonhahangs
+                .AsNoTracking()
+                .Where(x => x.MaHopDong == hopDong.MaHopDong)
+                .Select(x => new
+                {
+                    x.KetQuaGiayPhep,
+                    x.KetQuaGiayToDaiDien,
+                    x.KetQuaHopDong,
+                    x.KetQua,
+                    x.GhiChu,
+                    x.ThoiGian,
+                    x.MaTaiKhoanAdmin
+                })
+                .FirstOrDefaultAsync();
+
+        return Ok(new { nhaHang, hopDong, thamDinh });
     }
 
     [HttpGet("hop-dong/{id:int}/tep/{loai}")]

@@ -43,6 +43,18 @@ builder.Services.AddRateLimiter(options =>
     static string GetClientKey(HttpContext context)
         => context.Connection.RemoteIpAddress?.ToString() ?? "unknown-client";
 
+    options.AddPolicy(AuthRateLimitPolicies.RegisterNhaHang, context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            GetClientKey(context),
+            _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                SegmentsPerWindow = 3,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
     options.AddPolicy(AuthRateLimitPolicies.Login, context =>
         RateLimitPartition.GetSlidingWindowLimiter(
             GetClientKey(context),

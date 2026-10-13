@@ -64,20 +64,6 @@ export function getPendingRestaurants(params: PendingRestaurantQuery = {}): Prom
   });
 }
 
-export function approveRestaurant(id: number) {
-  return apiFetch(`/admin/nha-hang/${id}/duyet`, {
-    method: "PUT",
-    headers: authHeaders(),
-  });
-}
-export function rejectRestaurant(id: number, lyDo: string) {
-    return apiFetch(`/admin/nha-hang/${id}/tu-choi`, {
-        method: "PUT",
-        headers: authHeaders(),
-        body: JSON.stringify({ lyDo }),
-    });
-}
-
 export interface AdminOverview {
   tongNhaHang: number;
   tongDonHang: number;

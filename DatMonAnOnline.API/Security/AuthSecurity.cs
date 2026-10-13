@@ -6,6 +6,7 @@ namespace DatMonAnOnline.API.Security;
 
 public static class AuthRateLimitPolicies
 {
+    public const string RegisterNhaHang = "auth-register-nha-hang";
     public const string Login = "auth-login";
     public const string RequestPasswordReset = "auth-password-reset-request";
     public const string ConfirmPasswordReset = "auth-password-reset-confirm";

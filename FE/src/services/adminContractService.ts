@@ -1,6 +1,14 @@
 import { apiFetch, API_URL } from "./api";
 
 export type ContractFileType = "giay-phep" | "giay-to" | "hop-dong";
+export type DocumentReviewResult = "HopLe" | "CanBoSung";
+
+export interface DocumentReviewPayload {
+    ketQuaGiayPhep: DocumentReviewResult;
+    ketQuaGiayToDaiDien: DocumentReviewResult;
+    ketQuaHopDong: DocumentReviewResult;
+    ghiChu?: string;
+}
 
 export interface AdminContractDetails {
     nhaHang: {
@@ -34,6 +42,15 @@ export interface AdminContractDetails {
         coGiayToDaiDien: boolean;
         coTepHopDong: boolean;
     } | null;
+    thamDinh: {
+        ketQuaGiayPhep: DocumentReviewResult;
+        ketQuaGiayToDaiDien: DocumentReviewResult;
+        ketQuaHopDong: DocumentReviewResult;
+        ketQua: "DaDuyet" | "TuChoi";
+        ghiChu: string | null;
+        thoiGian: string;
+        maTaiKhoanAdmin: number;
+    } | null;
 }
 
 function authHeaders() {
@@ -48,6 +65,29 @@ export function getAdminContract(
     return apiFetch(`/admin/nha-hang/${maNhaHang}/hop-dong`, {
         headers: authHeaders(),
         cache: "no-store",
+    });
+}
+
+export function approveRestaurantDocuments(
+    maNhaHang: number,
+    review: DocumentReviewPayload
+) {
+    return apiFetch(`/admin/nha-hang/${maNhaHang}/duyet`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(review),
+    });
+}
+
+export function rejectRestaurantDocuments(
+    maNhaHang: number,
+    review: DocumentReviewPayload,
+    lyDo: string
+) {
+    return apiFetch(`/admin/nha-hang/${maNhaHang}/tu-choi`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ ...review, lyDo }),
     });
 }
 

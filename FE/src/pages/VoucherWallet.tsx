@@ -139,7 +139,7 @@ function VoucherWallet() {
                     <VoucherCard
                       key={voucher.maKhuyenMai}
                       voucher={voucher}
-                      actionLabel="Bỏ lưu"
+                      // actionLabel="Bỏ lưu"
                       actionDisabled={busyId !== null}
                       onAction={(item) => void handleRemove(item)}
                     />

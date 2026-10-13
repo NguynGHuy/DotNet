@@ -68,6 +68,8 @@ function AppContent() {
     const isCustomerArea =
     !isAdminArea && !isQuanArea;
 
+    const isCustomerOrdersPage = location.pathname === "/don-hang";
+
     const showLatestCart =
         location.pathname === "/" ||
         location.pathname === "/nha-hang";
@@ -76,7 +78,12 @@ function AppContent() {
     <div
     className={
         isCustomerArea
-            ? "customer-app-shell"
+            ? [
+                "customer-app-shell",
+                isCustomerOrdersPage ? "customer-orders-shell" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")
             : undefined
         }
     >

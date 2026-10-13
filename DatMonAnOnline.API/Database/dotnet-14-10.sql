@@ -948,6 +948,40 @@ INSERT INTO `taikhoan` VALUES (1,'admin@hethong.com','hashed_pass_123','09000000
 UNLOCK TABLES;
 
 --
+-- Table structure for table `thamdinhhosonhahang`
+--
+
+DROP TABLE IF EXISTS `thamdinhhosonhahang`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `thamdinhhosonhahang` (
+  `MaThamDinh` int NOT NULL AUTO_INCREMENT,
+  `MaHopDong` int NOT NULL,
+  `MaTaiKhoanAdmin` int NOT NULL,
+  `KetQuaGiayPhep` enum('HopLe','CanBoSung') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `KetQuaGiayToDaiDien` enum('HopLe','CanBoSung') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `KetQuaHopDong` enum('HopLe','CanBoSung') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `KetQua` enum('DaDuyet','TuChoi') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `GhiChu` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ThoiGian` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`MaThamDinh`),
+  UNIQUE KEY `UQ_ThamDinhHoSo_HopDong` (`MaHopDong`),
+  KEY `FK_ThamDinhHoSo_Admin` (`MaTaiKhoanAdmin`),
+  CONSTRAINT `FK_ThamDinhHoSo_HopDong` FOREIGN KEY (`MaHopDong`) REFERENCES `hopdongnhahang` (`MaHopDong`),
+  CONSTRAINT `FK_ThamDinhHoSo_Admin` FOREIGN KEY (`MaTaiKhoanAdmin`) REFERENCES `taikhoan` (`MaTaiKhoan`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `thamdinhhosonhahang`
+--
+
+LOCK TABLES `thamdinhhosonhahang` WRITE;
+/*!40000 ALTER TABLE `thamdinhhosonhahang` DISABLE KEYS */;
+/*!40000 ALTER TABLE `thamdinhhosonhahang` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `thanhtoan`
 --
 
@@ -1078,3 +1112,21 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-10-14  0:04:03
+CREATE TABLE IF NOT EXISTS `thamdinhhosonhahang` (
+  `MaThamDinh` int NOT NULL AUTO_INCREMENT,
+  `MaHopDong` int NOT NULL,
+  `MaTaiKhoanAdmin` int NOT NULL,
+  `KetQuaGiayPhep` enum('HopLe','CanBoSung') NOT NULL,
+  `KetQuaGiayToDaiDien` enum('HopLe','CanBoSung') NOT NULL,
+  `KetQuaHopDong` enum('HopLe','CanBoSung') NOT NULL,
+  `KetQua` enum('DaDuyet','TuChoi') NOT NULL,
+  `GhiChu` varchar(1000) DEFAULT NULL,
+  `ThoiGian` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`MaThamDinh`),
+  UNIQUE KEY `UQ_ThamDinhHoSo_HopDong` (`MaHopDong`),
+  KEY `FK_ThamDinhHoSo_Admin` (`MaTaiKhoanAdmin`),
+  CONSTRAINT `FK_ThamDinhHoSo_HopDong`
+    FOREIGN KEY (`MaHopDong`) REFERENCES `hopdongnhahang` (`MaHopDong`),
+  CONSTRAINT `FK_ThamDinhHoSo_Admin`
+    FOREIGN KEY (`MaTaiKhoanAdmin`) REFERENCES `taikhoan` (`MaTaiKhoan`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

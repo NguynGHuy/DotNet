@@ -2,41 +2,27 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     Building2,
-    Check,
     CheckCircle2,
     Clock3,
     MapPin,
     RefreshCw,
     Search,
     Store,
-    X,
     XCircle,
 } from "lucide-react";
-import {
-    approveRestaurant,
-    getPendingRestaurants,
-    rejectRestaurant,
-} from "../services/adminService";
+import { getPendingRestaurants } from "../services/adminService";
 import type { PendingRestaurant } from "../services/adminService";
 import Pagination from "../components/Pagination";
-
-interface DecisionState {
-    restaurant: PendingRestaurant;
-    approve: boolean;
-}
 
 function AdminRestaurants() {
     const PAGE_SIZE = 10;
     const [restaurants, setRestaurants] = useState<PendingRestaurant[]>([]);
     const [keyword, setKeyword] = useState("");
     const [loading, setLoading] = useState(true);
-    const [busyId, setBusyId] = useState<number | null>(null);
-    const [decision, setDecision] = useState<DecisionState | null>(null);
     const [error, setError] = useState("");
     const [pageNumber, setPageNumber] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const [rejectReason, setRejectReason] = useState("");
 
     const loadRestaurants = useCallback(async (showLoading = true) => {
         try {
@@ -100,51 +86,6 @@ function AdminRestaurants() {
             cancelled = true;
         };
     }, [keyword, pageNumber]);
-
-    const closeDecision = () => {
-        if (busyId !== null) return;
-        setDecision(null);
-        setRejectReason("");
-    };
-
-    const handleDecision = async () => {
-        if (!decision || busyId !== null) return;
-
-        const { restaurant, approve } = decision;
-
-        if (!approve && !rejectReason.trim()) {
-            setError("Vui lòng nhập lý do từ chối.");
-            return;
-        }
-
-        try {
-            setBusyId(restaurant.maNhaHang);
-            setError("");
-
-            if (approve) {
-                await approveRestaurant(restaurant.maNhaHang);
-            } else {
-                await rejectRestaurant(
-                    restaurant.maNhaHang,
-                    rejectReason.trim()
-                );
-            }
-
-            await loadRestaurants(false);
-            setDecision(null);
-            setRejectReason("");
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : approve
-                      ? "Không thể duyệt nhà hàng."
-                      : "Không thể từ chối nhà hàng."
-            );
-        } finally {
-            setBusyId(null);
-        }
-    };
 
     return (
         <div className="admin-restaurants-pro">
@@ -276,37 +217,8 @@ function AdminRestaurants() {
                                         className="admin-contract-view-link"
                                         to={`/admin/nha-hang/${restaurant.maNhaHang}/ho-so`}
                                     >
-                                        Xem hồ sơ & hợp đồng
+                                        Xem hồ sơ và xét duyệt
                                     </Link>
-                                    <button
-                                        type="button"
-                                        className="reject"
-                                        disabled={busyId !== null}
-                                        onClick={() =>
-                                            setDecision({
-                                                restaurant,
-                                                approve: false,
-                                            })
-                                        }
-                                    >
-                                        <X size={15} />
-                                        Từ chối
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        className="approve"
-                                        disabled={busyId !== null}
-                                        onClick={() =>
-                                            setDecision({
-                                                restaurant,
-                                                approve: true,
-                                            })
-                                        }
-                                    >
-                                        <Check size={15} />
-                                        Duyệt nhà hàng
-                                    </button>
                                 </div>
                             </article>
                         ))}
@@ -329,94 +241,6 @@ function AdminRestaurants() {
                 )}
             </section>
 
-            {decision && (
-                <div
-                    className="admin-decision-overlay"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="admin-decision-title"
-                    onMouseDown={closeDecision}
-                >
-                    <section
-                        className={`admin-decision-dialog ${
-                            decision.approve ? "approve" : "reject"
-                        }`}
-                        onMouseDown={(event) => event.stopPropagation()}
-                    >
-                        <button
-                            type="button"
-                            className="admin-decision-close"
-                            aria-label="Đóng"
-                            disabled={busyId !== null}
-                            onClick={closeDecision}
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <div className="admin-decision-icon">
-                            {decision.approve ? (
-                                <CheckCircle2 size={25} />
-                            ) : (
-                                <XCircle size={25} />
-                            )}
-                        </div>
-
-                        <h2 id="admin-decision-title">
-                            {decision.approve
-                                ? "Duyệt nhà hàng?"
-                                : "Từ chối nhà hàng?"}
-                        </h2>
-
-                        <p>
-                            Bạn đang {decision.approve ? "duyệt" : "từ chối"}{" "}
-                            <strong>
-                                {decision.restaurant.tenNhaHang}
-                            </strong>
-                            .
-                        </p>
-
-                        {!decision.approve && (
-                            <label className="admin-contract-reject-reason">
-                                <span>Lý do từ chối</span>
-                                <textarea
-                                    rows={3}
-                                    maxLength={500}
-                                    value={rejectReason}
-                                    disabled={busyId !== null}
-                                    placeholder="Nêu rõ thông tin hoặc giấy tờ cần bổ sung..."
-                                    onChange={(event) => setRejectReason(event.target.value)}
-                                />
-                            </label>
-                        )}
-
-                        <div className="admin-decision-actions">
-                            <button
-                                type="button"
-                                className="cancel"
-                                disabled={busyId !== null}
-                                onClick={closeDecision}
-                            >
-                                Quay lại
-                            </button>
-
-                            <button
-                                type="button"
-                                className={
-                                    decision.approve ? "approve" : "reject"
-                                }
-                                disabled={busyId !== null}
-                                onClick={() => void handleDecision()}
-                            >
-                                {busyId !== null
-                                    ? "Đang xử lý..."
-                                    : decision.approve
-                                      ? "Xác nhận duyệt"
-                                      : "Xác nhận từ chối"}
-                            </button>
-                        </div>
-                    </section>
-                </div>
-            )}
         </div>
     );
 }

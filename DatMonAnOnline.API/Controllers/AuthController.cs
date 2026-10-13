@@ -139,7 +139,7 @@ namespace DatMonAnOnline.API.Controllers
                     SoDienThoai = phone,
                     MaRole = role.MaRole,
                     TrangThai = true,
-                    DaXacThucEmail = false,
+                    DaXacThucEmail = true,
                     AnhDaiDien = null
                 };
 
@@ -174,6 +174,7 @@ namespace DatMonAnOnline.API.Controllers
 
         [HttpPost("register-nha-hang")]
         [AllowAnonymous]
+        [EnableRateLimiting(AuthRateLimitPolicies.RegisterNhaHang)]
         public async Task<IActionResult> RegisterNhaHang(RegisterNhaHangDto request)
         {
             var email = request.Email.Trim().ToLowerInvariant();
@@ -205,7 +206,7 @@ namespace DatMonAnOnline.API.Controllers
                     SoDienThoai = phone,
                     MaRole = role.MaRole,
                     TrangThai = true,
-                    DaXacThucEmail = false
+                    DaXacThucEmail = true
                 };
 
                 _context.Taikhoans.Add(taiKhoan);

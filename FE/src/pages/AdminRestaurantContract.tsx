@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Download, FileText } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { CheckCircle2, Download, FileText, XCircle } from "lucide-react";
 import {
+    approveRestaurantDocuments,
     getAdminContract,
     downloadAdminContractFile,
+    rejectRestaurantDocuments,
 } from "../services/adminContractService";
 import type {
     AdminContractDetails,
     ContractFileType,
+    DocumentReviewResult,
 } from "../services/adminContractService";
 
 const STATUS: Record<string, string> = {
@@ -30,8 +33,21 @@ function formatDate(value: string) {
     return `${day}/${month}/${year}`;
 }
 
+interface ReviewState {
+    ketQuaGiayPhep: "" | DocumentReviewResult;
+    ketQuaGiayToDaiDien: "" | DocumentReviewResult;
+    ketQuaHopDong: "" | DocumentReviewResult;
+}
+
+const EMPTY_REVIEW: ReviewState = {
+    ketQuaGiayPhep: "",
+    ketQuaGiayToDaiDien: "",
+    ketQuaHopDong: "",
+};
+
 function AdminRestaurantContract() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [result, setResult] = useState<{
         id: string;
         data: AdminContractDetails | null;
@@ -41,6 +57,10 @@ function AdminRestaurantContract() {
     const [downloading, setDownloading] =
         useState<ContractFileType | null>(null);
     const [fileError, setFileError] = useState("");
+    const [review, setReview] = useState<ReviewState>(EMPTY_REVIEW);
+    const [reviewNote, setReviewNote] = useState("");
+    const [decisionError, setDecisionError] = useState("");
+    const [deciding, setDeciding] = useState<"approve" | "reject" | null>(null);
 
     useEffect(() => {
         const maNhaHang = Number(id);
@@ -50,7 +70,17 @@ function AdminRestaurantContract() {
 
         getAdminContract(maNhaHang)
             .then((data) => {
-                if (!cancelled) setResult({ id, data, error: "" });
+                if (!cancelled) {
+                    setResult({ id, data, error: "" });
+                    setReview(data.thamDinh
+                        ? {
+                            ketQuaGiayPhep: data.thamDinh.ketQuaGiayPhep,
+                            ketQuaGiayToDaiDien: data.thamDinh.ketQuaGiayToDaiDien,
+                            ketQuaHopDong: data.thamDinh.ketQuaHopDong,
+                        }
+                        : EMPTY_REVIEW);
+                    setReviewNote(data.thamDinh?.ghiChu ?? "");
+                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -85,6 +115,61 @@ function AdminRestaurantContract() {
             );
         } finally {
             setDownloading(null);
+        }
+    };
+
+    const allReviewed = Object.values(review).every(Boolean);
+    const allValid = Object.values(review).every(value => value === "HopLe");
+
+    const handleDecision = async (approve: boolean) => {
+        const maNhaHang = Number(id);
+        if (!contract || !Number.isInteger(maNhaHang) || deciding !== null) return;
+
+        if (!allReviewed) {
+            setDecisionError("Vui lòng chọn kết quả kiểm tra cho cả ba tài liệu.");
+            return;
+        }
+
+        if (approve && !allValid) {
+            setDecisionError("Chỉ có thể duyệt khi tất cả tài liệu đều hợp lệ.");
+            return;
+        }
+
+        if (!approve && !reviewNote.trim()) {
+            setDecisionError("Vui lòng nhập lý do từ chối hoặc nội dung cần bổ sung.");
+            return;
+        }
+
+        const payload = {
+            ketQuaGiayPhep: review.ketQuaGiayPhep as DocumentReviewResult,
+            ketQuaGiayToDaiDien: review.ketQuaGiayToDaiDien as DocumentReviewResult,
+            ketQuaHopDong: review.ketQuaHopDong as DocumentReviewResult,
+            ghiChu: reviewNote.trim() || undefined,
+        };
+
+        try {
+            setDeciding(approve ? "approve" : "reject");
+            setDecisionError("");
+
+            if (approve) {
+                await approveRestaurantDocuments(maNhaHang, payload);
+            } else {
+                await rejectRestaurantDocuments(
+                    maNhaHang,
+                    payload,
+                    reviewNote.trim()
+                );
+            }
+
+            navigate("/admin/nha-hang");
+        } catch (err) {
+            setDecisionError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể lưu kết quả thẩm định."
+            );
+        } finally {
+            setDeciding(null);
         }
     };
 
@@ -131,10 +216,11 @@ function AdminRestaurantContract() {
         type: ContractFileType;
         title: string;
         exists: boolean;
+        reviewKey: keyof ReviewState;
     }[] = [
-            { type: "giay-phep", title: "Giấy phép kinh doanh", exists: !!contract?.coGiayPhep },
-            { type: "giay-to", title: "Giấy tờ đại diện", exists: !!contract?.coGiayToDaiDien },
-            { type: "hop-dong", title: "Bản hợp đồng", exists: !!contract?.coTepHopDong },
+            { type: "giay-phep", title: "Giấy phép kinh doanh", exists: !!contract?.coGiayPhep, reviewKey: "ketQuaGiayPhep" },
+            { type: "giay-to", title: "Giấy tờ đại diện", exists: !!contract?.coGiayToDaiDien, reviewKey: "ketQuaGiayToDaiDien" },
+            { type: "hop-dong", title: "Bản hợp đồng", exists: !!contract?.coTepHopDong, reviewKey: "ketQuaHopDong" },
         ];
 
     return (
@@ -197,22 +283,115 @@ function AdminRestaurantContract() {
                         <h2>Giấy tờ đính kèm</h2>
                         {fileError && <p className="auth-error" role="alert">{fileError}</p>}
 
-                        <div className="admin-contract-files">
+                        <div className="admin-contract-review-list">
                             {documents.map((document) => (
-                                <button
-                                    key={document.type}
-                                    type="button"
-                                    disabled={!document.exists || downloading !== null}
-                                    onClick={() => void handleDownload(document.type)}
-                                >
-                                    <Download size={16} />
-                                    {downloading === document.type
-                                        ? "Đang tải..."
-                                        : document.title}
-                                    {!document.exists && " — chưa có"}
-                                </button>
+                                <div className="admin-contract-review-row" key={document.type}>
+                                    <button
+                                        type="button"
+                                        disabled={!document.exists || downloading !== null}
+                                        onClick={() => void handleDownload(document.type)}
+                                    >
+                                        <Download size={16} />
+                                        {downloading === document.type
+                                            ? "Đang tải..."
+                                            : `Tải ${document.title.toLowerCase()}`}
+                                        {!document.exists && " — chưa có"}
+                                    </button>
+
+                                    <label>
+                                        <span>Kết quả kiểm tra</span>
+                                        <select
+                                            value={review[document.reviewKey]}
+                                            disabled={contract.trangThai !== "ChoDuyet" || deciding !== null}
+                                            onChange={(event) => {
+                                                const value = event.target.value as "" | DocumentReviewResult;
+                                                setReview(current => ({
+                                                    ...current,
+                                                    [document.reviewKey]: value,
+                                                }));
+                                                setDecisionError("");
+                                            }}
+                                        >
+                                            <option value="">Chưa kiểm tra</option>
+                                            <option value="HopLe">Hợp lệ</option>
+                                            <option value="CanBoSung">Cần bổ sung</option>
+                                        </select>
+                                    </label>
+                                </div>
                             ))}
                         </div>
+                    </section>
+
+                    <section className="admin-contract-section admin-contract-review-decision">
+                        <h2>Kết quả thẩm định</h2>
+
+                        {data.thamDinh ? (
+                            <div className={`admin-contract-review-result ${data.thamDinh.ketQua === "DaDuyet" ? "approved" : "rejected"}`}>
+                                {data.thamDinh.ketQua === "DaDuyet"
+                                    ? <CheckCircle2 size={20} />
+                                    : <XCircle size={20} />}
+                                <div>
+                                    <strong>
+                                        {data.thamDinh.ketQua === "DaDuyet"
+                                            ? "Hồ sơ đã được duyệt"
+                                            : "Hồ sơ cần bổ sung"}
+                                    </strong>
+                                    <p>
+                                        Admin #{data.thamDinh.maTaiKhoanAdmin} · {formatTime(data.thamDinh.thoiGian)}
+                                    </p>
+                                    {data.thamDinh.ghiChu && <p>{data.thamDinh.ghiChu}</p>}
+                                </div>
+                            </div>
+                        ) : contract.trangThai === "ChoDuyet" ? (
+                            <>
+                                <p className="admin-contract-review-help">
+                                    Mở từng tài liệu, đối chiếu thông tin rồi chọn kết quả. Hệ thống chỉ cho duyệt khi cả ba tài liệu đều hợp lệ.
+                                </p>
+
+                                <label className="admin-contract-reject-reason">
+                                    <span>Ghi chú thẩm định / lý do cần bổ sung</span>
+                                    <textarea
+                                        rows={4}
+                                        maxLength={1000}
+                                        value={reviewNote}
+                                        disabled={deciding !== null}
+                                        placeholder="Ghi rõ nội dung sai hoặc tài liệu cần bổ sung khi từ chối..."
+                                        onChange={(event) => {
+                                            setReviewNote(event.target.value);
+                                            setDecisionError("");
+                                        }}
+                                    />
+                                </label>
+
+                                {decisionError && (
+                                    <p className="auth-error" role="alert">{decisionError}</p>
+                                )}
+
+                                <div className="admin-contract-review-actions">
+                                    <button
+                                        type="button"
+                                        className="reject"
+                                        disabled={!allReviewed || !reviewNote.trim() || deciding !== null}
+                                        onClick={() => void handleDecision(false)}
+                                    >
+                                        <XCircle size={17} />
+                                        {deciding === "reject" ? "Đang từ chối..." : "Yêu cầu bổ sung"}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="approve"
+                                        disabled={!allValid || deciding !== null}
+                                        onClick={() => void handleDecision(true)}
+                                    >
+                                        <CheckCircle2 size={17} />
+                                        {deciding === "approve" ? "Đang duyệt..." : "Duyệt hồ sơ"}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <p>Hồ sơ này không còn ở trạng thái chờ xét duyệt.</p>
+                        )}
                     </section>
 
                     <section className="admin-contract-section">

@@ -22,6 +22,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cancelOrder, getMyOrders } from "../services/orderService";
 import Pagination from "../components/Pagination";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface CustomerOrder {
   maDonHang: number;
@@ -377,12 +378,13 @@ function Orders() {
                       order.trangThai === "DaXacNhan";
 
                     return (
-                      <article
+                      <ScrollReveal
                         key={order.maDonHang}
-                        className={`customer-order-card customer-order-card-enter order-${status.className}`}
-                        style={{
-                          animationDelay: `${Math.min(index, 6) * 0.14}s`,
-                        }}
+                        className="customer-order-card-reveal"
+                        delay={Math.min(index, 3) * 60}
+                      >
+                      <article
+                        className={`customer-order-card order-${status.className}`}
                       >
                         <div className="customer-order-card-header">
                           <div className="customer-order-restaurant">
@@ -459,6 +461,7 @@ function Orders() {
                           </Link>
                         </footer>
                       </article>
+                      </ScrollReveal>
                     );
                   })}
                 </div>

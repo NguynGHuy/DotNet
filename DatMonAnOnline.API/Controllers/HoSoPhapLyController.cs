@@ -14,13 +14,16 @@ public class HoSoPhapLyController : ControllerBase
 {
     private readonly DatMonAnOnlineContext _context;
     private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<HoSoPhapLyController> _logger;
 
     public HoSoPhapLyController(
         DatMonAnOnlineContext context,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        ILogger<HoSoPhapLyController> logger)
     {
         _context = context;
         _environment = environment;
+        _logger = logger;
     }
 
     private int? LayMaTaiKhoan()
@@ -187,6 +190,16 @@ public class HoSoPhapLyController : ControllerBase
             });
         }
 
+        if (!DatMonAnOnline.API.Common.LegalDocumentValidator.HasExpectedContentType(
+            extension,
+            file.ContentType))
+        {
+            return BadRequest(new
+            {
+                message = "Loại nội dung của tệp không khớp với phần mở rộng."
+            });
+        }
+
         var maTaiKhoan = LayMaTaiKhoan();
         if (maTaiKhoan == null) return Unauthorized();
 
@@ -208,34 +221,32 @@ public class HoSoPhapLyController : ControllerBase
         var hoSo = await _context.Hosophaplynhahangs
             .FirstOrDefaultAsync(x => x.MaNhaHang == nhaHang.MaNhaHang);
 
-        // Đọc phần đầu tệp để kiểm tra định dạng.
-        await using var input = file.OpenReadStream();
-        var header = new byte[8];
-        await input.ReadExactlyAsync(header, HttpContext.RequestAborted);
+        byte[] noiDungTep;
 
-        var dungDinhDang = extension switch
+        await using (var input = file.OpenReadStream())
+        await using (var memory = new MemoryStream())
         {
-            ".pdf" => header[0] == 0x25 && header[1] == 0x50 &&
-                      header[2] == 0x44 && header[3] == 0x46 &&
-                      header[4] == 0x2D,
+            await input.CopyToAsync(memory, HttpContext.RequestAborted);
 
-            ".jpg" or ".jpeg" => header[0] == 0xFF &&
-                                header[1] == 0xD8 &&
-                                header[2] == 0xFF,
+            if (memory.Length > dungLuongToiDa)
+                return BadRequest(new
+                {
+                    message = "Dung lượng tệp không được vượt quá 5 MB."
+                });
 
-            ".png" => header[0] == 0x89 && header[1] == 0x50 &&
-                      header[2] == 0x4E && header[3] == 0x47 &&
-                      header[4] == 0x0D && header[5] == 0x0A &&
-                      header[6] == 0x1A && header[7] == 0x0A,
+            noiDungTep = memory.ToArray();
+        }
 
-            _ => false
-        };
-
-        if (!dungDinhDang)
+        if (!DatMonAnOnline.API.Common.LegalDocumentValidator.TryValidate(
+            noiDungTep,
+            extension,
+            out var loiTep))
+        {
             return BadRequest(new
             {
-                message = "Nội dung tệp không đúng định dạng đã chọn."
+                message = loiTep
             });
+        }
 
         if (hoSo == null)
         {
@@ -261,6 +272,9 @@ public class HoSoPhapLyController : ControllerBase
 
         var duongDanVatLy = Path.Combine(thuMuc, tenTep);
         var thamChieuTep = $"{nhaHang.MaNhaHang}/{tenTep}";
+        var thamChieuTepCu = loai == "giay-phep"
+            ? hoSo.FileGiayPhepKinhDoanh
+            : hoSo.FileGiayToNguoiDaiDien;
 
         try
         {
@@ -270,8 +284,7 @@ public class HoSoPhapLyController : ControllerBase
                 FileAccess.Write,
                 FileShare.None))
             {
-                await output.WriteAsync(header, HttpContext.RequestAborted);
-                await input.CopyToAsync(output, HttpContext.RequestAborted);
+                await output.WriteAsync(noiDungTep, HttpContext.RequestAborted);
             }
 
             if (loai == "giay-phep")
@@ -288,6 +301,11 @@ public class HoSoPhapLyController : ControllerBase
 
             throw;
         }
+
+        await XoaTepCuNeuKhongConDuocThamChieu(
+            nhaHang.MaNhaHang,
+            thamChieuTepCu,
+            thamChieuTep);
 
         return Ok(new
         {
@@ -378,6 +396,52 @@ public class HoSoPhapLyController : ControllerBase
         var tenTaiVe = $"{loai}-nhahang-{nhaHang.MaNhaHang}{extension}";
 
         return PhysicalFile(duongDan, contentType, tenTaiVe);
+    }
+
+    private async Task XoaTepCuNeuKhongConDuocThamChieu(
+        int maNhaHang,
+        string? thamChieuCu,
+        string thamChieuMoi)
+    {
+        if (string.IsNullOrWhiteSpace(thamChieuCu) ||
+            thamChieuCu == thamChieuMoi)
+        {
+            return;
+        }
+
+        // Giữ giấy tờ đã nằm trong hợp đồng cũ để bảo toàn lịch sử xét duyệt.
+        var dangDuocHopDongThamChieu = await _context.Hopdongnhahangs
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.FileGiayPhepKinhDoanh == thamChieuCu ||
+                x.FileGiayToNguoiDaiDien == thamChieuCu);
+
+        if (dangDuocHopDongThamChieu)
+            return;
+
+        var tenTep = Path.GetFileName(thamChieuCu);
+        if (thamChieuCu != $"{maNhaHang}/{tenTep}")
+            return;
+
+        var duongDan = Path.Combine(
+            _environment.ContentRootPath,
+            "App_Data",
+            "HoSoPhapLy",
+            maNhaHang.ToString(),
+            tenTep);
+
+        try
+        {
+            if (System.IO.File.Exists(duongDan))
+                System.IO.File.Delete(duongDan);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(
+                ex,
+                "Không thể xóa giấy tờ pháp lý cũ {LegalDocumentPath}.",
+                duongDan);
+        }
     }
 
 }

@@ -63,6 +63,8 @@ public partial class DatMonAnOnlineContext : DbContext
 
     public virtual DbSet<Thanhtoan> Thanhtoans { get; set; }
 
+    public virtual DbSet<Thamdinhhosonhahang> Thamdinhhosonhahangs { get; set; }
+
     public virtual DbSet<Thongbao> Thongbaos { get; set; }
 
     public virtual DbSet<Topping> Toppings { get; set; }
@@ -640,6 +642,41 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.HasOne(d => d.MaTaiKhoanDuyetNavigation).WithMany(p => p.Hopdongnhahangs)
                 .HasForeignKey(d => d.MaTaiKhoanDuyet)
                 .HasConstraintName("FK_HopDongNhaHang_NguoiDuyet");
+        });
+
+        modelBuilder.Entity<Thamdinhhosonhahang>(entity =>
+        {
+            entity.HasKey(e => e.MaThamDinh).HasName("PRIMARY");
+
+            entity.ToTable("thamdinhhosonhahang");
+
+            entity.HasIndex(e => e.MaHopDong, "UQ_ThamDinhHoSo_HopDong").IsUnique();
+            entity.HasIndex(e => e.MaTaiKhoanAdmin, "FK_ThamDinhHoSo_Admin");
+
+            entity.Property(e => e.KetQua)
+                .HasColumnType("enum('DaDuyet','TuChoi')");
+            entity.Property(e => e.KetQuaGiayPhep)
+                .HasColumnType("enum('HopLe','CanBoSung')");
+            entity.Property(e => e.KetQuaGiayToDaiDien)
+                .HasColumnType("enum('HopLe','CanBoSung')");
+            entity.Property(e => e.KetQuaHopDong)
+                .HasColumnType("enum('HopLe','CanBoSung')");
+            entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.ThoiGian)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne<Hopdongnhahang>()
+                .WithOne()
+                .HasForeignKey<Thamdinhhosonhahang>(e => e.MaHopDong)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ThamDinhHoSo_HopDong");
+
+            entity.HasOne<Taikhoan>()
+                .WithMany()
+                .HasForeignKey(e => e.MaTaiKhoanAdmin)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ThamDinhHoSo_Admin");
         });
 
         modelBuilder.Entity<Khachhang>(entity =>

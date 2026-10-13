@@ -145,12 +145,29 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpPut("nha-hang/{id}/duyet")]
-        public Task<IActionResult> DuyetNhaHang(int id)
+        public Task<IActionResult> DuyetNhaHang(
+            int id,
+            [FromBody] ThamDinhHoSoRequest request)
         {
-            return XuLyXetDuyet(id, true, null);
+            return XuLyXetDuyet(id, true, request, null);
         }
 
-        public class TuChoiHoSoRequest
+        public class ThamDinhHoSoRequest
+        {
+            [Required, MaxLength(20)]
+            public string KetQuaGiayPhep { get; set; } = "";
+
+            [Required, MaxLength(20)]
+            public string KetQuaGiayToDaiDien { get; set; } = "";
+
+            [Required, MaxLength(20)]
+            public string KetQuaHopDong { get; set; } = "";
+
+            [MaxLength(1000)]
+            public string? GhiChu { get; set; }
+        }
+
+        public class TuChoiHoSoRequest : ThamDinhHoSoRequest
         {
             [Required, MaxLength(500)]
             public string LyDo { get; set; } = "";
@@ -161,7 +178,7 @@ namespace DatMonAnOnline.API.Controllers
             int id,
             [FromBody] TuChoiHoSoRequest request)
         {
-            return XuLyXetDuyet(id, false, request.LyDo);
+            return XuLyXetDuyet(id, false, request, request.LyDo);
         }
 
         private bool TepHoSoTonTai(
@@ -189,6 +206,7 @@ namespace DatMonAnOnline.API.Controllers
         private async Task<IActionResult> XuLyXetDuyet(
             int id,
             bool duyet,
+            ThamDinhHoSoRequest thamDinh,
             string? lyDo)
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -197,6 +215,33 @@ namespace DatMonAnOnline.API.Controllers
                 return Unauthorized();
 
             lyDo = lyDo?.Trim();
+            var ketQuaGiayPhep = thamDinh.KetQuaGiayPhep.Trim();
+            var ketQuaGiayTo = thamDinh.KetQuaGiayToDaiDien.Trim();
+            var ketQuaHopDong = thamDinh.KetQuaHopDong.Trim();
+            var ghiChuThamDinh = thamDinh.GhiChu?.Trim();
+
+            var ketQuaTaiLieu = new[]
+            {
+                ketQuaGiayPhep,
+                ketQuaGiayTo,
+                ketQuaHopDong
+            };
+
+            if (ketQuaTaiLieu.Any(x => x != "HopLe" && x != "CanBoSung"))
+            {
+                return BadRequest(new
+                {
+                    message = "Bạn phải kiểm tra và chọn kết quả cho từng tài liệu."
+                });
+            }
+
+            if (duyet && ketQuaTaiLieu.Any(x => x != "HopLe"))
+            {
+                return BadRequest(new
+                {
+                    message = "Chỉ có thể duyệt khi tất cả tài liệu đều hợp lệ."
+                });
+            }
 
             if (!duyet && string.IsNullOrWhiteSpace(lyDo))
                 return BadRequest(new
@@ -277,6 +322,20 @@ namespace DatMonAnOnline.API.Controllers
             hopDong.MaTaiKhoanDuyet = maAdmin;
             hopDong.ThoiGianDuyet = thoiGian;
             hopDong.LyDoTuChoi = duyet ? null : lyDo;
+
+            _context.Thamdinhhosonhahangs.Add(new Thamdinhhosonhahang
+            {
+                MaHopDong = hopDong.MaHopDong,
+                MaTaiKhoanAdmin = maAdmin,
+                KetQuaGiayPhep = ketQuaGiayPhep,
+                KetQuaGiayToDaiDien = ketQuaGiayTo,
+                KetQuaHopDong = ketQuaHopDong,
+                KetQua = duyet ? "DaDuyet" : "TuChoi",
+                GhiChu = string.IsNullOrWhiteSpace(ghiChuThamDinh)
+                    ? lyDo
+                    : ghiChuThamDinh,
+                ThoiGian = thoiGian
+            });
 
             var noiDung = duyet
                 ? $"Hồ sơ nhà hàng {nhaHang.TenNhaHang} và hợp đồng {hopDong.SoHopDong} đã được duyệt."

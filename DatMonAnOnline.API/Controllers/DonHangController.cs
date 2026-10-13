@@ -594,23 +594,50 @@ namespace DatMonAnOnline.API.Controllers
 
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
-            var summary = new
-            {
-                all = await query.CountAsync(),
-                pending = await query.CountAsync(d => d.MaTrangThaiNavigation!.TenTrangThai == "ChoXacNhan"),
-                processing = await query.CountAsync(d =>
-                    d.MaTrangThaiNavigation!.TenTrangThai == "DaXacNhan" ||
-                    d.MaTrangThaiNavigation!.TenTrangThai == "DangChuanBi" ||
-                    d.MaTrangThaiNavigation!.TenTrangThai == "DangGiao"),
-                completedToday = await query.CountAsync(d =>
-                    d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh" &&
-                    d.ThoiGianDat >= today && d.ThoiGianDat < tomorrow),
-                revenueToday = await query
-                    .Where(d =>
-                        d.MaTrangThaiNavigation!.TenTrangThai == "HoanThanh" &&
-                        d.ThoiGianDat >= today && d.ThoiGianDat < tomorrow)
-                    .SumAsync(d => (decimal?)d.ThanhTien) ?? 0
-            };
+
+            var summaryQuery = query.TagWith("CVBENCH_ORDER_SUMMARY");
+
+            var summary = await summaryQuery
+                .Select(d => new
+                {
+                    TrangThai = d.MaTrangThaiNavigation!.TenTrangThai,
+                    d.ThoiGianDat,
+                    d.ThanhTien
+                })
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    all = group.Count(),
+                    pending = group.Sum(d =>
+                        d.TrangThai == "ChoXacNhan" ? 1 : 0),
+                    processing = group.Sum(d =>
+                        d.TrangThai == "DaXacNhan" ||
+                        d.TrangThai == "DangChuanBi" ||
+                        d.TrangThai == "DangGiao"
+                            ? 1
+                            : 0),
+                    completedToday = group.Sum(d =>
+                        d.TrangThai == "HoanThanh" &&
+                        d.ThoiGianDat >= today &&
+                        d.ThoiGianDat < tomorrow
+                            ? 1
+                            : 0),
+                    revenueToday = group.Sum(d =>
+                        d.TrangThai == "HoanThanh" &&
+                        d.ThoiGianDat >= today &&
+                        d.ThoiGianDat < tomorrow
+                            ? d.ThanhTien
+                            : 0m)
+                })
+                .FirstOrDefaultAsync()
+                ?? new
+                {
+                    all = 0,
+                    pending = 0,
+                    processing = 0,
+                    completedToday = 0,
+                    revenueToday = 0m
+                };
 
             if (maTrangThai.HasValue)
             {

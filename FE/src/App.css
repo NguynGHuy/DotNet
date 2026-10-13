@@ -35590,6 +35590,9 @@ fieldset.merchant-promo-form-body {
 
   transition-delay: var(--scroll-reveal-delay, 0ms);
 
+}
+
+.app-scroll-reveal:not(.is-visible) {
   will-change: opacity, transform;
 }
 
@@ -37765,13 +37768,13 @@ fieldset.merchant-promo-form-body {
 }
 
 .customer-orders-hero {
-  animation: customer-orders-hero-enter 1.1s cubic-bezier(0.22, 1, 0.36, 1)
-    0.55s both;
+  animation: customer-orders-hero-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1)
+    both;
 }
 
 .customer-order-filters {
-  animation: customer-orders-filter-enter 0.9s cubic-bezier(0.22, 1, 0.36, 1)
-    0.7s both;
+  animation: customer-orders-filter-enter 0.45s
+    cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 .customer-order-card {
@@ -37827,33 +37830,23 @@ fieldset.merchant-promo-form-body {
 
 .customer-order-card-enter {
   opacity: 0;
-  translate: 0 55px;
-  scale: 0.94;
-  filter: blur(3px);
+  translate: 0 24px;
+  scale: 0.985;
 
-  animation: customerOrderCardEnter 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: customerOrderCardEnter 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes customerOrderCardEnter {
-  0% {
+  from {
     opacity: 0;
-    translate: 0 55px;
-    scale: 0.94;
-    filter: blur(3px);
+    translate: 0 24px;
+    scale: 0.985;
   }
 
-  70% {
-    opacity: 1;
-    translate: 0 -7px;
-    scale: 1.01;
-    filter: blur(0);
-  }
-
-  100% {
+  to {
     opacity: 1;
     translate: 0 0;
     scale: 1;
-    filter: blur(0);
   }
 }
 
@@ -37952,7 +37945,7 @@ fieldset.merchant-promo-form-body {
 .customer-order-status.status-preparing svg,
 .customer-order-status.status-delivering svg {
   transform-origin: center;
-  animation: customerStatusIconPulse 2.2s ease-in-out infinite;
+  animation: customerStatusIconPulse 1.1s ease-in-out 1;
 }
 
 .customer-order-status.status-waiting,
@@ -37980,7 +37973,7 @@ fieldset.merchant-promo-form-body {
     transparent 76%
   );
   translate: -120% 0;
-  animation: customerStatusSweep 3.8s ease-in-out infinite;
+  animation: customerStatusSweep 1.4s 0.45s ease-out 1 both;
 }
 
 @keyframes customerStatusIconPulse {
@@ -39970,6 +39963,43 @@ fieldset.merchant-promo-form-body {
   box-shadow:
     0 16px 38px rgba(15, 23, 42, 0.07),
     0 5px 15px rgba(249, 115, 22, 0.04);
+}
+
+/* Danh sách đơn di chuyển theo trang: tránh blur nền trên từng card
+   vì backdrop-filter buộc trình duyệt raster lại khi cuộn. */
+.customer-orders-page .customer-order-card {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  background: #fff;
+  animation: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  contain: paint;
+}
+
+.customer-order-card-reveal {
+  width: 100%;
+  transform: translate3d(0, 30px, 0) scale(0.985);
+  transition-duration: 0.52s, 0.6s;
+}
+
+.customer-order-card-reveal.is-visible {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* Trang danh sách đơn cuộn nhiều: nền fixed và blur trên sticky header
+   buộc Edge/Chrome repaint mỗi frame, đặc biệt rõ trên Windows. */
+.customer-orders-shell {
+  background-color: #fffaf7;
+  background-image: none;
+  background-attachment: scroll;
+}
+
+.customer-orders-shell .header {
+  background: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Card địa chỉ nổi nhẹ */
@@ -43834,9 +43864,151 @@ fieldset.merchant-promo-form-body {
             cursor: not-allowed;
         }
 
+.admin-contract-review-list {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-contract-review-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.7fr);
+    align-items: end;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid #e7e5e4;
+    border-radius: 12px;
+    background: #fafaf9;
+}
+
+.admin-contract-review-row > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 10px 14px;
+    border: 1px solid #fed7aa;
+    border-radius: 9px;
+    background: #fff7ed;
+    color: #c2410c;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.admin-contract-review-row > button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.admin-contract-review-row label {
+    display: grid;
+    gap: 6px;
+    color: #57534e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-contract-review-row select {
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid #d6d3d1;
+    border-radius: 9px;
+    background: #fff;
+    color: #292524;
+    font: inherit;
+}
+
+.admin-contract-review-row select:focus {
+    outline: 2px solid #fed7aa;
+    border-color: #fb923c;
+}
+
+.admin-contract-review-help {
+    margin: -4px 0 12px;
+    color: #57534e;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.admin-contract-review-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.admin-contract-review-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 170px;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 9px;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin-contract-review-actions .approve {
+    background: #16a34a;
+}
+
+.admin-contract-review-actions .reject {
+    background: #dc2626;
+}
+
+.admin-contract-review-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.admin-contract-review-result {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid;
+    border-radius: 12px;
+}
+
+.admin-contract-review-result.approved {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.admin-contract-review-result.rejected {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.admin-contract-review-result p {
+    margin: 5px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 @media (max-width: 760px) {
     .admin-contract-info {
         grid-template-columns: 1fr;
+    }
+
+    .admin-contract-review-row {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-contract-review-actions {
+        flex-direction: column-reverse;
+    }
+
+    .admin-contract-review-actions button {
+        width: 100%;
     }
 }
 
