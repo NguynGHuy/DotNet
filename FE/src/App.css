@@ -43450,3 +43450,607 @@ fieldset.merchant-promo-form-body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*nhà hàng - hồ sơ pháp lý*/
+.merchant-legal-fieldset {
+    display: grid;
+    gap: 20px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.merchant-legal-readonly {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    background: #fff7ed;
+    color: #9a3412;
+    line-height: 1.6;
+}
+
+    .merchant-legal-readonly svg {
+        flex-shrink: 0;
+        margin-top: 3px;
+    }
+
+.merchant-legal-page .merchant-info-field input:disabled {
+    background: #f8fafc;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.merchant-legal-help {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.merchant-legal-help p {
+    margin: 0 0 14px;
+}
+
+.merchant-legal-help a {
+    color: #ea580c;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.merchant-legal-help a:hover {
+    text-decoration: underline;
+}
+
+/*nhà hàng - hồ sơ pháp lý - giấy tờ đính kèm*/
+.merchant-legal-documents {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.merchant-legal-document {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fafafa;
+}
+
+.merchant-legal-document-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+    .merchant-legal-document-heading strong {
+        color: #292524;
+        font-size: 14px;
+    }
+
+    .merchant-legal-document-heading span {
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+        .merchant-legal-document-heading span.is-uploaded {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+.merchant-legal-document > p {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.merchant-legal-file-picker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 60px;
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px dashed #fdba74;
+    border-radius: 10px;
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+    .merchant-legal-file-picker span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+    }
+
+    .merchant-legal-file-picker svg {
+        flex-shrink: 0;
+    }
+
+    .merchant-legal-file-picker input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .merchant-legal-file-picker:focus-within {
+        outline: 2px solid #ff5a1f;
+        outline-offset: 3px;
+    }
+
+    .merchant-legal-file-picker input:disabled {
+        cursor: not-allowed;
+    }
+
+@media (max-width: 760px) {
+    .merchant-legal-documents {
+        grid-template-columns: 1fr;
+    }
+}
+
+.merchant-legal-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid #fed7aa;
+    border-radius: 9px;
+    background: #fff7ed;
+    color: #c2410c;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.merchant-legal-download:hover:not(:disabled) {
+        background: #ffedd5;
+}
+
+.merchant-legal-download:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+}
+
+/*nhà hàng - hợp đồng */
+.merchant-contract-content {
+    max-height: 640px;
+    overflow-y: auto;
+    padding: 22px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fafafa;
+    color: #44403c;
+    font-size: 14px;
+    line-height: 1.85;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.merchant-contract-page .merchant-info-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.merchant-contract-fee {
+    display: block;
+    color: #ea580c;
+    font-size: 38px;
+    line-height: 1.2;
+}
+
+.merchant-contract-dates {
+    display: grid;
+    gap: 14px;
+}
+
+    .merchant-contract-dates div {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .merchant-contract-dates span,
+    .merchant-contract-policy {
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+    .merchant-contract-dates strong {
+        color: #292524;
+        font-size: 14px;
+    }
+
+.merchant-contract-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 18px 0;
+}
+
+.merchant-contract-links a {
+    color: #ea580c;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.merchant-contract-links a:hover {
+    text-decoration: underline;
+}
+
+/*nhà hàng - hợp đồng - xác nhận ký và tích chọn đã đọc điều khoản*/
+.merchant-contract-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fafafa;
+    color: #44403c;
+    font-size: 14px;
+    line-height: 1.7;
+    cursor: pointer;
+}
+
+    .merchant-contract-consent input[type="checkbox"] {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        margin: 3px 0 0;
+        accent-color: #ff5a1f;
+    }
+
+    .merchant-contract-consent:has(input:checked) {
+        border-color: #fdba74;
+        background: #fff7ed;
+    }
+
+.merchant-contract-sign-note {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/*admin - duyệt nhà hàng - xem hồ sơ hợp đồng*/
+.admin-contract-page {
+    display: grid;
+    gap: 20px;
+}
+
+.admin-contract-back,
+.admin-contract-view-link {
+    color: #ea580c;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.admin-contract-view-link {
+    padding: 10px 14px;
+    border: 1px solid #fed7aa;
+    border-radius: 9px;
+    background: #fff7ed;
+}
+
+.admin-contract-section {
+    min-width: 0;
+    padding: 24px;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    background: white;
+}
+
+    .admin-contract-section h2 {
+        margin: 0 0 20px;
+        color: #292524;
+        font-size: 18px;
+    }
+
+.admin-contract-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+    .admin-contract-heading span {
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 13px;
+    }
+
+.admin-contract-number {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ea580c;
+    overflow-wrap: anywhere;
+}
+
+.admin-contract-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin: 0;
+}
+
+    .admin-contract-info dt {
+        margin-bottom: 6px;
+        color: #78716c;
+        font-size: 13px;
+    }
+
+    .admin-contract-info dd {
+        margin: 0;
+        color: #292524;
+        font-size: 14px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+.admin-contract-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+    .admin-contract-files button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 15px;
+        border: 1px solid #fed7aa;
+        border-radius: 9px;
+        background: #fff7ed;
+        color: #c2410c;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+        .admin-contract-files button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+@media (max-width: 760px) {
+    .admin-contract-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/*admin - duyệt nhà hàng - từ chối*/
+.admin-contract-reject-reason {
+    display: grid;
+    gap: 8px;
+    margin: 18px 0;
+    text-align: left;
+    color: #44403c;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+    .admin-contract-reject-reason textarea {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fafafa;
+        color: #292524;
+        font: inherit;
+        font-weight: 400;
+        resize: vertical;
+    }
+
+        .admin-contract-reject-reason textarea:focus {
+            outline: 2px solid #fed7aa;
+            border-color: #fb923c;
+        }
+
+/*quán - hợp đồng - bổ sung hồ sơ sau từ chối*/
+.merchant-contract-resubmit-steps {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+    .merchant-contract-resubmit-steps > div {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+        .merchant-contract-resubmit-steps > div > span {
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #fff7ed;
+            color: #ea580c;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+    .merchant-contract-resubmit-steps p {
+        margin: 2px 0 0;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+/*quán - hợp đồng - thông báo chuẩn bị ký lại*/
+.merchant-contract-resubmit-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 18px;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    background: #fff7ed;
+    color: #9a3412;
+}
+
+    .merchant-contract-resubmit-notice > svg {
+        flex-shrink: 0;
+        margin-top: 3px;
+    }
+
+    .merchant-contract-resubmit-notice p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+/*quán - tổng quan - tiến độ hoàn thiện hồ sơ*/
+.merchant-setup-card {
+    margin-bottom: 24px;
+    padding: 24px;
+    border: 1px solid #fed7aa;
+    border-radius: 18px;
+    background: #fff;
+}
+
+.merchant-setup-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.merchant-setup-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.merchant-setup-heading h2 {
+    margin: 0 0 6px;
+    color: #292524;
+    font-size: 20px;
+}
+
+.merchant-setup-heading p {
+    margin: 0;
+    color: #78716c;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.merchant-setup-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.merchant-setup-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    color: #78716c;
+    text-decoration: none;
+}
+
+    .merchant-setup-step:hover {
+        border-color: #fdba74;
+    }
+
+.merchant-setup-step-number {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #f5f5f4;
+    font-weight: 700;
+}
+
+.merchant-setup-step > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.merchant-setup-step strong,
+.merchant-setup-step small {
+    display: block;
+}
+
+.merchant-setup-step strong {
+    margin-bottom: 4px;
+    color: #44403c;
+    font-size: 14px;
+}
+
+.merchant-setup-step small {
+    font-size: 12px;
+}
+
+.merchant-setup-step.is-done .merchant-setup-step-number {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+/*quán - tổng quan - lý do bổ sung và nút tiếp tục*/
+.merchant-setup-reason {
+    padding: 14px;
+    border-radius: 10px;
+    background: #fff1f2;
+    color: #be123c;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.merchant-setup-continue {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: #ff5a1f;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/*quán - tổng quan - tiến độ hồ sơ trên màn hình nhỏ*/
+@media (max-width: 760px) {
+    .merchant-setup-steps {
+        grid-template-columns: 1fr;
+    }
+}

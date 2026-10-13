@@ -15,6 +15,7 @@ import {
   TicketPercent,
   UtensilsCrossed,
   X,
+  FileText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCurrentUser } from "../services/userService";
@@ -66,6 +67,17 @@ const NAV_GROUPS: {
         label: "Thông tin quán",
         icon: Store,
       },
+      {
+         to: "/quan/ho-so-phap-ly",
+         label: "Hồ sơ pháp lý",
+         icon: ShieldCheck,
+      },
+      {
+         to: "/quan/hop-dong",
+         label: "Hợp đồng",
+         icon: FileText,
+      },
+
     ],
   },
   {
@@ -145,11 +157,8 @@ function QuanLayout() {
     };
   }, [navigate]);
 
-  useEffect(() => {
-    if (!user) {
-      setUnreadCount(0);
-      return;
-    }
+    useEffect(() => {
+        if (!user) return;
 
     let cancelled = false;
 

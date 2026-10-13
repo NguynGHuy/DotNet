@@ -31,6 +31,7 @@ import AdminLayout from "./pages/AdminLayout";
 import AdminHome from "./pages/AdminHome";
 import AdminRestaurants from "./pages/AdminRestaurants";
 import AdminPromotions from "./pages/AdminPromotions";
+import AdminRestaurantContract from "./pages/AdminRestaurantContract";
 
 import QuanLayout from "./pages/RestaurantLayout";
 import QuanHome from "./pages/RestaurantHome";
@@ -43,6 +44,8 @@ import RestaurantMenu from "./pages/RestaurantMenu";
 import RestaurantTopping from "./pages/RestaurantTopping";
 import Restaurants from "./pages/Restaurants";
 import RegisterRestaurant from "./pages/RegisterRestaurant";
+import RestaurantLegalProfile from "./pages/RestaurantLegalProfile";
+import RestaurantContract from "./pages/RestaurantContract";
 
 
 import RealtimeBridge from "./components/RealtimeBridge";
@@ -179,6 +182,14 @@ function AppContent() {
                         path="thong-tin"
                         element={<QuanRestaurantInfo />}
                     />
+
+                    <Route
+                        path="ho-so-phap-ly"
+                        element={<RestaurantLegalProfile />}
+                    />
+
+                    <Route path="hop-dong" element={<RestaurantContract />} />
+
                     <Route
                         path="trang-thai"
                         element={<QuanRestaurantStatus />}
@@ -257,6 +268,12 @@ function AppContent() {
                         path="thong-bao"
                         element={<Notifications />}
                     />
+
+                    <Route
+                        path="nha-hang/:id/ho-so"
+                        element={<AdminRestaurantContract />}
+                    />
+                    
                 </Route>
 
             </Routes>

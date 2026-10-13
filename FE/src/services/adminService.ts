@@ -70,12 +70,12 @@ export function approveRestaurant(id: number) {
     headers: authHeaders(),
   });
 }
-
-export function rejectRestaurant(id: number) {
-  return apiFetch(`/admin/nha-hang/${id}/tu-choi`, {
-    method: "PUT",
-    headers: authHeaders(),
-  });
+export function rejectRestaurant(id: number, lyDo: string) {
+    return apiFetch(`/admin/nha-hang/${id}/tu-choi`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ lyDo }),
+    });
 }
 
 export interface AdminOverview {

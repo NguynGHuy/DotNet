@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using DatMonAnOnline.API.Common;
+using DatMonAnOnline.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DatMonAnOnline.API.Models;
-using DatMonAnOnline.API.Common;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -12,10 +14,14 @@ namespace DatMonAnOnline.API.Controllers
     public class AdminController : ControllerBase
     {
         private readonly DatMonAnOnlineContext _context;
+        private readonly IWebHostEnvironment _environment;
 
-        public AdminController(DatMonAnOnlineContext context)
+        public AdminController(
+            DatMonAnOnlineContext context,
+            IWebHostEnvironment environment)
         {
             _context = context;
+            _environment = environment;
         }
 
         [HttpPost("khuyen-mai")]
@@ -139,25 +145,166 @@ namespace DatMonAnOnline.API.Controllers
         }
 
         [HttpPut("nha-hang/{id}/duyet")]
-        public async Task<IActionResult> DuyetNhaHang(int id)
+        public Task<IActionResult> DuyetNhaHang(int id)
         {
-            var quan = await _context.Nhahangs.FindAsync(id);
-            if (quan == null) return NotFound();
+            return XuLyXetDuyet(id, true, null);
+        }
 
-            quan.TrangThaiDuyet = "DaDuyet";
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Đã duyệt nhà hàng" });
+        public class TuChoiHoSoRequest
+        {
+            [Required, MaxLength(500)]
+            public string LyDo { get; set; } = "";
         }
 
         [HttpPut("nha-hang/{id}/tu-choi")]
-        public async Task<IActionResult> TuChoiNhaHang(int id)
+        public Task<IActionResult> TuChoiNhaHang(
+            int id,
+            [FromBody] TuChoiHoSoRequest request)
         {
-            var quan = await _context.Nhahangs.FindAsync(id);
-            if (quan == null) return NotFound();
+            return XuLyXetDuyet(id, false, request.LyDo);
+        }
 
-            quan.TrangThaiDuyet = "TuChoi";
+        private bool TepHoSoTonTai(
+            int maNhaHang,
+            string thuMuc,
+            string? thamChieu)
+        {
+            if (string.IsNullOrWhiteSpace(thamChieu))
+                return false;
+
+            var tenTep = Path.GetFileName(thamChieu);
+
+            if (thamChieu != $"{maNhaHang}/{tenTep}")
+                return false;
+
+            return System.IO.File.Exists(Path.Combine(
+                _environment.ContentRootPath,
+                "App_Data",
+                thuMuc,
+                maNhaHang.ToString(),
+                tenTep
+            ));
+        }
+
+        private async Task<IActionResult> XuLyXetDuyet(
+            int id,
+            bool duyet,
+            string? lyDo)
+        {
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(claim, out var maAdmin) || maAdmin <= 0)
+                return Unauthorized();
+
+            lyDo = lyDo?.Trim();
+
+            if (!duyet && string.IsNullOrWhiteSpace(lyDo))
+                return BadRequest(new
+                {
+                    message = "Vui lòng nhập lý do từ chối."
+                });
+
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync();
+
+            var nhaHangs = await _context.Nhahangs
+                .FromSqlInterpolated(
+                    $"SELECT * FROM nhahang WHERE MaNhaHang = {id} FOR UPDATE")
+                .ToListAsync();
+
+            var nhaHang = nhaHangs.SingleOrDefault();
+
+            if (nhaHang == null)
+                return NotFound(new
+                {
+                    message = "Không tìm thấy nhà hàng."
+                });
+
+            var hopDong = await _context.Hopdongnhahangs
+                .Where(x => x.MaNhaHang == id)
+                .OrderByDescending(x => x.MaHopDong)
+                .FirstOrDefaultAsync();
+
+            if (nhaHang.TrangThaiDuyet != "ChoDuyet" ||
+                hopDong == null ||
+                hopDong.TrangThai != "ChoDuyet")
+            {
+                return Conflict(new
+                {
+                    message = "Nhà hàng và hợp đồng phải đang chờ xét duyệt."
+                });
+            }
+
+            if (duyet)
+            {
+                if (hopDong.ThoiGianKy == null ||
+                    hopDong.ThoiGianDongYDieuKhoan == null ||
+                    hopDong.ThoiGianGuiDuyet == null ||
+                    string.IsNullOrWhiteSpace(hopDong.NoiDungHopDong))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Hợp đồng chưa có đầy đủ thông tin xác nhận."
+                    });
+                }
+
+                var homNay = DateOnly.FromDateTime(DateTime.Now);
+
+                if (homNay < hopDong.NgayBatDau ||
+                    homNay > hopDong.NgayKetThuc)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Hợp đồng chưa đến ngày bắt đầu hoặc đã hết hạn."
+                    });
+                }
+
+                if (!TepHoSoTonTai(id, "HopDong", hopDong.FileHopDong) ||
+                    !TepHoSoTonTai(id, "HoSoPhapLy", hopDong.FileGiayPhepKinhDoanh) ||
+                    !TepHoSoTonTai(id, "HoSoPhapLy", hopDong.FileGiayToNguoiDaiDien))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Không tìm thấy đầy đủ tệp hợp đồng và giấy tờ."
+                    });
+                }
+            }
+
+            var thoiGian = DateTime.Now;
+
+            nhaHang.TrangThaiDuyet = duyet ? "DaDuyet" : "TuChoi";
+            hopDong.TrangThai = duyet ? "HieuLuc" : "TuChoi";
+            hopDong.MaTaiKhoanDuyet = maAdmin;
+            hopDong.ThoiGianDuyet = thoiGian;
+            hopDong.LyDoTuChoi = duyet ? null : lyDo;
+
+            var noiDung = duyet
+                ? $"Hồ sơ nhà hàng {nhaHang.TenNhaHang} và hợp đồng {hopDong.SoHopDong} đã được duyệt."
+                : $"Hồ sơ nhà hàng bị từ chối. Lý do: {lyDo}";
+
+            _context.Thongbaos.Add(new Thongbao
+            {
+                MaTaiKhoan = nhaHang.MaTaiKhoan,
+                TieuDe = duyet ? "Hồ sơ đã được duyệt" : "Hồ sơ bị từ chối",
+                NoiDung = noiDung.Length > 500 ? noiDung[..500] : noiDung,
+                Loai = "HopDong",
+                DuongDan = "/quan/hop-dong",
+                DaDoc = false,
+                NgayTao = thoiGian
+            });
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Đã từ chối nhà hàng" });
+            await transaction.CommitAsync();
+
+            return Ok(new
+            {
+                message = duyet
+                    ? "Đã duyệt nhà hàng và hợp đồng."
+                    : "Đã từ chối hồ sơ.",
+                nhaHang.MaNhaHang,
+                hopDong.MaHopDong,
+                trangThaiHopDong = hopDong.TrangThai
+            });
         }
 
         [HttpGet("thong-ke/tong-quan")]

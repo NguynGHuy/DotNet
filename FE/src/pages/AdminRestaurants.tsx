@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
     Building2,
     Check,
@@ -35,6 +36,7 @@ function AdminRestaurants() {
     const [pageNumber, setPageNumber] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [rejectReason, setRejectReason] = useState("");
 
     const loadRestaurants = useCallback(async (showLoading = true) => {
         try {
@@ -62,18 +64,58 @@ function AdminRestaurants() {
     }, [keyword, pageNumber]);
 
     useEffect(() => {
-        void loadRestaurants();
-    }, [loadRestaurants]);
+        let cancelled = false;
+
+        getPendingRestaurants({
+            pageNumber,
+            pageSize: PAGE_SIZE,
+            search: keyword.trim() || undefined,
+        })
+            .then((result) => {
+                if (cancelled) return;
+
+                setRestaurants(result.items);
+                setTotalItems(result.totalItems);
+                setTotalPages(result.totalPages);
+                setError("");
+
+                if (result.pageNumber !== pageNumber) {
+                    setPageNumber(result.pageNumber);
+                }
+            })
+            .catch((err: unknown) => {
+                if (cancelled) return;
+
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Không thể tải danh sách nhà hàng."
+                );
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [keyword, pageNumber]);
 
     const closeDecision = () => {
         if (busyId !== null) return;
         setDecision(null);
+        setRejectReason("");
     };
 
     const handleDecision = async () => {
         if (!decision || busyId !== null) return;
 
         const { restaurant, approve } = decision;
+
+        if (!approve && !rejectReason.trim()) {
+            setError("Vui lòng nhập lý do từ chối.");
+            return;
+        }
 
         try {
             setBusyId(restaurant.maNhaHang);
@@ -82,11 +124,15 @@ function AdminRestaurants() {
             if (approve) {
                 await approveRestaurant(restaurant.maNhaHang);
             } else {
-                await rejectRestaurant(restaurant.maNhaHang);
+                await rejectRestaurant(
+                    restaurant.maNhaHang,
+                    rejectReason.trim()
+                );
             }
 
             await loadRestaurants(false);
             setDecision(null);
+            setRejectReason("");
         } catch (err) {
             setError(
                 err instanceof Error
@@ -152,6 +198,8 @@ function AdminRestaurants() {
                             placeholder="Tìm tên, địa chỉ hoặc mã nhà hàng..."
                             value={keyword}
                             onChange={(event) => {
+                                setLoading(true);
+                                setError("");
                                 setKeyword(event.target.value);
                                 setPageNumber(1);
                             }}
@@ -224,6 +272,12 @@ function AdminRestaurants() {
                                 </div>
 
                                 <div className="admin-restaurant-request-actions">
+                                    <Link
+                                        className="admin-contract-view-link"
+                                        to={`/admin/nha-hang/${restaurant.maNhaHang}/ho-so`}
+                                    >
+                                        Xem hồ sơ & hợp đồng
+                                    </Link>
                                     <button
                                         type="button"
                                         className="reject"
@@ -264,7 +318,13 @@ function AdminRestaurants() {
                         pageNumber={pageNumber}
                         totalPages={totalPages}
                         totalItems={totalItems}
-                        onPageChange={setPageNumber}
+                        onPageChange={(page) => {
+                            if (page === pageNumber) return;
+
+                            setLoading(true);
+                            setError("");
+                            setPageNumber(page);
+                        }}
                     />
                 )}
             </section>
@@ -316,10 +376,17 @@ function AdminRestaurants() {
                         </p>
 
                         {!decision.approve && (
-                            <div className="admin-decision-warning">
-                                Nhà hàng sẽ không thể hoạt động trên hệ thống
-                                sau khi bị từ chối.
-                            </div>
+                            <label className="admin-contract-reject-reason">
+                                <span>Lý do từ chối</span>
+                                <textarea
+                                    rows={3}
+                                    maxLength={500}
+                                    value={rejectReason}
+                                    disabled={busyId !== null}
+                                    placeholder="Nêu rõ thông tin hoặc giấy tờ cần bổ sung..."
+                                    onChange={(event) => setRejectReason(event.target.value)}
+                                />
+                            </label>
                         )}
 
                         <div className="admin-decision-actions">

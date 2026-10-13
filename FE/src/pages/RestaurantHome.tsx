@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import RestaurantSetupProgress from "../components/RestaurantSetupProgress";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -193,6 +194,13 @@ function QuanHome() {
         </button>
         </header>
       </ScrollReveal>
+
+      {restaurant.trangThaiDuyet !== "DaDuyet" && (
+        <RestaurantSetupProgress
+        key={restaurant.maNhaHang}
+        restaurant={restaurant}
+       />
+)}
 
       <ScrollReveal className="merchant-live-stats-reveal" delay={100}>
         <section className="merchant-live-stats">
