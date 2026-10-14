@@ -9,6 +9,7 @@ import {
 function LatestCartBar() {
     const navigate = useNavigate();
     const [cart, setCart] = useState<RestaurantCart | null>(null);
+    const [bump, setBump] = useState(false);
 
     const loadLatestCart = useCallback(async () => {
         try {
@@ -25,7 +26,11 @@ function LatestCartBar() {
             void loadLatestCart();
         }, 0);
 
-        const handleCartUpdated = () => void loadLatestCart();
+        const handleCartUpdated = () => {
+            void loadLatestCart();
+            setBump(true);
+            window.setTimeout(() => setBump(false), 800);
+        };
         const handleLoginSuccess = () => void loadLatestCart();
         const handleLogoutSuccess = () => void loadLatestCart();
 
@@ -66,7 +71,8 @@ function LatestCartBar() {
     };
 
     return (
-        <aside className="latest-cart-home-dock" aria-label="Giỏ hàng gần đây">
+        <aside className={`latest-cart-home-dock ${bump ? "is-bumped" : ""}`} aria-label="Giỏ hàng gần đây">
+            {bump && <span className="cart-bump-float-tag">+1 món</span>}
             <button
                 type="button"
                 className="latest-cart-home-button"

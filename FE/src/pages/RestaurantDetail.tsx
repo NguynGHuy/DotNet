@@ -33,6 +33,7 @@ import ScrollReveal from "../components/ScrollReveal";
 import {
   ArrowLeft,
   Bike,
+  Check,
   ChevronDown,
   CircleAlert,
   Clock3,
@@ -154,8 +155,9 @@ function RestaurantDetail() {
   const [foodModalLoading, setFoodModalLoading] = useState(false);
 
   const [addingToCart, setAddingToCart] = useState(false);
-
   const [cartError, setCartError] = useState("");
+  const [cartBump, setCartBump] = useState(false);
+  const [justAddedId, setJustAddedId] = useState<number | null>(null);
 
   /* =========================================================
        LOAD NHÀ HÀNG
@@ -463,6 +465,11 @@ function RestaurantDetail() {
       });
       await loadCurrentRestaurantCart();
       window.dispatchEvent(new Event("cart-updated"));
+      const addedId = selectedFood.maMonAn;
+      setJustAddedId(addedId);
+      setCartBump(true);
+      window.setTimeout(() => setCartBump(false), 800);
+      window.setTimeout(() => setJustAddedId(null), 1800);
       setSelectedFood(null);
     } catch (err) {
       setCartError(
@@ -880,11 +887,18 @@ function RestaurantDetail() {
 
                         <button
                           type="button"
-                          className="customer-add-cart-button"
+                          className={`customer-add-cart-button ${
+                            justAddedId === item.maMonAn ? "is-success" : ""
+                          }`}
                           disabled={!isOpen || foodModalLoading}
                           onClick={() => openFoodModal(item.maMonAn)}
                         >
-                          {foodModalLoading ? (
+                          {justAddedId === item.maMonAn ? (
+                            <>
+                              <Check size={16} />
+                              <span>Đã thêm</span>
+                            </>
+                          ) : foodModalLoading ? (
                             "Đang mở..."
                           ) : !isOpen ? (
                             "Đóng cửa"
@@ -1084,10 +1098,11 @@ function RestaurantDetail() {
         type="button"
         className={`restaurant-floating-cart ${
           (cart?.soLuongMon ?? 0) > 0 ? "has-items" : "empty"
-        }`}
+        } ${cartBump ? "is-bumped" : ""}`}
         aria-label={`Mở giỏ hàng của ${restaurant.tenNhaHang}`}
         onClick={openRestaurantCart}
       >
+        {cartBump && <span className="cart-bump-float-tag">+1 món</span>}
         <span key={cart?.soLuongMon ?? 0} className="floating-cart-icon">
           <ShoppingCart size={21} />
 

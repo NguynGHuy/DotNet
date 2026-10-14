@@ -33,6 +33,13 @@ const QR_ROWS = [
 function PaymentQr() {
     return (
         <div className="qr-box" aria-hidden="true">
+            <div className="qr-scanner-frame">
+                <span className="qr-corner top-left" />
+                <span className="qr-corner top-right" />
+                <span className="qr-corner bottom-left" />
+                <span className="qr-corner bottom-right" />
+                <div className="qr-laser-line" />
+            </div>
             <div className="fake-qr">
                 {QR_ROWS.map((row, y) =>
                     [...row].map((bit, x) => (

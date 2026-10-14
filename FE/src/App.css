@@ -39473,42 +39473,12 @@ fieldset.merchant-promo-form-body {
 ========================================= */
 
 .merchant-notification-row {
-  opacity: 0;
-
-  animation: notificationRowIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 1;
 
   transition:
-    background-color 0.35s ease,
-    border-color 0.35s ease,
-    box-shadow 0.35s ease;
-}
-
-.merchant-notification-row:nth-child(1) {
-  animation-delay: 0.72s;
-}
-
-.merchant-notification-row:nth-child(2) {
-  animation-delay: 0.84s;
-}
-
-.merchant-notification-row:nth-child(3) {
-  animation-delay: 0.96s;
-}
-
-.merchant-notification-row:nth-child(4) {
-  animation-delay: 1.08s;
-}
-
-.merchant-notification-row:nth-child(5) {
-  animation-delay: 1.2s;
-}
-
-.merchant-notification-row:nth-child(6) {
-  animation-delay: 1.32s;
-}
-
-.merchant-notification-row:nth-child(n + 7) {
-  animation-delay: 1.44s;
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 /* Không di chuyển cả hàng để tránh bấm hụt */
@@ -44225,4 +44195,1701 @@ fieldset.merchant-promo-form-body {
     .merchant-setup-steps {
         grid-template-columns: 1fr;
     }
+}
+
+
+/* ==========================================================================
+   HỆ THỐNG ANIMATION TOÀN DIỆN CHO ROLE USER & ROLE ADMIN
+   Tối ưu hóa hiệu năng 60fps - Chống giật lag khi cuộn - Tăng trải nghiệm WOW
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   PHẦN 1: ANIMATION DÀNH CHO ROLE USER (KHÁCH HÀNG)
+   -------------------------------------------------------------------------- */
+
+:root {
+  --anim-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --anim-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-dur-fast: 180ms;
+  --anim-dur-normal: 320ms;
+}
+
+/* Fast & Continuous Skeleton Shimmer Wave */
+@keyframes userSkeletonShimmerWave {
+  0% {
+    transform: translate3d(-120%, 0, 0);
+  }
+  100% {
+    transform: translate3d(120%, 0, 0);
+  }
+}
+
+/* Elastic double-bump for Cart */
+@keyframes userCartElasticBump {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.18) rotate(-4deg);
+  }
+  50% {
+    transform: scale(0.92) rotate(3deg);
+  }
+  75% {
+    transform: scale(1.08) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Floating '+1 món' notification bubble */
+@keyframes userFloatTagPop {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 10px, 0) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translate3d(-50%, -15px, 0) scale(1.15);
+  }
+  80% {
+    opacity: 1;
+    transform: translate3d(-50%, -28px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -40px, 0) scale(0.85);
+  }
+}
+
+/* Delivery Bike Rider on Timeline */
+@keyframes userRiderBounce {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate3d(2px, -3px, 0) rotate(-3deg);
+  }
+  70% {
+    transform: translate3d(-1px, -1px, 0) rotate(2deg);
+  }
+}
+
+@keyframes userRiderPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(244, 81, 30, 0.65);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(244, 81, 30, 0);
+  }
+}
+
+/* High-tech QR Laser Scanning Beam */
+@keyframes userLaserScanSweep {
+  0% {
+    transform: translate3d(0, 4px, 0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(0, 210px, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 4px, 0);
+    opacity: 0.85;
+  }
+}
+
+@keyframes userCornerBlink {
+  0%, 100% {
+    border-color: #f4511e;
+    filter: drop-shadow(0 0 3px rgba(244, 81, 30, 0.8));
+  }
+  50% {
+    border-color: #ff8a65;
+    filter: drop-shadow(0 0 7px rgba(255, 112, 67, 1));
+  }
+}
+
+/* Checkmark pop for quick-add */
+@keyframes userCheckDrawPop {
+  0% {
+    transform: scale(0.4) rotate(-30deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.22) rotate(4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Light shimmer sweep on card hover */
+@keyframes userShineSweep {
+  0% {
+    transform: translate3d(-120%, 0, 0) skewX(-20deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translate3d(140%, 0, 0) skewX(-20deg);
+    opacity: 0;
+  }
+}
+
+/* Star rating golden burst */
+@keyframes userStarBurst {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.4) rotate(14deg);
+    filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.7));
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Bell wiggle */
+@keyframes userBellWiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(16deg) scale(1.12);
+  }
+  30% {
+    transform: rotate(-16deg) scale(1.12);
+  }
+  45% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+/* Status beacon ripple */
+@keyframes userStatusBeacon {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 131, 75, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(22, 131, 75, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 131, 75, 0);
+  }
+}
+
+/* Modal Spring In */
+@keyframes userModalSpringIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Progress countdown bar */
+@keyframes userToastProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Isolate layout calculations for repeating cards */
+.restaurant-card,
+.customer-food-card,
+.customer-order-card,
+.address-card,
+.customer-voucher-card {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+/* High-contrast, fast, continuous Skeleton Shimmer */
+.restaurant-skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 15%,
+    rgba(255, 255, 255, 0.45) 35%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.45) 65%,
+    transparent 85%
+  ) !important;
+  transform: translate3d(-120%, 0, 0);
+  animation: userSkeletonShimmerWave 0.92s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+
+/* Header Quick Notification Bell & Badge */
+.header-bell-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              color var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.header-bell-link:hover {
+  transform: translate3d(0, -2px, 0);
+  color: var(--primary);
+  border-color: #cbd5e1;
+}
+
+.header-bell-link:active {
+  transform: scale(0.92);
+}
+
+.header-bell-link.has-unread svg {
+  animation: userBellWiggle 2.6s ease infinite;
+}
+
+.header-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+}
+
+.user-avatar-unread-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dc2626;
+  border: 2px solid #ffffff;
+  animation: userStatusBeacon 2s infinite;
+}
+
+/* Elastic Cart Bump & Floating '+1 món' Bubble */
+.restaurant-floating-cart.is-bumped,
+.latest-cart-home-dock.is-bumped {
+  animation: userCartElasticBump 0.65s var(--anim-ease-spring) both !important;
+}
+
+.cart-bump-float-tag {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: #16834b;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(22, 131, 75, 0.35);
+  animation: userFloatTagPop 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.customer-add-cart-button.is-success {
+  background: #16834b !important;
+  color: #ffffff !important;
+  border-color: #16834b !important;
+  animation: userCheckDrawPop 0.4s var(--anim-ease-spring) both;
+}
+
+.customer-add-cart-button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* High-tech QR Code Scanner Viewfinder */
+.qr-box {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.qr-scanner-frame {
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.qr-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 3.5px solid #f4511e;
+  animation: userCornerBlink 2.5s ease-in-out infinite;
+}
+
+.qr-corner.top-left {
+  top: 0;
+  left: 0;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 8px;
+}
+
+.qr-corner.top-right {
+  top: 0;
+  right: 0;
+  border-left: none;
+  border-bottom: none;
+  border-top-right-radius: 8px;
+}
+
+.qr-corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-right: none;
+  border-top: none;
+  border-bottom-left-radius: 8px;
+}
+
+.qr-corner.bottom-right {
+  bottom: 0;
+  right: 0;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 8px;
+}
+
+.qr-laser-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #f4511e 30%, #ff7043 50%, #f4511e 70%, transparent 100%);
+  box-shadow: 0 0 10px #f4511e, 0 0 20px #ff7043;
+  animation: userLaserScanSweep 2.2s ease-in-out infinite;
+}
+
+/* Delivery Bike Shipper on Timeline */
+.order-delivery-bike-badge {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f4511e;
+  color: #ffffff;
+  animation: userRiderPulseGlow 1.8s infinite, userRiderBounce 1.2s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(244, 81, 30, 0.4);
+  z-index: 10;
+}
+
+.order-delivery-bike-badge::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #f4511e transparent transparent transparent;
+}
+
+/* Interactive Cards & Reviews */
+.restaurant-card:hover {
+  transform: translate3d(0, -6px, 0);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
+}
+
+.restaurant-card:hover .restaurant-image-shine {
+  animation: userShineSweep 0.85s ease;
+}
+
+.restaurant-status.open {
+  animation: userStatusBeacon 2.2s infinite;
+}
+
+.customer-food-card:hover {
+  transform: translate3d(0, -5px, 0);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.07);
+}
+
+.order-review-stars button:hover,
+.order-review-stars button.selected {
+  animation: userStarBurst 0.4s var(--anim-ease-spring) both;
+  color: #eab308;
+}
+
+.food-option-modal,
+.customer-cancel-dialog,
+.payment-qr-modal {
+  animation: userModalSpringIn 0.35s var(--anim-ease-out) both;
+}
+
+.realtime-toast {
+  position: relative;
+  overflow: hidden;
+  animation: userModalSpringIn 0.4s var(--anim-ease-out) both;
+}
+
+.realtime-toast::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #f4511e;
+  animation: userToastProgress 6.5s linear forwards;
+}
+
+
+/* --------------------------------------------------------------------------
+   PHẦN 2: HỆ THỐNG ANIMATION DÀNH CHO ROLE ADMIN (QUẢN TRỊ VIÊN)
+   -------------------------------------------------------------------------- */
+
+/* Admin Keyframes */
+@keyframes adminPageEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes adminCardStagger {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes adminPendingBeacon {
+  0%, 100% {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45);
+  }
+  50% {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes adminClockTick {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-12deg);
+  }
+  75% {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes adminShieldPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.5));
+  }
+}
+
+@keyframes adminGreenBeacon {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(22, 131, 75, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(22, 131, 75, 0);
+  }
+}
+
+@keyframes adminWaitingDotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes adminModalSpringIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* 1. Admin Layout & Sidebar */
+.admin-pro-sidebar {
+  transition: transform var(--anim-dur-normal) var(--anim-ease-out),
+              box-shadow var(--anim-dur-normal) ease;
+}
+
+.admin-pro-brand {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.admin-pro-brand:hover {
+  transform: scale(1.02);
+}
+
+.admin-pro-brand:hover .admin-pro-brand-icon {
+  transform: rotate(-10deg) scale(1.12);
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(244, 81, 30, 0.35);
+}
+
+.admin-pro-brand-icon {
+  transition: transform var(--anim-dur-normal) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+/* Admin Role Badge */
+.admin-pro-role span svg {
+  animation: adminShieldPulse 3.5s ease-in-out infinite;
+}
+
+/* Navigation items */
+.admin-pro-nav a {
+  position: relative;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease,
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-pro-nav a:hover {
+  transform: translate3d(4px, 0, 0);
+  background-color: #f8fafc;
+  color: var(--primary);
+}
+
+.admin-pro-nav a:hover .admin-pro-nav-icon svg {
+  transform: scale(1.18);
+  color: var(--primary);
+}
+
+.admin-pro-nav-icon svg {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              color var(--anim-dur-fast) ease;
+}
+
+.admin-pro-nav a:hover .admin-pro-nav-arrow {
+  transform: translate3d(4px, 0, 0);
+  color: var(--primary);
+}
+
+.admin-pro-nav-arrow {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.admin-pro-nav a.active {
+  background-color: #fff4ef !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.admin-pro-nav a.active .admin-pro-nav-icon svg {
+  color: var(--primary);
+}
+
+/* Admin User Profile & Logout */
+.admin-pro-sidebar-user span {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.admin-pro-sidebar-user:hover span {
+  transform: scale(1.1);
+}
+
+.admin-pro-logout {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.admin-pro-logout:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+  transform: translate3d(2px, 0, 0);
+}
+
+/* 2. Admin Dashboard (AdminHome) */
+.admin-dashboard {
+  animation: adminPageEnter var(--anim-dur-normal) var(--anim-ease-out) both;
+}
+
+/* Pending Requests Alert Banner */
+.admin-pending-summary.has-pending {
+  animation: adminPendingBeacon 2.5s ease-in-out infinite;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-pending-summary.has-pending:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.25);
+}
+
+.admin-pending-summary.has-pending .admin-pending-icon svg {
+  animation: adminClockTick 1.8s ease-in-out infinite;
+}
+
+.admin-pending-summary:hover svg:last-child {
+  transform: translate3d(4px, 0, 0);
+}
+
+.admin-pending-summary svg:last-child {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+/* Stat Cards in Dashboard */
+.admin-dashboard-stats {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-dashboard-stat {
+  contain: layout style;
+  position: relative;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.admin-dashboard-stat:hover {
+  transform: translate3d(0, -5px, 0);
+}
+
+.admin-dashboard-stat.tone-blue:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.15);
+}
+
+.admin-dashboard-stat.tone-green:hover {
+  border-color: #bbf7d0;
+  box-shadow: 0 12px 28px rgba(34, 197, 94, 0.15);
+}
+
+.admin-dashboard-stat.tone-orange:hover {
+  border-color: #fed7aa;
+  box-shadow: 0 12px 28px rgba(249, 115, 22, 0.15);
+}
+
+.admin-dashboard-stat.tone-purple:hover {
+  border-color: #e9d5ff;
+  box-shadow: 0 12px 28px rgba(168, 85, 247, 0.15);
+}
+
+.admin-stat-icon {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.admin-dashboard-stat:hover .admin-stat-icon {
+  transform: scale(1.15) rotate(6deg);
+}
+
+.admin-stat-content strong {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+  display: inline-block;
+}
+
+.admin-dashboard-stat:hover .admin-stat-content strong {
+  transform: scale(1.04);
+}
+
+/* Ranking Items */
+.admin-ranking-item {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              background-color var(--anim-dur-fast) ease;
+}
+
+.admin-ranking-item:hover {
+  transform: translate3d(4px, 0, 0);
+  background-color: #f8fafc;
+}
+
+.admin-ranking-item:hover .admin-ranking-star svg {
+  animation: userStarBurst 0.4s var(--anim-ease-spring);
+}
+
+/* 3. Admin Accounts (AdminAccounts) */
+.admin-accounts-pro {
+  animation: adminPageEnter var(--anim-dur-normal) var(--anim-ease-out) both;
+}
+
+.admin-accounts-refresh {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease;
+}
+
+.admin-accounts-refresh:hover:not(:disabled) {
+  transform: scale(1.05);
+  background-color: #f1f5f9;
+}
+
+.admin-accounts-refresh:hover:not(:disabled) svg {
+  transform: rotate(180deg);
+}
+
+.admin-accounts-refresh svg {
+  transition: transform 0.4s var(--anim-ease-out);
+}
+
+/* Summary metric cards */
+.admin-account-summary article {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-account-summary article:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Search bar focus */
+.admin-account-search-pro:focus-within {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(244, 81, 30, 0.15) !important;
+}
+
+/* Table rows */
+.admin-account-table-pro tbody tr {
+  transition: background-color var(--anim-dur-fast) ease;
+}
+
+.admin-account-table-pro tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Account State badges */
+.admin-account-state.is-active {
+  animation: adminGreenBeacon 2.5s infinite;
+}
+
+.admin-account-state.is-locked {
+  border-color: #fecaca;
+  background-color: #fef2f2;
+}
+
+.admin-toggle-btn {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.admin-toggle-btn:hover {
+  transform: scale(1.1);
+}
+
+.admin-toggle-btn:active {
+  transform: scale(0.92);
+}
+
+/* 4. Admin Restaurants (AdminRestaurants) */
+.admin-restaurants-pro {
+  animation: adminPageEnter var(--anim-dur-normal) var(--anim-ease-out) both;
+}
+
+.admin-restaurant-request {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.admin-restaurant-request:hover {
+  transform: translate3d(0, -4px, 0);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+}
+
+.admin-waiting-badge i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  margin-right: 5px;
+  animation: adminWaitingDotPulse 1.8s ease-in-out infinite;
+}
+
+.admin-contract-view-link {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease,
+              background-color var(--anim-dur-fast) ease;
+}
+
+.admin-contract-view-link:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 6px 16px rgba(244, 81, 30, 0.25);
+}
+
+/* 5. Admin Promotions (AdminPromotions) */
+.admin-promotions-pro {
+  animation: adminPageEnter var(--anim-dur-normal) var(--anim-ease-out) both;
+}
+
+.admin-promotion-summary article {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-promotion-summary article:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.admin-promotions-create-btn {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-promotions-create-btn:hover {
+  transform: translate3d(0, -2px, 0) scale(1.02);
+  box-shadow: 0 8px 20px rgba(244, 81, 30, 0.3);
+}
+
+.admin-promotions-create-btn:active {
+  transform: scale(0.95);
+}
+
+.admin-promotion-filters button {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.admin-promotion-filters button:hover {
+  transform: translate3d(0, -1px, 0);
+}
+
+.admin-promotion-filters button.active {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(244, 81, 30, 0.25);
+}
+
+/* 6. Admin Restaurant Contract Review (AdminRestaurantContract) */
+.admin-contract-pro {
+  animation: adminPageEnter var(--anim-dur-normal) var(--anim-ease-out) both;
+}
+
+.admin-contract-card {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.admin-contract-card:hover {
+  transform: translate3d(0, -3px, 0);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05);
+}
+
+.admin-file-download-btn {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.admin-file-download-btn:hover {
+  transform: translate3d(0, 2px, 0);
+}
+
+.admin-contract-decision-box button {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.admin-contract-decision-box button:hover:not(:disabled) {
+  transform: translate3d(0, -2px, 0);
+}
+
+.admin-contract-decision-box button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Modals & Dialogs in Admin */
+.admin-promotion-modal,
+.admin-decision-modal {
+  animation: adminModalSpringIn 0.35s var(--anim-ease-out) both;
+}
+
+/* Reduced Motion for Admin */
+@media (prefers-reduced-motion: reduce) {
+  .admin-dashboard,
+  .admin-accounts-pro,
+  .admin-restaurants-pro,
+  .admin-promotions-pro,
+  .admin-contract-pro,
+  .admin-pending-summary.has-pending,
+  .admin-account-state.is-active,
+  .admin-waiting-badge i {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* ==========================================================================
+   PHẦN 3: HIỆU ỨNG XUẤT HIỆN LẦN ĐẦU CHO TẤT CẢ CÁC CARD (CARD ENTRANCE CASCADE)
+   ========================================================================== */
+
+/* Keyframe xuất hiện mượt mà với micro-spring GPU-accelerated */
+@keyframes cardSmoothEntrance {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(0.96);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(0, -2px, 0) scale(1.008);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Áp dụng hiệu ứng xuất hiện lần đầu cho toàn bộ các Card của User, Merchant & Admin */
+.app-scroll-reveal.is-visible .restaurant-card,
+.app-scroll-reveal.is-visible .customer-food-card,
+.app-scroll-reveal.is-visible .customer-order-card,
+.app-scroll-reveal.is-visible .address-card,
+.restaurant-voucher-grid > .customer-voucher-card,
+.voucher-wallet-grid > .customer-voucher-card,
+.cart-items > .cart-item,
+.checkout-compact-card,
+.checkout-review-item,
+.order-detail-card,
+.order-detail-food-item,
+.merchant-live-stats > article,
+.merchant-order-list > .merchant-order-card,
+.merchant-menu-grid > .merchant-menu-card,
+.merchant-category-list > .merchant-category-row,
+.merchant-options-group-list > .merchant-options-group,
+.merchant-recent-list > button,
+.admin-dashboard-stats > .admin-dashboard-stat,
+.admin-ranking-list > .admin-ranking-item,
+.admin-account-summary > article,
+.admin-account-table-pro tbody > tr,
+.admin-restaurant-request-list > .admin-restaurant-request,
+.admin-promotion-summary > article,
+.admin-contract-grid > .admin-contract-card {
+  animation: cardSmoothEntrance 0.52s var(--anim-ease-out) both;
+}
+
+/* Hiệu ứng bậc thang so le (Staggered Cascade Delays) */
+.restaurant-grid > *:nth-child(1),
+.customer-menu-grid > *:nth-child(1),
+.cart-items > *:nth-child(1),
+.customer-order-list > *:nth-child(1),
+.address-list > *:nth-child(1),
+.voucher-wallet-grid > *:nth-child(1),
+.merchant-live-stats > *:nth-child(1),
+.merchant-order-list > *:nth-child(1),
+.merchant-menu-grid > *:nth-child(1),
+.merchant-category-list > *:nth-child(1),
+.merchant-options-group-list > *:nth-child(1),
+.admin-dashboard-stats > *:nth-child(1),
+.admin-ranking-list > *:nth-child(1),
+.admin-account-summary > *:nth-child(1),
+.admin-account-table-pro tbody > tr:nth-child(1),
+.admin-restaurant-request-list > *:nth-child(1),
+.admin-contract-grid > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+
+.restaurant-grid > *:nth-child(2),
+.customer-menu-grid > *:nth-child(2),
+.cart-items > *:nth-child(2),
+.customer-order-list > *:nth-child(2),
+.address-list > *:nth-child(2),
+.voucher-wallet-grid > *:nth-child(2),
+.merchant-live-stats > *:nth-child(2),
+.merchant-order-list > *:nth-child(2),
+.merchant-menu-grid > *:nth-child(2),
+.merchant-category-list > *:nth-child(2),
+.merchant-options-group-list > *:nth-child(2),
+.admin-dashboard-stats > *:nth-child(2),
+.admin-ranking-list > *:nth-child(2),
+.admin-account-summary > *:nth-child(2),
+.admin-account-table-pro tbody > tr:nth-child(2),
+.admin-restaurant-request-list > *:nth-child(2),
+.admin-contract-grid > *:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.restaurant-grid > *:nth-child(3),
+.customer-menu-grid > *:nth-child(3),
+.cart-items > *:nth-child(3),
+.customer-order-list > *:nth-child(3),
+.address-list > *:nth-child(3),
+.voucher-wallet-grid > *:nth-child(3),
+.merchant-live-stats > *:nth-child(3),
+.merchant-order-list > *:nth-child(3),
+.merchant-menu-grid > *:nth-child(3),
+.merchant-category-list > *:nth-child(3),
+.merchant-options-group-list > *:nth-child(3),
+.admin-dashboard-stats > *:nth-child(3),
+.admin-ranking-list > *:nth-child(3),
+.admin-account-summary > *:nth-child(3),
+.admin-account-table-pro tbody > tr:nth-child(3),
+.admin-restaurant-request-list > *:nth-child(3),
+.admin-contract-grid > *:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.restaurant-grid > *:nth-child(4),
+.customer-menu-grid > *:nth-child(4),
+.cart-items > *:nth-child(4),
+.customer-order-list > *:nth-child(4),
+.address-list > *:nth-child(4),
+.voucher-wallet-grid > *:nth-child(4),
+.merchant-live-stats > *:nth-child(4),
+.merchant-order-list > *:nth-child(4),
+.merchant-menu-grid > *:nth-child(4),
+.merchant-category-list > *:nth-child(4),
+.merchant-options-group-list > *:nth-child(4),
+.admin-dashboard-stats > *:nth-child(4),
+.admin-ranking-list > *:nth-child(4),
+.admin-account-table-pro tbody > tr:nth-child(4),
+.admin-restaurant-request-list > *:nth-child(4),
+.admin-contract-grid > *:nth-child(4) {
+  animation-delay: 0.16s;
+}
+
+.restaurant-grid > *:nth-child(5),
+.customer-menu-grid > *:nth-child(5),
+.cart-items > *:nth-child(5),
+.customer-order-list > *:nth-child(5),
+.address-list > *:nth-child(5),
+.voucher-wallet-grid > *:nth-child(5),
+.merchant-order-list > *:nth-child(5),
+.merchant-menu-grid > *:nth-child(5),
+.merchant-category-list > *:nth-child(5),
+.admin-ranking-list > *:nth-child(5),
+.admin-account-table-pro tbody > tr:nth-child(5),
+.admin-restaurant-request-list > *:nth-child(5) {
+  animation-delay: 0.20s;
+}
+
+.restaurant-grid > *:nth-child(6),
+.customer-menu-grid > *:nth-child(6),
+.cart-items > *:nth-child(6),
+.customer-order-list > *:nth-child(6),
+.address-list > *:nth-child(6),
+.voucher-wallet-grid > *:nth-child(6),
+.merchant-order-list > *:nth-child(6),
+.merchant-menu-grid > *:nth-child(6),
+.merchant-category-list > *:nth-child(6),
+.admin-account-table-pro tbody > tr:nth-child(6),
+.admin-restaurant-request-list > *:nth-child(6) {
+  animation-delay: 0.24s;
+}
+
+.restaurant-grid > *:nth-child(7),
+.customer-menu-grid > *:nth-child(7),
+.cart-items > *:nth-child(7),
+.customer-order-list > *:nth-child(7),
+.voucher-wallet-grid > *:nth-child(7),
+.merchant-order-list > *:nth-child(7),
+.admin-account-table-pro tbody > tr:nth-child(7),
+.admin-restaurant-request-list > *:nth-child(7) {
+  animation-delay: 0.28s;
+}
+
+.restaurant-grid > *:nth-child(8),
+.customer-menu-grid > *:nth-child(8),
+.cart-items > *:nth-child(8),
+.customer-order-list > *:nth-child(8),
+.voucher-wallet-grid > *:nth-child(8),
+.merchant-order-list > *:nth-child(8),
+.admin-account-table-pro tbody > tr:nth-child(8),
+.admin-restaurant-request-list > *:nth-child(8) {
+  animation-delay: 0.32s;
+}
+
+.restaurant-grid > *:nth-child(n + 9),
+.customer-menu-grid > *:nth-child(n + 9),
+.cart-items > *:nth-child(n + 9),
+.customer-order-list > *:nth-child(n + 9),
+.voucher-wallet-grid > *:nth-child(n + 9),
+.merchant-order-list > *:nth-child(n + 9),
+.admin-account-table-pro tbody > tr:nth-child(n + 9),
+.admin-restaurant-request-list > *:nth-child(n + 9) {
+  animation-delay: 0.36s;
+}
+
+
+/* ==========================================================================
+   PHẦN 4: HỆ THỐNG GIAO DIỆN & TƯƠNG TÁC CHO ROLE QUÁN (MERCHANT CENTER)
+   ========================================================================== */
+
+/* Keyframe hiệu ứng nhấp nháy sóng Radar cho trạng thái quán đang mở */
+@keyframes merchantLiveRadarPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 213, 138, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(66, 213, 138, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 213, 138, 0);
+  }
+}
+
+@keyframes merchantClosedDotPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 128, 117, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(255, 128, 117, 0.15);
+  }
+}
+
+/* 1. Sidebar Quán (RestaurantLayout) */
+.quan-sidebar .quan-sidebar-brand {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.quan-sidebar .quan-sidebar-brand:hover .quan-brand-icon {
+  transform: rotate(-10deg) scale(1.12);
+  box-shadow: 0 6px 16px rgba(244, 81, 30, 0.28);
+}
+
+.quan-sidebar .quan-brand-icon {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.quan-sidebar .quan-restaurant-card {
+  position: relative;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease;
+}
+
+.quan-sidebar .quan-restaurant-card:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.quan-sidebar .quan-restaurant-avatar {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.quan-sidebar .quan-restaurant-card:hover .quan-restaurant-avatar {
+  transform: scale(1.08);
+}
+
+/* Item Menu Sidebar */
+.quan-sidebar .quan-nav-item {
+  position: relative;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.quan-sidebar .quan-nav-item:hover {
+  transform: translate3d(4px, 0, 0);
+}
+
+.quan-sidebar .quan-nav-item.active {
+  position: relative;
+}
+
+.quan-sidebar .quan-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3.5px;
+  background-color: var(--food-primary);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Huy hiệu số thông báo trên sidebar */
+.quan-nav-notification-count {
+  animation: userStarBurst 0.3s var(--anim-ease-spring);
+  box-shadow: 0 2px 8px rgba(244, 81, 30, 0.35);
+}
+
+/* 2. Dashboard Quán (RestaurantHome) */
+.merchant-live-status {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              border-color var(--anim-dur-fast) ease,
+              background-color var(--anim-dur-fast) ease;
+}
+
+.merchant-live-status:hover {
+  transform: translate3d(0, -2px, 0);
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.merchant-live-status.is-open .merchant-live-status-dot {
+  animation: merchantLiveRadarPulse 2s cubic-bezier(0.25, 0, 0.2, 1) infinite;
+}
+
+.merchant-live-status.is-closed .merchant-live-status-dot {
+  animation: merchantClosedDotPulse 2.4s ease-in-out infinite;
+}
+
+/* 4 Thẻ số liệu vận hành (Live Stats) */
+.merchant-live-stats article {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-live-stats article:hover {
+  transform: translate3d(0, -4px, 0);
+}
+
+.merchant-live-stats article:hover > span {
+  transform: scale(1.1);
+}
+
+.merchant-live-stats article > span {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+.merchant-live-stats .stat-pending:hover {
+  border-color: #fbd38d;
+  box-shadow: 0 10px 24px rgba(214, 158, 46, 0.14);
+}
+
+.merchant-live-stats .stat-processing:hover {
+  border-color: #d6bcfa;
+  box-shadow: 0 10px 24px rgba(128, 90, 213, 0.14);
+}
+
+.merchant-live-stats .stat-completed:hover {
+  border-color: #9ae6b4;
+  box-shadow: 0 10px 24px rgba(56, 161, 105, 0.14);
+}
+
+.merchant-live-stats .stat-revenue:hover {
+  border-color: #90cdf4;
+  box-shadow: 0 10px 24px rgba(49, 130, 206, 0.14);
+}
+
+/* Đơn hàng gần đây trên Dashboard */
+.merchant-recent-list > button {
+  transition: background-color var(--anim-dur-fast) ease,
+              transform var(--anim-dur-fast) var(--anim-ease-out);
+}
+
+.merchant-recent-list > button:hover {
+  background-color: #fbf9f6;
+  transform: translate3d(2px, 0, 0);
+}
+
+.merchant-recent-list > button:hover .merchant-recent-arrow {
+  transform: translate3d(3px, 0, 0);
+  color: var(--food-primary);
+}
+
+.merchant-recent-arrow {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              color var(--anim-dur-fast) ease;
+}
+
+/* Nút truy cập nhanh */
+.merchant-live-quick button {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-live-quick button:hover {
+  transform: translate3d(0, -2px, 0);
+  border-color: #fbd38d;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.merchant-live-quick button:hover > span {
+  transform: scale(1.12);
+  background: #fff0eb;
+  color: var(--food-primary);
+}
+
+.merchant-live-quick button > span {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+/* 3. Danh sách đơn hàng Quán (RestaurantOrders) */
+.merchant-order-card {
+  contain: layout style;
+  border-left-width: 4.5px !important;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-order-card:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 10px 24px rgba(35, 30, 26, 0.07);
+}
+
+.merchant-order-card.order-pending:hover {
+  box-shadow: 0 10px 24px rgba(229, 164, 31, 0.15);
+}
+
+.merchant-order-card.order-confirmed:hover {
+  box-shadow: 0 10px 24px rgba(64, 131, 214, 0.15);
+}
+
+.merchant-order-card.order-preparing:hover {
+  box-shadow: 0 10px 24px rgba(144, 101, 211, 0.15);
+}
+
+.merchant-order-card.order-delivering:hover {
+  box-shadow: 0 10px 24px rgba(33, 156, 188, 0.15);
+}
+
+.merchant-order-card.order-completed:hover {
+  box-shadow: 0 10px 24px rgba(49, 151, 102, 0.15);
+}
+
+.merchant-order-card:hover .merchant-order-status-mark {
+  transform: scale(1.08);
+}
+
+.merchant-order-status-mark {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring);
+}
+
+/* Tabs lọc đơn hàng */
+.merchant-order-tab {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.merchant-order-tab:hover:not(.is-active) {
+  transform: translate3d(0, -1px, 0);
+  background-color: #f5f2ed;
+}
+
+.merchant-order-tab.is-active {
+  box-shadow: 0 3px 10px rgba(55, 49, 45, 0.22);
+}
+
+/* Nút refresh */
+.merchant-orders-refresh {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease;
+}
+
+.merchant-orders-refresh:hover:not(:disabled) {
+  transform: scale(1.04);
+}
+
+/* 4. Thực đơn & Món ăn Quán (RestaurantMenu) */
+.merchant-menu-card {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-menu-card:hover {
+  transform: translate3d(0, -4px, 0);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.merchant-menu-image {
+  overflow: hidden;
+}
+
+.merchant-menu-image img {
+  transition: transform 0.35s var(--anim-ease-out);
+}
+
+.merchant-menu-card:hover .merchant-menu-image img {
+  transform: scale(1.06);
+}
+
+.merchant-menu-card-actions button {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              background-color var(--anim-dur-fast) ease,
+              color var(--anim-dur-fast) ease;
+}
+
+.merchant-menu-card-actions button:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+
+.merchant-menu-card-actions button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* 5. Danh mục món & Topping (RestaurantCategory & RestaurantTopping) */
+.merchant-category-row {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              background-color var(--anim-dur-fast) ease;
+}
+
+.merchant-category-row:hover {
+  transform: translate3d(2px, 0, 0);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  background-color: #fefdfc;
+}
+
+.merchant-options-group {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-options-group:hover {
+  transform: translate3d(0, -2px, 0);
+  border-color: #cbd5e1;
+}
+
+.merchant-options-group.selected {
+  box-shadow: 0 4px 14px rgba(244, 81, 30, 0.15);
+}
+
+
+/* ==========================================================================
+   PHẦN 5: TINH CHỈNH CHI TIẾT GIAO DIỆN CHUYÊN NGHIỆP CHO USER & ADMIN
+   ========================================================================== */
+
+/* 1. Trang thông báo (Notifications.tsx - Áp dụng cả User và Quán) */
+.merchant-notification-row {
+  opacity: 1 !important;
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              background-color var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.merchant-notification-row:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Thông báo chưa đọc (Unread) nổi bật tinh tế chuẩn Shopee/Grab */
+.merchant-notification-row.unread {
+  background-color: #fffbf8 !important;
+}
+
+/* 2. Thẻ Voucher Khách hàng (VoucherCard & VoucherWallet) */
+.customer-voucher-card {
+  contain: layout style;
+}
+
+.customer-voucher-card code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: #fff4f0;
+  color: #e64a19;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px dashed rgba(230, 74, 25, 0.35);
+}
+
+.customer-voucher-action {
+  transition: transform var(--anim-dur-fast) var(--anim-ease-spring),
+              box-shadow var(--anim-dur-fast) ease,
+              background-color var(--anim-dur-fast) ease;
+}
+
+.customer-voucher-action:hover:not(:disabled) {
+  transform: translate3d(0, -1px, 0) scale(1.02);
+  box-shadow: 0 4px 12px rgba(244, 81, 30, 0.25);
+}
+
+.customer-voucher-action:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* 3. Thẻ địa chỉ nhận hàng (Address.tsx) */
+.address-card {
+  contain: layout style;
+  transition: transform var(--anim-dur-fast) var(--anim-ease-out),
+              box-shadow var(--anim-dur-fast) ease,
+              border-color var(--anim-dur-fast) ease;
+}
+
+.address-card:hover {
+  transform: translate3d(0, -3px, 0);
+  border-color: #ffbba7;
+  box-shadow: 0 10px 24px rgba(244, 81, 30, 0.08);
+}
+
+.address-default-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 4. Tinh chỉnh Bảng Quản trị Admin (Admin SaaS Standards) */
+.admin-account-table-pro thead th,
+.admin-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding: 12px 16px;
+}
+
+.admin-account-table-pro tbody td,
+.admin-table tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+
+/* ==========================================================================
+   PHẦN 6: GIAO DIỆN CHUNG TOÀN SÀN (CUSTOM SLIM SCROLLBAR & MODERN CONTROLS)
+   ========================================================================== */
+
+/* Thanh cuộn mảnh hiện đại thay thế thanh cuộn Windows mặc định */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* Tối ưu render font chữ sắc nét */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Chuẩn hóa vòng Halo Focus cho tất cả input và controls */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--primary, #f4511e) !important;
+  box-shadow: 0 0 0 3px rgba(244, 81, 30, 0.16) !important;
+}
+
+/* Tắt hiệu ứng khi người dùng bật reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .app-scroll-reveal.is-visible .restaurant-card,
+  .app-scroll-reveal.is-visible .customer-food-card,
+  .app-scroll-reveal.is-visible .customer-order-card,
+  .app-scroll-reveal.is-visible .address-card,
+  .restaurant-voucher-grid > .customer-voucher-card,
+  .voucher-wallet-grid > .customer-voucher-card,
+  .cart-items > .cart-item,
+  .checkout-compact-card,
+  .checkout-review-item,
+  .order-detail-card,
+  .order-detail-food-item,
+  .merchant-live-stats > article,
+  .merchant-order-list > .merchant-order-card,
+  .merchant-menu-grid > .merchant-menu-card,
+  .merchant-category-list > .merchant-category-row,
+  .merchant-options-group-list > .merchant-options-group,
+  .merchant-recent-list > button,
+  .admin-dashboard-stats > .admin-dashboard-stat,
+  .admin-ranking-list > .admin-ranking-item,
+  .admin-account-summary > article,
+  .admin-account-table-pro tbody > tr,
+  .admin-restaurant-request-list > .admin-restaurant-request,
+  .admin-promotion-summary > article,
+  .admin-contract-grid > .admin-contract-card,
+  .merchant-live-status.is-open .merchant-live-status-dot,
+  .merchant-live-status.is-closed .merchant-live-status-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

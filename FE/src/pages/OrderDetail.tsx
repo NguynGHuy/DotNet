@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getOrderById, getOrderStatusHistory } from "../services/orderService";
 import OrderReviewPanel from "../components/OrderReviewPanel";
@@ -7,6 +7,7 @@ import { getRestaurantById } from "../services/restaurantService";
 import {
     ArrowLeft,
     Banknote,
+    Bike,
     Check,
     Clock3,
     History,
@@ -473,6 +474,11 @@ function OrderDetail() {
                                                     ) : (
                                                         <span>
                                                             {index + 1}
+                                                        </span>
+                                                    )}
+                                                    {current && step.code === "DangGiao" && (
+                                                        <span className="order-delivery-bike-badge" aria-label="Shipper đang giao món">
+                                                            <Bike size={18} />
                                                         </span>
                                                     )}
                                                 </div>

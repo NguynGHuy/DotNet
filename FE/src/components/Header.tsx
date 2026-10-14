@@ -251,17 +251,34 @@ function Header() {
 
         <div className="header-right">
           {user ? (
-            <div className="user-menu-wrapper" ref={menuRef}>
-              <button
-                type="button"
-                className={`user-menu-button ${showMenu ? "open" : ""}`}
-                onClick={() => setShowMenu((current) => !current)}
-                aria-expanded={showMenu}
-                aria-haspopup="menu"
+            <>
+              <Link
+                to={user.role === "Quan" ? "/quan/thong-bao" : "/thong-bao"}
+                className={`header-bell-link ${unreadCount > 0 ? "has-unread" : ""}`}
+                aria-label={`Thông báo (${unreadCount} chưa đọc)`}
               >
-                <span className="user-avatar">
-                  {avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}
-                </span>
+                <Bell size={19} strokeWidth={2.1} />
+                {unreadCount > 0 && (
+                  <span className="header-bell-badge">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <div className="user-menu-wrapper" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`user-menu-button ${showMenu ? "open" : ""}`}
+                  onClick={() => setShowMenu((current) => !current)}
+                  aria-expanded={showMenu}
+                  aria-haspopup="menu"
+                >
+                  <span className="user-avatar">
+                    {avatarUrl ? <img src={avatarUrl} alt="" /> : avatarLetter}
+                    {unreadCount > 0 && (
+                      <span className="user-avatar-unread-dot" aria-hidden="true" />
+                    )}
+                  </span>
 
                 <span className="user-name">{userName}</span>
 
@@ -428,6 +445,7 @@ function Header() {
                 </div>
               )}
             </div>
+          </>
           ) : (
             <div className="auth-area">
               <Link to="/dang-nhap" className="login-link">
