@@ -1,10 +1,10 @@
+using DatMonAnOnline.API.Common;
 using DatMonAnOnline.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -226,6 +226,10 @@ namespace DatMonAnOnline.API.Controllers
             var trangThai =
                 TrangThaiNhaHangHelper.KiemTra(nhaHang);
 
+            var khoaThongTinHopDong =
+                nhaHang.TrangThaiDuyet == "ChoDuyet" ||
+            await KhoaThongTinHopDong(nhaHang.MaNhaHang);
+
             return Ok(new
             {
                 nhaHang.MaNhaHang,
@@ -237,6 +241,7 @@ namespace DatMonAnOnline.API.Controllers
                 nhaHang.GioMoCua,
                 nhaHang.GioDongCua,
                 nhaHang.TrangThaiDuyet,
+                khoaThongTinHopDong,
 
                 // Giữ lại để tương thích code cũ
                 nhaHang.TrangThaiHoatDong,
@@ -294,10 +299,16 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
-            var nhaHang = await _context.Nhahangs
-                .FirstOrDefaultAsync(x =>
-                    x.MaTaiKhoan == maTaiKhoan.Value
-                );
+            // Nhà hàng - đồng bộ cập nhật hồ sơ với thao tác ký hợp đồng
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync();
+
+            var nhaHangs = await _context.Nhahangs
+                .FromSqlInterpolated(
+                    $"SELECT * FROM nhahang WHERE MaTaiKhoan = {maTaiKhoan.Value} FOR UPDATE")
+                .ToListAsync();
+
+            var nhaHang = nhaHangs.SingleOrDefault();
 
             if (nhaHang == null)
             {
@@ -305,6 +316,42 @@ namespace DatMonAnOnline.API.Controllers
                 {
                     message =
                         "Không tìm thấy nhà hàng của tài khoản này."
+                });
+            }
+
+            var tenMoi = request.TenNhaHang.Trim();
+            var diaChiMoi = request.DiaChiQuan.Trim();
+
+            if (string.IsNullOrWhiteSpace(tenMoi) ||
+                string.IsNullOrWhiteSpace(diaChiMoi))
+            {
+                return BadRequest(new
+                {
+                    message = "Tên và địa chỉ nhà hàng không được để trống."
+                });
+            }
+
+            var khoaThongTinHopDong =
+                nhaHang.TrangThaiDuyet == "ChoDuyet" ||
+                await KhoaThongTinHopDong(nhaHang.MaNhaHang);
+
+            var thayDoiThongTinHopDong =
+                !string.Equals(
+                    tenMoi,
+                    nhaHang.TenNhaHang.Trim(),
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    diaChiMoi,
+                    nhaHang.DiaChiQuan.Trim(),
+                    StringComparison.Ordinal);
+
+            if (khoaThongTinHopDong && thayDoiThongTinHopDong)
+            {
+                return Conflict(new
+                {
+                    message =
+                        "Không thể đổi tên hoặc địa chỉ nhà hàng khi hợp đồng " +
+                        "đã ký, đang chờ duyệt hoặc đang có hiệu lực."
                 });
             }
 
@@ -334,6 +381,7 @@ namespace DatMonAnOnline.API.Controllers
                 request.PhiShipMacDinh;
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             var trangThai =
                 TrangThaiNhaHangHelper.KiemTra(nhaHang);
@@ -460,6 +508,17 @@ namespace DatMonAnOnline.API.Controllers
             return int.TryParse(value, out var id)
                 ? id
                 : null;
+        }
+
+        // Nhà hàng - khóa thông tin đã dùng trong hợp đồng
+        private Task<bool> KhoaThongTinHopDong(int maNhaHang)
+        {
+            return _context.Hopdongnhahangs.AnyAsync(x =>
+                x.MaNhaHang == maNhaHang &&
+                (x.TrangThai == "DaKy" ||
+                 x.TrangThai == "ChoDuyet" ||
+                 x.TrangThai == "HieuLuc")
+            );
         }
     }
 

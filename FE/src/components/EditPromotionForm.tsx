@@ -150,7 +150,7 @@ function EditPromotionForm({
                     <span>Mô tả chương trình</span>
                     <textarea
                         rows={3}
-                        maxLength={300}
+                        maxLength={200}
                         value={moTa}
                         onChange={(event) =>
                             setMoTa(event.target.value)

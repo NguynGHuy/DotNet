@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace DatMonAnOnline.API.Models;
 
@@ -642,6 +640,15 @@ public partial class DatMonAnOnlineContext : DbContext
             entity.HasOne(d => d.MaTaiKhoanDuyetNavigation).WithMany(p => p.Hopdongnhahangs)
                 .HasForeignKey(d => d.MaTaiKhoanDuyet)
                 .HasConstraintName("FK_HopDongNhaHang_NguoiDuyet");
+
+            entity.Property(e => e.ThoiGianChamDut)
+                .HasColumnType("datetime");
+
+            entity.HasOne<Taikhoan>()
+                .WithMany()
+                .HasForeignKey(e => e.MaTaiKhoanChamDut)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_HopDong_TaiKhoanChamDut");
         });
 
         modelBuilder.Entity<Thamdinhhosonhahang>(entity =>

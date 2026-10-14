@@ -1,7 +1,9 @@
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -22,6 +24,12 @@ public class HopDongController : ControllerBase
     {
         _context = context;
         _environment = environment;
+    }
+
+    public sealed class GuiXetDuyetRequest
+    {
+        [Range(1, int.MaxValue)]
+        public int MaHopDong { get; set; }
     }
 
     private bool TepTonTai(int maNhaHang, string? thamChieu)
@@ -254,6 +262,16 @@ public class HopDongController : ControllerBase
                     message = "Không tìm thấy nhà hàng."
                 });
 
+            // Hợp đồng - trả lại kết quả ký nếu request đã thành công
+            var idem = await IdempotencyStore.CheckAsync(
+                _context,
+                Request,
+                maTaiKhoan,
+                request);
+
+            if (idem.Result != null)
+                return idem.Result;
+
             // Dùng lại toàn bộ kiểm tra hồ sơ trong API xem trước.
             var previewResult = await XemTruoc();
 
@@ -337,16 +355,24 @@ public class HopDongController : ControllerBase
             _context.Hopdongnhahangs.Add(hopDong);
 
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
 
-            return Ok(new
+            var response = new
             {
                 message = "Đã xác nhận ký hợp đồng. Bạn có thể gửi hồ sơ xét duyệt.",
                 hopDong.MaHopDong,
                 hopDong.SoHopDong,
                 hopDong.TrangThai,
                 hopDong.ThoiGianKy
-            });
+            };
+
+            var result = await IdempotencyStore.SaveSuccessAsync(
+                _context,
+                idem,
+                response);
+
+            await transaction.CommitAsync();
+
+            return result;
         }
         catch
         {
@@ -363,7 +389,8 @@ public class HopDongController : ControllerBase
     }
 
     [HttpPost("gui-xet-duyet")]
-    public async Task<IActionResult> GuiXetDuyet()
+    public async Task<IActionResult> GuiXetDuyet(
+    [FromBody] GuiXetDuyetRequest request)
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -386,6 +413,15 @@ public class HopDongController : ControllerBase
                 message = "Không tìm thấy nhà hàng."
             });
 
+        var idem = await IdempotencyStore.CheckAsync(
+            _context,
+            Request,
+            maTaiKhoan,
+            request);
+
+        if (idem.Result != null)
+            return idem.Result;
+
         var hopDong = await _context.Hopdongnhahangs
             .Where(x => x.MaNhaHang == nhaHang.MaNhaHang)
             .OrderByDescending(x => x.MaHopDong)
@@ -397,14 +433,31 @@ public class HopDongController : ControllerBase
                 message = "Bạn cần ký hợp đồng trước khi gửi xét duyệt."
             });
 
+        if (hopDong.MaHopDong != request.MaHopDong)
+        {
+            return Conflict(new
+            {
+                message = "Hợp đồng đã thay đổi. Vui lòng tải lại trang."
+            });
+        }
+
         // Gửi lại không tạo thêm yêu cầu hoặc đổi thời gian gửi.
         if (nhaHang.TrangThaiDuyet == "ChoDuyet" &&
             hopDong.TrangThai == "ChoDuyet")
         {
-            return Ok(new
-            {
-                message = "Hồ sơ đã được gửi và đang chờ Admin xét duyệt."
-            });
+            var existingResult = await IdempotencyStore.SaveSuccessAsync(
+                _context,
+                idem,
+                new
+                {
+                    message = "Hồ sơ đã được gửi và đang chờ Admin xét duyệt.",
+                    nhaHang.MaNhaHang,
+                    hopDong.MaHopDong,
+                    hopDong.ThoiGianGuiDuyet
+                });
+
+            await transaction.CommitAsync();
+            return existingResult;
         }
 
         if (nhaHang.TrangThaiDuyet != "ChuaHoanTat" &&
@@ -487,15 +540,21 @@ public class HopDongController : ControllerBase
         hopDong.ThoiGianGuiDuyet = DateTime.Now;
 
         await _context.SaveChangesAsync();
+
+        var result = await IdempotencyStore.SaveSuccessAsync(
+            _context,
+            idem,
+            new
+            {
+                message = "Đã gửi hồ sơ. Vui lòng chờ Admin xét duyệt.",
+                nhaHang.MaNhaHang,
+                hopDong.MaHopDong,
+                hopDong.ThoiGianGuiDuyet
+            });
+
         await transaction.CommitAsync();
 
-        return Ok(new
-        {
-            message = "Đã gửi hồ sơ. Vui lòng chờ Admin xét duyệt.",
-            nhaHang.MaNhaHang,
-            hopDong.MaHopDong,
-            hopDong.ThoiGianGuiDuyet
-        });
+        return result;
     }
 
     [HttpGet("cua-toi")]
@@ -532,6 +591,9 @@ public class HopDongController : ControllerBase
                 x.ThoiGianGuiDuyet,
                 x.ThoiGianDuyet,
                 x.LyDoTuChoi,
+                x.LyDoChamDut,
+                x.MaTaiKhoanChamDut,
+                x.ThoiGianChamDut,
                 x.PhienBanDieuKhoan,
                 x.TyLePhiNenTang,
                 x.NgayBatDau,
@@ -544,6 +606,75 @@ public class HopDongController : ControllerBase
 
         return Ok(new { hopDong });
     }
+
+    // Hợp đồng - bắt đầu hoàn thiện hồ sơ sau khi hết hạn
+    [HttpPost("bat-dau-ky-moi")]
+    public async Task<IActionResult> BatDauKyMoi()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(claim, out var maTaiKhoan) || maTaiKhoan <= 0)
+            return Unauthorized();
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync();
+
+        var nhaHangs = await _context.Nhahangs
+            .FromSqlInterpolated(
+                $"SELECT * FROM nhahang WHERE MaTaiKhoan = {maTaiKhoan} FOR UPDATE")
+            .ToListAsync();
+
+        var nhaHang = nhaHangs.SingleOrDefault();
+
+        if (nhaHang == null)
+            return NotFound(new
+            {
+                message = "Không tìm thấy nhà hàng."
+            });
+
+        var hopDongCu = await _context.Hopdongnhahangs
+            .Where(x => x.MaNhaHang == nhaHang.MaNhaHang)
+            .OrderByDescending(x => x.MaHopDong)
+            .FirstOrDefaultAsync();
+
+        if (hopDongCu == null || hopDongCu.TrangThai != "HetHan")
+            return Conflict(new
+            {
+                message = "Chỉ có thể bắt đầu ký mới khi hợp đồng gần nhất đã hết hạn."
+            });
+
+        var coHopDongDangXuLy = await _context.Hopdongnhahangs
+            .AnyAsync(x =>
+                x.MaNhaHang == nhaHang.MaNhaHang &&
+                (x.TrangThai == "DaKy" ||
+                 x.TrangThai == "ChoDuyet" ||
+                 x.TrangThai == "HieuLuc"));
+
+        if (coHopDongDangXuLy)
+            return Conflict(new
+            {
+                message = "Nhà hàng đang có hợp đồng đã ký hoặc đang được xử lý."
+            });
+
+        if (nhaHang.TrangThaiDuyet != "DaDuyet" &&
+            nhaHang.TrangThaiDuyet != "ChuaHoanTat")
+            return Conflict(new
+            {
+                message = "Nhà hàng không ở trạng thái được bắt đầu ký mới."
+            });
+
+        nhaHang.TrangThaiDuyet = "ChuaHoanTat";
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return Ok(new
+        {
+            message = "Bạn có thể cập nhật hồ sơ và ký hợp đồng mới.",
+            trangThaiDuyet = nhaHang.TrangThaiDuyet
+        });
+    }
+
 
 }
 public class HopDongXemTruocResponse

@@ -6,6 +6,7 @@ import {
     getAdminContract,
     downloadAdminContractFile,
     rejectRestaurantDocuments,
+    terminateContract,
 } from "../services/adminContractService";
 import type {
     AdminContractDetails,
@@ -61,6 +62,9 @@ function AdminRestaurantContract() {
     const [reviewNote, setReviewNote] = useState("");
     const [decisionError, setDecisionError] = useState("");
     const [deciding, setDeciding] = useState<"approve" | "reject" | null>(null);
+    const [terminationReason, setTerminationReason] = useState("");
+    const [terminating, setTerminating] = useState(false);
+    const [terminationError, setTerminationError] = useState("");
 
     useEffect(() => {
         const maNhaHang = Number(id);
@@ -141,6 +145,7 @@ function AdminRestaurantContract() {
         }
 
         const payload = {
+            maHopDong: contract.maHopDong,
             ketQuaGiayPhep: review.ketQuaGiayPhep as DocumentReviewResult,
             ketQuaGiayToDaiDien: review.ketQuaGiayToDaiDien as DocumentReviewResult,
             ketQuaHopDong: review.ketQuaHopDong as DocumentReviewResult,
@@ -222,6 +227,41 @@ function AdminRestaurantContract() {
             { type: "giay-to", title: "Giấy tờ đại diện", exists: !!contract?.coGiayToDaiDien, reviewKey: "ketQuaGiayToDaiDien" },
             { type: "hop-dong", title: "Bản hợp đồng", exists: !!contract?.coTepHopDong, reviewKey: "ketQuaHopDong" },
         ];
+
+
+    const handleTerminate = async () => {
+        if (!contract || !id || terminating) return;
+
+        const lyDo = terminationReason.trim();
+
+        if (!lyDo) {
+            setTerminationError("Vui lòng nhập lý do chấm dứt.");
+            return;
+        }
+
+        if (!window.confirm(
+            `Chấm dứt hợp đồng ${contract.soHopDong}? Quán sẽ không nhận được đơn mới.`
+        )) return;
+
+        try {
+            setTerminating(true);
+            setTerminationError("");
+
+            await terminateContract(contract.maHopDong, lyDo);
+
+            const updated = await getAdminContract(Number(id));
+            setResult({ id, data: updated, error: "" });
+            setTerminationReason("");
+        } catch (err: unknown) {
+            setTerminationError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể chấm dứt hợp đồng."
+            );
+        } finally {
+            setTerminating(false);
+        }
+    };
 
     return (
         <div className="admin-contract-page">
@@ -393,6 +433,53 @@ function AdminRestaurantContract() {
                             <p>Hồ sơ này không còn ở trạng thái chờ xét duyệt.</p>
                         )}
                     </section>
+
+                        {contract.trangThai === "HieuLuc" && (
+                            <section className="admin-contract-section">
+                                <h2>Chấm dứt hợp đồng</h2>
+                                <p>
+                                    Quán sẽ ngừng nhận đơn mới. Những đơn đã đặt
+                                    vẫn được xử lý theo quy trình hiện tại.
+                                </p>
+
+                                <label className="admin-contract-reject-reason">
+                                    <span>Lý do chấm dứt</span>
+                                    <textarea
+                                        rows={3}
+                                        maxLength={500}
+                                        value={terminationReason}
+                                        disabled={terminating}
+                                        onChange={(event) =>
+                                            setTerminationReason(event.target.value)
+                                        }
+                                    />
+                                </label>
+
+                                {terminationError && (
+                                    <p className="auth-error" role="alert">
+                                        {terminationError}
+                                    </p>
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="admin-contract-terminate-button"
+                                    disabled={terminating || !terminationReason.trim()}
+                                    onClick={() => void handleTerminate()}
+                                >
+                                    {terminating ? "Đang xử lý..." : "Chấm dứt hợp đồng"}
+                                </button>
+                            </section>
+                        )}
+
+                        {contract.trangThai === "ChamDut" && (
+                            <section className="admin-contract-section">
+                                <h2>Hợp đồng đã chấm dứt</h2>
+                                <p>Lý do: {contract.lyDoChamDut}</p>
+                                <p>Thời gian: {formatTime(contract.thoiGianChamDut)}</p>
+                                <p>Tài khoản thực hiện: {contract.maTaiKhoanChamDut}</p>
+                            </section>
+                        )}
 
                     <section className="admin-contract-section">
                         <h2>Nội dung đã ký — phiên bản {contract.phienBanDieuKhoan}</h2>

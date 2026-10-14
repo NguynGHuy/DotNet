@@ -32,6 +32,7 @@ import AdminHome from "./pages/AdminHome";
 import AdminRestaurants from "./pages/AdminRestaurants";
 import AdminPromotions from "./pages/AdminPromotions";
 import AdminRestaurantContract from "./pages/AdminRestaurantContract";
+import AdminContracts from "./pages/AdminContracts";
 
 import QuanLayout from "./pages/RestaurantLayout";
 import QuanHome from "./pages/RestaurantHome";
@@ -265,6 +266,8 @@ function AppContent() {
                         path="nha-hang"
                         element={<AdminRestaurants />}
                     />
+
+                    <Route path="hop-dong" element={<AdminContracts />} />
 
                     <Route
                         path="khuyen-mai"

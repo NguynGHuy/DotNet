@@ -1,14 +1,13 @@
-using Microsoft.EntityFrameworkCore;
-using DatMonAnOnline.API.Models;
-using Scalar.AspNetCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System.Security.Claims;
 using DatMonAnOnline.API.Hubs;
-using DatMonAnOnline.API.Services;
+using DatMonAnOnline.API.Models;
 using DatMonAnOnline.API.Security;
-using Microsoft.AspNetCore.RateLimiting;
+using DatMonAnOnline.API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -140,24 +139,24 @@ builder.Services.AddAuthentication(options =>
     // Hiển thị lỗi JWT trong Terminal khi authentication thất bại
     options.Events = new JwtBearerEvents
     {
-         OnMessageReceived = context =>
-    {
-        var accessToken =
-            context.Request.Query["access_token"];
+        OnMessageReceived = context =>
+   {
+       var accessToken =
+           context.Request.Query["access_token"];
 
-        var path =
-            context.HttpContext.Request.Path;
+       var path =
+           context.HttpContext.Request.Path;
 
-        if (
-            !string.IsNullOrEmpty(accessToken) &&
-            path.StartsWithSegments("/hubs/thong-bao")
-        )
-        {
-            context.Token = accessToken;
-        }
+       if (
+           !string.IsNullOrEmpty(accessToken) &&
+           path.StartsWithSegments("/hubs/thong-bao")
+       )
+       {
+           context.Token = accessToken;
+       }
 
-        return Task.CompletedTask;
-    },
+       return Task.CompletedTask;
+   },
         OnTokenValidated = async context =>
         {
             var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -257,6 +256,9 @@ builder.Services
 // =========================
 
 builder.Services.AddOpenApi();
+
+// Hợp đồng - tự cập nhật hết hạn
+builder.Services.AddHostedService<ContractExpirationService>();
 
 var app = builder.Build();
 

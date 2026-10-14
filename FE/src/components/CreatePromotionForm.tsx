@@ -83,6 +83,42 @@ function CreatePromotionForm({
             return;
         }
 
+        if (busy) return;
+
+        if (!/^[A-Z0-9_-]{1,30}$/i.test(maCode.trim())) {
+            setError("Mã chỉ gồm chữ không dấu, số, dấu - hoặc _.");
+            return;
+        }
+
+        if (
+            !Number.isInteger(giaTriGiam) ||
+            !Number.isInteger(donHangToiThieu) ||
+            !Number.isInteger(soLuong)
+        ) {
+            setError("Giá trị giảm, đơn tối thiểu và số lượng phải là số nguyên.");
+            return;
+        }
+
+        if (moTa.trim().length > 200) {
+            setError("Mô tả không được vượt quá 200 ký tự.");
+            return;
+        }
+
+        if (end <= Date.now()) {
+            setError("Không thể tạo mã đã hết hạn.");
+            return;
+        }
+
+        if (
+            loaiGiam === "PhanTram" &&
+            giamToiDa !== "" &&
+            (!Number.isInteger(Number(giamToiDa)) ||
+                Number(giamToiDa) <= 0)
+        ) {
+            setError("Giảm tối đa phải là số nguyên lớn hơn 0 hoặc để trống.");
+            return;
+        }
+
         try {
             setBusy(true);
 
@@ -302,7 +338,7 @@ function CreatePromotionForm({
                     <span>Mô tả chương trình</span>
                     <textarea
                         rows={3}
-                        maxLength={300}
+                        maxLength={200}
                         value={moTa}
                         placeholder="Mô tả ngắn về chương trình..."
                         onChange={(event) =>

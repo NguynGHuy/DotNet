@@ -228,12 +228,20 @@ function QuanRestaurantInfo() {
               </div>
             </div>
 
+            {restaurant?.khoaThongTinHopDong && (
+            <p className="merchant-info-contract-lock" role="status">
+                Tên và địa chỉ nhà hàng đã được ghi trong hợp đồng nên
+                không thể chỉnh sửa. Bạn vẫn có thể cập nhật thông tin vận hành.
+            </p>
+            )}
+
             <div className="merchant-info-fields">
               <label className="merchant-info-field">
                 <span>Tên nhà hàng</span>
                 <input
                   type="text"
                   name="tenNhaHang"
+                  readOnly={restaurant?.khoaThongTinHopDong === true}
                   value={form.tenNhaHang}
                   onChange={handleChange}
                   placeholder="Nhập tên nhà hàng"
@@ -249,6 +257,7 @@ function QuanRestaurantInfo() {
                   <input
                     type="text"
                     name="diaChiQuan"
+                    readOnly={restaurant?.khoaThongTinHopDong === true}
                     value={form.diaChiQuan}
                     onChange={handleChange}
                     placeholder="Nhập địa chỉ nhà hàng"

@@ -6,6 +6,7 @@ import {
     getMyContract,
     signContract,
     submitContractForReview,
+    startNewContract,
 } from "../services/contractService";
 
 import type {
@@ -34,6 +35,8 @@ function RestaurantContract() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [preparingNew, setPreparingNew] = useState(false);
+    const [startingNew, setStartingNew] = useState(false);
+    const [renewalError, setRenewalError] = useState("");
 
     useEffect(() => {
         let cancelled = false;
@@ -46,8 +49,12 @@ function RestaurantContract() {
                 const rejectedContract =
                     existing?.trangThai === "TuChoi" ? existing : null;
 
+                const canPrepareNew =
+                    existing?.trangThai === "TuChoi" ||
+                    existing?.trangThai === "HetHan";
+
                 const data =
-                    preparingNew && rejectedContract
+                    preparingNew && canPrepareNew
                         ? await getContractPreview()
                         : existing ?? await getContractPreview();
 
@@ -143,7 +150,7 @@ function RestaurantContract() {
         try {
             setSubmitting(true);
             setSubmitError("");
-            await submitContractForReview();
+            await submitContractForReview(signedContract.maHopDong);
             setVersion((previous) => previous + 1);
         } catch (err) {
             setSubmitError(
@@ -153,6 +160,32 @@ function RestaurantContract() {
             );
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleStartNewContract = async () => {
+        if (startingNew) return;
+
+        try {
+            setStartingNew(true);
+            setRenewalError("");
+
+            await startNewContract();
+
+            setAgreeTerms(false);
+            setConfirmSign(false);
+            setSignError("");
+            setSubmitError("");
+            setPreparingNew(true);
+            setVersion((previous) => previous + 1);
+        } catch (err: unknown) {
+            setRenewalError(
+                err instanceof Error
+                    ? err.message
+                    : "Không thể bắt đầu ký hợp đồng mới."
+            );
+        } finally {
+            setStartingNew(false);
         }
     };
 
@@ -393,6 +426,63 @@ function RestaurantContract() {
                                                     .toLocaleString("vi-VN")}
                                             </p>
                                         )}
+                                    </section>
+                                )}
+
+                                {signedContract?.trangThai === "ChamDut" && (
+                                    <section className="merchant-info-section">
+                                        <h2>Hợp đồng đã bị chấm dứt</h2>
+                                        <p>
+                                            Nhà hàng hiện không thể nhận đơn mới.
+                                            Vui lòng liên hệ Admin để được hướng dẫn.
+                                        </p>
+                                        <p>
+                                            <strong>Lý do:</strong>{" "}
+                                            {signedContract.lyDoChamDut}
+                                        </p>
+
+                                        {signedContract.thoiGianChamDut && (
+                                            <p>
+                                                Thời gian:{" "}
+                                                {new Date(signedContract.thoiGianChamDut)
+                                                    .toLocaleString("vi-VN")}
+                                            </p>
+                                        )}
+                                    </section>
+                                )}
+
+                                {signedContract?.trangThai === "HetHan" && (
+                                    <section className="merchant-info-section merchant-contract-resubmit">
+                                        <div className="merchant-info-section-title">
+                                            <FileText size={18} />
+                                            <div>
+                                                <h2>Hợp đồng đã hết hạn</h2>
+                                                <p>
+                                                    Bắt đầu thủ tục ký mới, kiểm tra lại hồ sơ
+                                                    và gửi Admin xét duyệt để tiếp tục nhận đơn.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {renewalError && (
+                                            <p className="auth-error" role="alert">
+                                                {renewalError}
+                                            </p>
+                                        )}
+
+                                        <div className="merchant-info-actions">
+                                            <button
+                                                type="button"
+                                                className="merchant-info-save"
+                                                disabled={startingNew}
+                                                onClick={handleStartNewContract}
+                                            >
+                                                <FileText size={16} />
+                                                {startingNew
+                                                    ? "Đang xử lý..."
+                                                    : "Bắt đầu ký hợp đồng mới"}
+                                            </button>
+                                        </div>
                                     </section>
                                 )}
 

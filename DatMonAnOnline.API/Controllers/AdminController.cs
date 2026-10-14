@@ -1,5 +1,6 @@
 ﻿using DatMonAnOnline.API.Common;
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ namespace DatMonAnOnline.API.Controllers
         [HttpPost("khuyen-mai")]
         public async Task<IActionResult> TaoKhuyenMaiHeThong([FromBody] TaoKhuyenMaiAdminRequest req)
         {
+            PromotionWriteHelper.Normalize(req);
             var khuyenMai = new Khuyenmai
             {
                 MaCode = req.MaCode,
@@ -44,7 +46,13 @@ namespace DatMonAnOnline.API.Controllers
             };
 
             _context.Khuyenmais.Add(khuyenMai);
-            await _context.SaveChangesAsync();
+            if (!await PromotionWriteHelper.SaveNewAsync(_context))
+            {
+                return Conflict(new
+                {
+                    message = "Mã khuyến mãi đã tồn tại."
+                });
+            }
             return Ok(new { message = "Tạo mã khuyến mãi hệ thống thành công" });
         }
 
@@ -165,6 +173,9 @@ namespace DatMonAnOnline.API.Controllers
 
             [MaxLength(1000)]
             public string? GhiChu { get; set; }
+
+            [Range(1, int.MaxValue)]
+            public int MaHopDong { get; set; }
         }
 
         public class TuChoiHoSoRequest : ThamDinhHoSoRequest
@@ -265,10 +276,38 @@ namespace DatMonAnOnline.API.Controllers
                     message = "Không tìm thấy nhà hàng."
                 });
 
+            // Admin - trả kết quả cũ trước khi kiểm tra trạng thái mới
+            var idem = await IdempotencyStore.CheckAsync(
+                _context,
+                Request,
+                maAdmin,
+                new
+                {
+                    maHopDong = thamDinh.MaHopDong,
+                    duyet,
+                    ketQuaGiayPhep,
+                    ketQuaGiayTo,
+                    ketQuaHopDong,
+                    ghiChuThamDinh,
+                    lyDo
+                });
+
+            if (idem.Result != null)
+                return idem.Result;
+
             var hopDong = await _context.Hopdongnhahangs
                 .Where(x => x.MaNhaHang == id)
                 .OrderByDescending(x => x.MaHopDong)
                 .FirstOrDefaultAsync();
+
+            if (hopDong != null &&
+                hopDong.MaHopDong != thamDinh.MaHopDong)
+            {
+                return Conflict(new
+                {
+                    message = "Hợp đồng đã thay đổi. Vui lòng tải lại hồ sơ."
+                });
+            }
 
             if (nhaHang.TrangThaiDuyet != "ChoDuyet" ||
                 hopDong == null ||
@@ -353,17 +392,23 @@ namespace DatMonAnOnline.API.Controllers
             });
 
             await _context.SaveChangesAsync();
+
+            var result = await IdempotencyStore.SaveSuccessAsync(
+                _context,
+                idem,
+                new
+                {
+                    message = duyet
+                        ? "Đã duyệt nhà hàng và hợp đồng."
+                        : "Đã từ chối hồ sơ.",
+                    nhaHang.MaNhaHang,
+                    hopDong.MaHopDong,
+                    trangThaiHopDong = hopDong.TrangThai
+                });
+
             await transaction.CommitAsync();
 
-            return Ok(new
-            {
-                message = duyet
-                    ? "Đã duyệt nhà hàng và hợp đồng."
-                    : "Đã từ chối hồ sơ.",
-                nhaHang.MaNhaHang,
-                hopDong.MaHopDong,
-                trangThaiHopDong = hopDong.TrangThai
-            });
+            return result;
         }
 
         [HttpGet("thong-ke/tong-quan")]
@@ -408,17 +453,8 @@ namespace DatMonAnOnline.API.Controllers
                 .ToPagedResultAsync(pagination);
             return Ok(list);
         }
-        public class TaoKhuyenMaiAdminRequest
+        public class TaoKhuyenMaiAdminRequest : PromotionCreateRequest
         {
-            public string MaCode { get; set; } = null!;
-            public string? MoTa { get; set; }
-            public string LoaiGiam { get; set; } = null!;
-            public decimal GiaTriGiam { get; set; }
-            public decimal? GiamToiDa { get; set; }
-            public decimal DonHangToiThieu { get; set; }
-            public int SoLuong { get; set; }
-            public DateTime NgayBatDau { get; set; }
-            public DateTime NgayKetThuc { get; set; }
         }
     }
 }

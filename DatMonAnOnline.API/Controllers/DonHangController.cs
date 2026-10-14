@@ -1,9 +1,9 @@
+using DatMonAnOnline.API.Common;
 using DatMonAnOnline.API.Models;
 using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DatMonAnOnline.API.Common;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
@@ -141,6 +141,103 @@ namespace DatMonAnOnline.API.Controllers
 
             try
             {
+                // Đơn hàng - khóa nhà hàng trong lúc kiểm tra và tạo đơn
+                var nhaHangsDaKhoa = await _context.Nhahangs
+                    .FromSqlInterpolated(
+                        $"SELECT * FROM nhahang WHERE MaNhaHang = {nhaHangId} FOR UPDATE")
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var nhaHangDaKhoa = nhaHangsDaKhoa.SingleOrDefault();
+
+                if (nhaHangDaKhoa == null ||
+                    nhaHangDaKhoa.TrangThaiDuyet != "DaDuyet")
+                {
+                    await transaction.RollbackAsync();
+
+                    return Conflict(new
+                    {
+                        Message = "Nhà hàng hiện không đủ điều kiện nhận đơn."
+                    });
+                }
+
+                var thoiGianDat = DateTime.Now;
+                var ngayDat = DateOnly.FromDateTime(thoiGianDat);
+
+                // Đọc và khóa hợp đồng còn hiệu lực tại thời điểm tạo đơn.
+                var hopDongsDaKhoa = await _context.Hopdongnhahangs
+                    .FromSqlInterpolated(
+                        $@"SELECT *
+           FROM hopdongnhahang
+           WHERE MaNhaHang = {nhaHangId}
+             AND TrangThai = 'HieuLuc'
+             AND NgayBatDau <= {ngayDat}
+             AND NgayKetThuc >= {ngayDat}
+           ORDER BY MaHopDong DESC
+           LIMIT 1
+           FOR UPDATE")
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var hopDongNhanDon = hopDongsDaKhoa.SingleOrDefault();
+
+                if (hopDongNhanDon == null)
+                {
+                    await transaction.RollbackAsync();
+
+                    return Conflict(new
+                    {
+                        Message =
+                            "Hợp đồng nhà hàng không còn hiệu lực. " +
+                            "Không thể tạo đơn mới."
+                    });
+                }
+
+                // Đơn hàng - khóa lượt sử dụng khuyến mãi
+                if (request.MaKhuyenMai.HasValue)
+                {
+                    var maKhuyenMai = request.MaKhuyenMai.Value;
+
+                    var vouchers = await _context.Khuyenmais
+                        .FromSqlInterpolated(
+                            $"SELECT * FROM khuyenmai WHERE MaKhuyenMai = {maKhuyenMai} FOR UPDATE")
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    var voucher = vouchers.SingleOrDefault();
+                    var now = DateTime.Now;
+
+                    if (voucher == null ||
+                        voucher.TrangThai != true ||
+                        now < voucher.NgayBatDau ||
+                        now > voucher.NgayKetThuc ||
+                        voucher.SoLuongDaDung >= voucher.SoLuong ||
+                        tongTienHang < voucher.DonHangToiThieu ||
+                        (voucher.MaNhaHang.HasValue &&
+                         voucher.MaNhaHang != nhaHangId))
+                    {
+                        await transaction.RollbackAsync();
+
+                        return Conflict(new
+                        {
+                            Message = "Mã khuyến mãi không còn đủ điều kiện sử dụng."
+                        });
+                    }
+
+                    soTienGiam = voucher.LoaiGiam == "SoTien"
+                        ? voucher.GiaTriGiam
+                        : tongTienHang * voucher.GiaTriGiam / 100;
+
+                    if (voucher.GiamToiDa.HasValue)
+                        soTienGiam = Math.Min(soTienGiam, voucher.GiamToiDa.Value);
+
+                    soTienGiam = Math.Min(
+                        Math.Max(soTienGiam, 0m),
+                        tongTienHang);
+
+                    thanhTien = tongTienHang + phiShip - soTienGiam;
+                }
+
                 var maDonHienThi =
                     $"DH{DateTime.Now:yyMMdd}-{Random.Shared.Next(1000, 9999)}";
 
@@ -149,11 +246,13 @@ namespace DatMonAnOnline.API.Controllers
                     MaDonHangHienThi = maDonHienThi,
                     MaKhachHang = khachHang.MaKhachHang,
                     MaNhaHang = nhaHangId,
-                    TenNhaHangLucDat = nhaHangNhanDon.TenNhaHang,
+                    MaHopDong = hopDongNhanDon.MaHopDong,
+                    TyLePhiNenTang = hopDongNhanDon.TyLePhiNenTang,
+                    TenNhaHangLucDat = nhaHangDaKhoa.TenNhaHang,
                     MaDiaChi = diaChi.MaDiaChi,
                     MaTrangThai = 1,
                     MaKhuyenMai = request.MaKhuyenMai,
-                    ThoiGianDat = DateTime.Now,
+                    ThoiGianDat = thoiGianDat,
                     TenNguoiNhan = diaChi.TenNguoiNhan,
                     SoDienThoaiNhan = diaChi.SoDienThoaiNhan,
                     DiaChiGiaoHang = diaChi.DiaChiCuThe,
@@ -230,11 +329,12 @@ namespace DatMonAnOnline.API.Controllers
 
                 if (request.MaKhuyenMai.HasValue)
                 {
-                    var km = await _context.Khuyenmais
-                        .FindAsync(request.MaKhuyenMai);
+                    var maKhuyenMai = request.MaKhuyenMai.Value;
 
-                    if (km != null)
-                        km.SoLuongDaDung += 1;
+                    await _context.Database.ExecuteSqlInterpolatedAsync(
+                        $@"UPDATE khuyenmai
+                        SET SoLuongDaDung = SoLuongDaDung + 1
+                        WHERE MaKhuyenMai = {maKhuyenMai}");
                 }
 
                 _context.Lichsutrangthaidonhangs.Add(
@@ -1307,6 +1407,34 @@ namespace DatMonAnOnline.API.Controllers
 
             if (nhaHang.MaTaiKhoanNavigation.TrangThai != true)
                 return (0, 0, 0, null, "Nhà hàng đang tạm ngưng hoạt động.");
+
+            // Đơn hàng - kiểm tra điều kiện hợp đồng trước checkout
+            if (nhaHang.TrangThaiDuyet != "DaDuyet")
+            {
+                return (
+                    0, 0, 0, null,
+                    "Nhà hàng chưa được duyệt để nhận đơn."
+                );
+            }
+
+            var homNay = DateOnly.FromDateTime(DateTime.Now);
+
+            var coHopDongHieuLuc = await _context.Hopdongnhahangs
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.MaNhaHang == maNhaHang &&
+                    x.TrangThai == "HieuLuc" &&
+                    x.NgayBatDau <= homNay &&
+                    x.NgayKetThuc >= homNay
+                );
+
+            if (!coHopDongHieuLuc)
+            {
+                return (
+                    0, 0, 0, null,
+                    "Nhà hàng chưa có hợp đồng còn hiệu lực để nhận đơn mới."
+                );
+            }
 
             var trangThaiNhaHang =
                 TrangThaiNhaHangHelper.KiemTra(nhaHang);

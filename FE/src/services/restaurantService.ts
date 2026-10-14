@@ -26,6 +26,7 @@ export interface Restaurant {
     gioDongCua: string | null;
 
     trangThaiDuyet?: string;
+    khoaThongTinHopDong?: boolean;
 
     /*
      * Thuộc tính cũ được giữ tạm thời để không ảnh hưởng

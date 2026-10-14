@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { getIdempotencyKey } from "./idempotency";
 
 export interface ContractContent {
     maNhaHang: number;
@@ -22,6 +23,9 @@ export interface SignedContract extends ContractContent {
     thoiGianGuiDuyet: string | null;
     thoiGianDuyet: string | null;
     lyDoTuChoi: string | null;
+    lyDoChamDut: string | null;
+    maTaiKhoanChamDut: number | null;
+    thoiGianChamDut: string | null;
 }
 
 function authHeaders() {
@@ -52,7 +56,7 @@ export interface SignContractRequest {
     maXacNhanNoiDung: string;
 }
 
-export function signContract(
+export async function signContract(
     data: SignContractRequest
 ): Promise<{
     message: string;
@@ -61,17 +65,39 @@ export function signContract(
     trangThai: string;
     thoiGianKy: string;
 }> {
-    return apiFetch("/nha-hang/hop-dong/ky", {
+    const path = "/nha-hang/hop-dong/ky";
+    const key = await getIdempotencyKey(`POST ${path}`, data);
+
+    return apiFetch(path, {
         method: "POST",
-        headers: authHeaders(),
+        headers: {
+            ...authHeaders(),
+            "Idempotency-Key": key,
+        },
         body: JSON.stringify(data),
     });
 }
-export function submitContractForReview(): Promise<{
-    message: string;
-}> {
-    return apiFetch("/nha-hang/hop-dong/gui-xet-duyet", {
+
+export async function submitContractForReview(
+    maHopDong: number
+): Promise<{ message: string }> {
+    const path = "/nha-hang/hop-dong/gui-xet-duyet";
+    const data = { maHopDong };
+    const key = await getIdempotencyKey(`POST ${path}`, data);
+
+    return apiFetch(path, {
+        method: "POST",
+        headers: {
+            ...authHeaders(),
+            "Idempotency-Key": key,
+        },
+        body: JSON.stringify(data),
+    });
+}
+export function startNewContract() {
+    return apiFetch("/nha-hang/hop-dong/bat-dau-ky-moi", {
         method: "POST",
         headers: authHeaders(),
     });
 }
+

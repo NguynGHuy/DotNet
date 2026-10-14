@@ -1,7 +1,11 @@
+using DatMonAnOnline.API.Common;
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace DatMonAnOnline.API.Controllers;
 
@@ -75,6 +79,9 @@ public class AdminHopDongController : ControllerBase
                 x.ThoiGianDuyet,
                 x.MaTaiKhoanDuyet,
                 x.LyDoTuChoi,
+                x.LyDoChamDut,
+                x.MaTaiKhoanChamDut,
+                x.ThoiGianChamDut,
                 x.NoiDungHopDong,
                 coGiayPhep = x.FileGiayPhepKinhDoanh != null,
                 coGiayToDaiDien = x.FileGiayToNguoiDaiDien != null,
@@ -189,5 +196,183 @@ public class AdminHopDongController : ControllerBase
             contentType,
             $"{loai}-nhahang-{hopDong.MaNhaHang}{extension}"
         );
+    }
+
+    public sealed class ChamDutHopDongRequest
+    {
+        [Required, MaxLength(500)]
+        public string LyDo { get; set; } = "";
+    }
+
+    // Admin - chấm dứt hợp đồng và lưu lịch sử
+    [HttpPut("hop-dong/{id:int}/cham-dut")]
+    public async Task<IActionResult> ChamDutHopDong(
+        int id,
+        [FromBody] ChamDutHopDongRequest request)
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(claim, out var maAdmin) || maAdmin <= 0)
+            return Unauthorized();
+
+        var lyDo = request.LyDo.Trim();
+
+        if (string.IsNullOrWhiteSpace(lyDo))
+            return BadRequest(new
+            {
+                message = "Vui lòng nhập lý do chấm dứt."
+            });
+
+        var maNhaHang = await _context.Hopdongnhahangs
+            .AsNoTracking()
+            .Where(x => x.MaHopDong == id)
+            .Select(x => (int?)x.MaNhaHang)
+            .FirstOrDefaultAsync();
+
+        if (maNhaHang == null)
+            return NotFound(new
+            {
+                message = "Không tìm thấy hợp đồng."
+            });
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync();
+
+        var nhaHangs = await _context.Nhahangs
+            .FromSqlInterpolated(
+                $"SELECT * FROM nhahang WHERE MaNhaHang = {maNhaHang.Value} FOR UPDATE")
+            .ToListAsync();
+
+        var nhaHang = nhaHangs.SingleOrDefault();
+
+        if (nhaHang == null)
+            return NotFound(new
+            {
+                message = "Không tìm thấy nhà hàng."
+            });
+
+        var idem = await IdempotencyStore.CheckAsync(
+            _context,
+            Request,
+            maAdmin,
+            new { maHopDong = id, lyDo });
+
+        if (idem.Result != null)
+            return idem.Result;
+
+        var hopDong = await _context.Hopdongnhahangs
+            .Where(x => x.MaNhaHang == nhaHang.MaNhaHang)
+            .OrderByDescending(x => x.MaHopDong)
+            .FirstOrDefaultAsync();
+
+        if (hopDong == null ||
+            hopDong.MaHopDong != id ||
+            hopDong.TrangThai != "HieuLuc")
+        {
+            return Conflict(new
+            {
+                message =
+                    "Chỉ được chấm dứt hợp đồng gần nhất đang có hiệu lực."
+            });
+        }
+
+        var thoiGian = DateTime.Now;
+
+        hopDong.TrangThai = "ChamDut";
+        hopDong.LyDoChamDut = lyDo;
+        hopDong.MaTaiKhoanChamDut = maAdmin;
+        hopDong.ThoiGianChamDut = thoiGian;
+
+        // Giữ kết quả duyệt và các đơn hàng cũ.
+        _context.Thongbaos.Add(new Thongbao
+        {
+            MaTaiKhoan = nhaHang.MaTaiKhoan,
+            TieuDe = "Hợp đồng nhà hàng đã bị chấm dứt",
+            NoiDung =
+                $"Hợp đồng {hopDong.SoHopDong} đã bị chấm dứt. " +
+                "Vui lòng mở trang hợp đồng để xem lý do.",
+            Loai = "HopDong",
+            DuongDan = "/quan/hop-dong",
+            DaDoc = false,
+            NgayTao = thoiGian
+        });
+
+        await _context.SaveChangesAsync();
+
+        var result = await IdempotencyStore.SaveSuccessAsync(
+            _context,
+            idem,
+            new
+            {
+                message = "Đã chấm dứt hợp đồng.",
+                hopDong.MaHopDong,
+                hopDong.TrangThai,
+                hopDong.LyDoChamDut,
+                hopDong.MaTaiKhoanChamDut,
+                hopDong.ThoiGianChamDut
+            });
+
+        await transaction.CommitAsync();
+
+        return result;
+    }
+
+    // Admin - danh sách hợp đồng mới nhất của từng nhà hàng
+    [HttpGet("hop-dong")]
+    public async Task<IActionResult> DanhSachHopDong(
+        [FromQuery] PaginationQuery pagination,
+        [FromQuery] string? search = null,
+        [FromQuery] string? state = null)
+    {
+        var states = new[]
+        {
+        "Nhap", "ChoKy", "DaKy", "ChoDuyet",
+        "HieuLuc", "HetHan", "TuChoi", "ChamDut"
+    };
+
+        if (!string.IsNullOrWhiteSpace(state) &&
+            !states.Contains(state))
+        {
+            return BadRequest(new
+            {
+                message = "Trạng thái hợp đồng không hợp lệ."
+            });
+        }
+
+        var query = _context.Hopdongnhahangs
+            .AsNoTracking()
+            .Where(x => !_context.Hopdongnhahangs.Any(newer =>
+                newer.MaNhaHang == x.MaNhaHang &&
+                newer.MaHopDong > x.MaHopDong));
+
+        if (!string.IsNullOrWhiteSpace(state))
+            query = query.Where(x => x.TrangThai == state);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim();
+
+            query = query.Where(x =>
+                x.SoHopDong.Contains(keyword) ||
+                x.MaNhaHangNavigation.TenNhaHang.Contains(keyword));
+        }
+
+        var result = await query
+            .OrderByDescending(x => x.MaHopDong)
+            .Select(x => new
+            {
+                x.MaHopDong,
+                x.MaNhaHang,
+                x.SoHopDong,
+                tenNhaHang = x.MaNhaHangNavigation.TenNhaHang,
+                x.NguoiDaiDien,
+                x.TrangThai,
+                x.NgayBatDau,
+                x.NgayKetThuc,
+                x.TyLePhiNenTang
+            })
+            .ToPagedResultAsync(pagination);
+
+        return Ok(result);
     }
 }

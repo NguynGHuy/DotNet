@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace DatMonAnOnline.API.Models;
+﻿namespace DatMonAnOnline.API.Models;
 
 public partial class Hopdongnhahang
 {
@@ -66,4 +63,8 @@ public partial class Hopdongnhahang
     public virtual Nhahang MaNhaHangNavigation { get; set; } = null!;
 
     public virtual Taikhoan? MaTaiKhoanDuyetNavigation { get; set; }
+
+    public int? MaTaiKhoanChamDut { get; set; }
+
+    public DateTime? ThoiGianChamDut { get; set; }
 }

@@ -11,6 +11,7 @@ import {
     UsersRound,
     UtensilsCrossed,
     X,
+    FileText,
 } from "lucide-react";
 import {
     Link,
@@ -47,6 +48,12 @@ const NAV_ITEMS = [
         icon: Store,
     },
     {
+        to: "/admin/hop-dong",
+        label: "Hợp đồng",
+        description: "Thời hạn và trạng thái hợp tác",
+        icon: FileText,
+    },
+    {
         to: "/admin/khuyen-mai",
         label: "Khuyến mãi hệ thống",
         description: "Ưu đãi toàn nền tảng",
@@ -64,7 +71,13 @@ function AdminLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState("");
-    const [mobileOpen, setMobileOpen] = useState(false);
+    const [mobileOpenAt, setMobileOpenAt] = useState<string | null>(null);
+
+    const mobileOpen = mobileOpenAt === location.key;
+
+    const setMobileOpen = (open: boolean) => {
+        setMobileOpenAt(open ? location.key : null);
+    };
     const [access, setAccess] = useState<
         "loading" | "allowed" | "denied"
     >("loading");
@@ -91,10 +104,6 @@ function AdminLayout() {
             cancelled = true;
         };
     }, []);
-
-    useEffect(() => {
-        setMobileOpen(false);
-    }, [location.pathname]);
 
     const logout = () => {
         localStorage.removeItem("token");

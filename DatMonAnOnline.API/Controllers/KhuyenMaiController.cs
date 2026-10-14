@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using DatMonAnOnline.API.Common;
+using DatMonAnOnline.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DatMonAnOnline.API.Models;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using DatMonAnOnline.API.Common;
 
 namespace DatMonAnOnline.API.Controllers
 {
@@ -273,6 +274,7 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> TaoKhuyenMai(
             [FromBody] TaoKhuyenMaiRequest request)
         {
+            PromotionWriteHelper.Normalize(request);
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
             int? maNhaHang = null;
@@ -315,7 +317,13 @@ namespace DatMonAnOnline.API.Controllers
 
             _context.Khuyenmais.Add(khuyenMai);
 
-            await _context.SaveChangesAsync();
+            if (!await PromotionWriteHelper.SaveNewAsync(_context))
+            {
+                return Conflict(new
+                {
+                    message = "Mã khuyến mãi đã tồn tại."
+                });
+            }
 
             return Ok(new
             {
@@ -461,7 +469,9 @@ namespace DatMonAnOnline.API.Controllers
                 });
             }
 
-            km.MoTa = request.MoTa;
+            km.MoTa = string.IsNullOrWhiteSpace(request.MoTa)
+                ? null
+                : request.MoTa.Trim();
             km.SoLuong = request.SoLuong;
             km.NgayBatDau = request.NgayBatDau;
             km.NgayKetThuc = request.NgayKetThuc;
@@ -514,6 +524,16 @@ namespace DatMonAnOnline.API.Controllers
         public async Task<IActionResult> KiemTraMaKhuyenMai(
             [FromBody] KiemTraKhuyenMaiRequest req)
         {
+            req.MaCode = req.MaCode.Trim().ToUpperInvariant();
+
+            if (string.IsNullOrWhiteSpace(req.MaCode))
+            {
+                return BadRequest(new
+                {
+                    message = "Vui lòng nhập mã khuyến mãi."
+                });
+            }
+
             var km = await _context.Khuyenmais
                 .FirstOrDefaultAsync(x => x.MaCode == req.MaCode);
 
@@ -579,52 +599,49 @@ namespace DatMonAnOnline.API.Controllers
     // DTO TẠO KHUYẾN MÃI
     // =========================
 
-    public class TaoKhuyenMaiRequest
+    public class TaoKhuyenMaiRequest : PromotionCreateRequest
     {
-        public string MaCode { get; set; } = null!;
-
-        public string? MoTa { get; set; }
-
-        public int SoLuong { get; set; }
-
-        public DateTime NgayBatDau { get; set; }
-
-        public DateTime NgayKetThuc { get; set; }
-
-        public decimal DonHangToiThieu { get; set; }
-
-        public string LoaiGiam { get; set; } = null!;
-
-        public decimal GiaTriGiam { get; set; }
-
-        public decimal? GiamToiDa { get; set; }
     }
 
     // =========================
     // DTO CẬP NHẬT KHUYẾN MÃI
     // =========================
 
-    public class CapNhatKhuyenMaiRequest
+    public class CapNhatKhuyenMaiRequest : IValidatableObject
     {
+        [MaxLength(200)]
         public string? MoTa { get; set; }
 
+        [Range(1, int.MaxValue)]
         public int SoLuong { get; set; }
 
         public DateTime NgayBatDau { get; set; }
 
         public DateTime NgayKetThuc { get; set; }
-    }
 
-    // =========================
-    // DTO KIỂM TRA KHUYẾN MÃI
-    // =========================
+        public IEnumerable<ValidationResult> Validate(
+            ValidationContext validationContext)
+        {
+            if (NgayBatDau.Year < 1000 ||
+                NgayKetThuc.Year < 1000 ||
+                NgayKetThuc <= NgayBatDau)
+            {
+                yield return new ValidationResult(
+                    "Thời gian kết thúc phải sau thời gian bắt đầu.",
+                    new[] { nameof(NgayKetThuc) });
+            }
+        }
+    }
 
     public class KiemTraKhuyenMaiRequest
     {
-        public string MaCode { get; set; } = null!;
+        [Required, MaxLength(30)]
+        public string MaCode { get; set; } = "";
 
+        [Range(1, int.MaxValue)]
         public int MaNhaHang { get; set; }
 
+        [Range(typeof(decimal), "0", "999999999999999999")]
         public decimal TongTienHang { get; set; }
     }
 }

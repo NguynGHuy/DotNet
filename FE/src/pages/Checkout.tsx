@@ -230,6 +230,7 @@ function Checkout() {
   ] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     if (!localStorage.getItem("token")) {
       const returnUrl = `/thanh-toan?maGioHang=${maGioHang}`;
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(returnUrl)}`, {
@@ -262,6 +263,8 @@ function Checkout() {
             maGioHang,
           ) as Promise<GioHang>,
         ]);
+
+        if (cancelled) return;
 
         setAddresses(addressData);
         setPhuongThucList(paymentData);
@@ -298,6 +301,9 @@ function Checkout() {
             null,
           );
 
+
+        if (cancelled) return;
+
         setRestaurantId(
           cart.maNhaHang,
         );
@@ -329,19 +335,27 @@ function Checkout() {
             : null,
         );
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Có lỗi xảy ra.";
+          if (cancelled) return;
 
-        alert(message);
-        navigate("/nha-hang");
+          const message =
+              error instanceof Error
+                  ? error.message
+                  : "Có lỗi xảy ra.";
+
+          alert(message);
+          navigate("/nha-hang", { replace: true });
       } finally {
-        setLoading(false);
+          if (!cancelled) {
+              setLoading(false);
+          }
       }
     };
 
-    void initCheckout();
+      void initCheckout();
+
+      return () => {
+          cancelled = true;
+      };
   }, [maGioHang, navigate]);
 
   useEffect(() => {
@@ -492,6 +506,8 @@ function Checkout() {
             maGioHang,
             null,
           );
+
+    
 
         setCheckoutData(
           soTien(money),

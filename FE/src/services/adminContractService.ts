@@ -1,4 +1,11 @@
-import { apiFetch, API_URL } from "./api";
+import {
+    apiFetch,
+    API_URL,
+    buildQuery,
+    type PagedResult,
+    type PaginationParams,
+} from "./api";
+import { getIdempotencyKey } from "./idempotency";
 
 export type ContractFileType = "giay-phep" | "giay-to" | "hop-dong";
 export type DocumentReviewResult = "HopLe" | "CanBoSung";
@@ -8,6 +15,7 @@ export interface DocumentReviewPayload {
     ketQuaGiayToDaiDien: DocumentReviewResult;
     ketQuaHopDong: DocumentReviewResult;
     ghiChu?: string;
+    maHopDong: number;
 }
 
 export interface AdminContractDetails {
@@ -38,6 +46,9 @@ export interface AdminContractDetails {
         thoiGianGuiDuyet: string | null;
         noiDungHopDong: string | null;
         lyDoTuChoi: string | null;
+        lyDoChamDut: string | null;
+        thoiGianChamDut: string | null;
+        maTaiKhoanChamDut: number | null;
         coGiayPhep: boolean;
         coGiayToDaiDien: boolean;
         coTepHopDong: boolean;
@@ -53,6 +64,31 @@ export interface AdminContractDetails {
     } | null;
 }
 
+export interface AdminContractItem {
+    maHopDong: number;
+    maNhaHang: number;
+    soHopDong: string;
+    tenNhaHang: string;
+    nguoiDaiDien: string;
+    trangThai: string;
+    ngayBatDau: string;
+    ngayKetThuc: string;
+    tyLePhiNenTang: number;
+}
+
+export interface AdminContractQuery extends PaginationParams {
+    search?: string;
+    state?: string;
+}
+
+export function getAdminContracts(
+    params: AdminContractQuery = {}
+): Promise<PagedResult<AdminContractItem>> {
+    return apiFetch(`/admin/hop-dong${buildQuery(params)}`, {
+        headers: authHeaders(),
+        cache: "no-store",
+    });
+}
 function authHeaders() {
     return {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -68,26 +104,39 @@ export function getAdminContract(
     });
 }
 
-export function approveRestaurantDocuments(
+export async function approveRestaurantDocuments(
     maNhaHang: number,
     review: DocumentReviewPayload
 ) {
-    return apiFetch(`/admin/nha-hang/${maNhaHang}/duyet`, {
+    const path = `/admin/nha-hang/${maNhaHang}/duyet`;
+    const key = await getIdempotencyKey(`PUT ${path}`, review);
+
+    return apiFetch(path, {
         method: "PUT",
-        headers: authHeaders(),
+        headers: {
+            ...authHeaders(),
+            "Idempotency-Key": key,
+        },
         body: JSON.stringify(review),
     });
 }
 
-export function rejectRestaurantDocuments(
+export async function rejectRestaurantDocuments(
     maNhaHang: number,
     review: DocumentReviewPayload,
     lyDo: string
 ) {
-    return apiFetch(`/admin/nha-hang/${maNhaHang}/tu-choi`, {
+    const path = `/admin/nha-hang/${maNhaHang}/tu-choi`;
+    const data = { ...review, lyDo };
+    const key = await getIdempotencyKey(`PUT ${path}`, data);
+
+    return apiFetch(path, {
         method: "PUT",
-        headers: authHeaders(),
-        body: JSON.stringify({ ...review, lyDo }),
+        headers: {
+            ...authHeaders(),
+            "Idempotency-Key": key,
+        },
+        body: JSON.stringify(data),
     });
 }
 
@@ -135,4 +184,22 @@ export async function downloadAdminContractFile(
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+export async function terminateContract(
+    maHopDong: number,
+    lyDo: string
+) {
+    const path = `/admin/hop-dong/${maHopDong}/cham-dut`;
+    const data = { lyDo: lyDo.trim() };
+    const key = await getIdempotencyKey(`PUT ${path}`, data);
+
+    return apiFetch(path, {
+        method: "PUT",
+        headers: {
+            ...authHeaders(),
+            "Idempotency-Key": key,
+        },
+        body: JSON.stringify(data),
+    });
 }
