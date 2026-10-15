@@ -33,9 +33,11 @@ import AdminRestaurants from "./pages/AdminRestaurants";
 import AdminPromotions from "./pages/AdminPromotions";
 import AdminRestaurantContract from "./pages/AdminRestaurantContract";
 import AdminContracts from "./pages/AdminContracts";
+import AdminDoiSoat from "./pages/AdminDoiSoat";
 
 import QuanLayout from "./pages/RestaurantLayout";
 import QuanHome from "./pages/RestaurantHome";
+import RestaurantDoiSoat from "./pages/RestaurantDoiSoat";
 import QuanRestaurantInfo from "./pages/RestaurantInfo";
 import QuanRestaurantStatus from "./pages/RestaurantStatus";
 import RestaurantOrders from "./pages/RestaurantOrders";
@@ -197,6 +199,7 @@ function AppContent() {
                     />
 
                     <Route path="hop-dong" element={<RestaurantContract />} />
+                    <Route path="doi-soat" element={<RestaurantDoiSoat />} />
 
                     <Route
                         path="trang-thai"
@@ -268,6 +271,7 @@ function AppContent() {
                     />
 
                     <Route path="hop-dong" element={<AdminContracts />} />
+                    <Route path="doi-soat" element={<AdminDoiSoat />} />
 
                     <Route
                         path="khuyen-mai"

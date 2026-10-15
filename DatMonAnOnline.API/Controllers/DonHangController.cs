@@ -194,6 +194,9 @@ namespace DatMonAnOnline.API.Controllers
                 }
 
                 // Đơn hàng - khóa lượt sử dụng khuyến mãi
+                decimal giamGiaNhaHang = 0;
+                decimal giamGiaHeThong = 0;
+                
                 if (request.MaKhuyenMai.HasValue)
                 {
                     var maKhuyenMai = request.MaKhuyenMai.Value;
@@ -214,7 +217,7 @@ namespace DatMonAnOnline.API.Controllers
                         voucher.SoLuongDaDung >= voucher.SoLuong ||
                         tongTienHang < voucher.DonHangToiThieu ||
                         (voucher.MaNhaHang.HasValue &&
-                         voucher.MaNhaHang != nhaHangId))
+                        voucher.MaNhaHang != nhaHangId))
                     {
                         await transaction.RollbackAsync();
 
@@ -235,8 +238,19 @@ namespace DatMonAnOnline.API.Controllers
                         Math.Max(soTienGiam, 0m),
                         tongTienHang);
 
+                    // Phân tách giảm giá để tính phí nền tảng
+                    if (voucher.MaNhaHang.HasValue)
+                        giamGiaNhaHang = soTienGiam;
+                    else
+                        giamGiaHeThong = soTienGiam;
+
                     thanhTien = tongTienHang + phiShip - soTienGiam;
                 }
+
+                // Công thức tính doanh thu và phí nền tảng
+                decimal doanhThuTinhPhi = tongTienHang - giamGiaNhaHang;
+                decimal phiNenTang = Math.Round(doanhThuTinhPhi * hopDongNhanDon.TyLePhiNenTang / 100);
+                decimal soTienNhaHangNhan = doanhThuTinhPhi - phiNenTang;
 
                 var maDonHienThi =
                     $"DH{DateTime.Now:yyMMdd}-{Random.Shared.Next(1000, 9999)}";
@@ -260,7 +274,13 @@ namespace DatMonAnOnline.API.Controllers
                     PhiShip = phiShip,
                     SoTienGiam = soTienGiam,
                     ThanhTien = thanhTien,
-                    GhiChu = request.GhiChu
+                    GhiChu = request.GhiChu,
+                    
+                    // BỔ SUNG LƯU SNAPSHOT
+                    GiamGiaNhaHang = giamGiaNhaHang,
+                    GiamGiaHeThong = giamGiaHeThong,
+                    PhiNenTang = phiNenTang,
+                    SoTienNhaHangNhan = soTienNhaHangNhan
                 };
 
                 _context.Donhangs.Add(donHang);

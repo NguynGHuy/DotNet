@@ -12,6 +12,7 @@ import {
     UtensilsCrossed,
     X,
     FileText,
+    Wallet
 } from "lucide-react";
 import {
     Link,
@@ -52,6 +53,12 @@ const NAV_ITEMS = [
         label: "Hợp đồng",
         description: "Thời hạn và trạng thái hợp tác",
         icon: FileText,
+    },
+    {
+        to: "/admin/doi-soat",
+        label: "Đối soát doanh thu",
+        description: "Thanh toán cho nhà hàng",
+        icon: Wallet,
     },
     {
         to: "/admin/khuyen-mai",
