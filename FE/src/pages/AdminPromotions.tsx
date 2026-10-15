@@ -118,7 +118,11 @@ function AdminPromotions() {
     }, [filter, keyword, pageNumber]);
 
     useEffect(() => {
-        void loadPromotions();
+        const frameId = window.requestAnimationFrame(() => {
+            void loadPromotions();
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
     }, [loadPromotions]);
 
     const handleToggle = async (item: Promotion) => {

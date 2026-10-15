@@ -76,8 +76,7 @@ function Home() {
         console.error(error);
         setError("Không thể tải danh sách nhà hàng.");
       } finally {
-        if (cancelled) return;
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 

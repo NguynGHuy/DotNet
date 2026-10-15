@@ -62,7 +62,11 @@ function VoucherWallet() {
   }, [navigate, savedPage, systemPage]);
 
   useEffect(() => {
-    void loadVouchers();
+    const frameId = window.requestAnimationFrame(() => {
+      void loadVouchers();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [loadVouchers]);
 
   const handleSave = async (voucher: CustomerVoucher) => {

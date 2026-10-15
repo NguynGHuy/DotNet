@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { WalletCards, RefreshCw, Eye, CheckCircle2, X } from "lucide-react";
+import { RefreshCw, Eye, CheckCircle2, X } from "lucide-react";
 import Pagination from "../components/Pagination";
-import { getQuanDoiSoat, getQuanDoiSoatDetail, confirmDoiSoat } from "../services/doiSoatService";
+import {
+    getQuanDoiSoat,
+    getQuanDoiSoatDetail,
+    confirmDoiSoat,
+    type DoiSoatDetail,
+    type DoiSoatSummary,
+} from "../services/doiSoatService";
 
 function formatMoney(value: number) {
     return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
+}
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Có lỗi xảy ra. Vui lòng thử lại.";
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -16,30 +26,33 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function RestaurantDoiSoat() {
-    const [list, setList] = useState<any[]>([]);
+    const [list, setList] = useState<DoiSoatSummary[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
     const [pageNumber, setPageNumber] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
 
     const [showDetail, setShowDetail] = useState<number | null>(null);
-    const [detailData, setDetailData] = useState<any>(null);
+    const [detailData, setDetailData] = useState<DoiSoatDetail | null>(null);
     const [busy, setBusy] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
             setLoading(true);
+            setError("");
             const res = await getQuanDoiSoat({ pageNumber, pageSize: 10 });
             setList(res.items);
             setTotalPages(res.totalPages);
-        } catch (err: any) {
-            console.error(err);
+        } catch (caughtError: unknown) {
+            setError(getErrorMessage(caughtError));
         } finally {
             setLoading(false);
         }
     }, [pageNumber]);
 
     useEffect(() => {
-        void loadData();
+        const timeoutId = window.setTimeout(() => void loadData(), 0);
+        return () => window.clearTimeout(timeoutId);
     }, [loadData]);
 
     const handleViewDetail = async (id: number) => {
@@ -48,8 +61,8 @@ export default function RestaurantDoiSoat() {
             const res = await getQuanDoiSoatDetail(id);
             setDetailData(res);
             setShowDetail(id);
-        } catch (err: any) {
-            alert(err.message);
+        } catch (caughtError: unknown) {
+            alert(getErrorMessage(caughtError));
         } finally {
             setBusy(false);
         }
@@ -63,8 +76,8 @@ export default function RestaurantDoiSoat() {
             alert("Xác nhận thành công! Vui lòng chờ Admin chuyển khoản.");
             setShowDetail(null);
             void loadData();
-        } catch (err: any) {
-            alert(err.message);
+        } catch (caughtError: unknown) {
+            alert(getErrorMessage(caughtError));
         } finally {
             setBusy(false);
         }
@@ -82,6 +95,8 @@ export default function RestaurantDoiSoat() {
                     <RefreshCw size={16} /> Tải lại
                 </button>
             </header>
+
+            {error && <p className="merchant-info-error" role="alert">{error}</p>}
 
             <div className="merchant-info-section">
                 {loading ? <p>Đang tải dữ liệu...</p> : list.length === 0 ? <p>Chưa có kỳ đối soát nào.</p> : (

@@ -250,7 +250,8 @@ namespace DatMonAnOnline.API.Controllers
                 // Công thức tính doanh thu và phí nền tảng
                 decimal doanhThuTinhPhi = tongTienHang - giamGiaNhaHang;
                 decimal phiNenTang = Math.Round(doanhThuTinhPhi * hopDongNhanDon.TyLePhiNenTang / 100);
-                decimal soTienNhaHangNhan = doanhThuTinhPhi - phiNenTang;
+                // Quán tự giao nên phí ship thuộc về nhà hàng.
+                decimal soTienNhaHangNhan = doanhThuTinhPhi + phiShip - phiNenTang;
 
                 var maDonHienThi =
                     $"DH{DateTime.Now:yyMMdd}-{Random.Shared.Next(1000, 9999)}";

@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Wallet, Plus, X, Eye } from "lucide-react";
+import { RefreshCw, Plus, X, Eye } from "lucide-react";
 import Pagination from "../components/Pagination";
-import { getAdminDoiSoat, createDoiSoat, getAdminDoiSoatDetail, payDoiSoat } from "../services/doiSoatService";
+import {
+    getAdminDoiSoat,
+    createDoiSoat,
+    getAdminDoiSoatDetail,
+    payDoiSoat,
+    type DoiSoatDetail,
+    type DoiSoatSummary,
+} from "../services/doiSoatService";
 
 function formatMoney(value: number) {
     return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
+}
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Có lỗi xảy ra. Vui lòng thử lại.";
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -16,7 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function AdminDoiSoat() {
-    const [list, setList] = useState<any[]>([]);
+    const [list, setList] = useState<DoiSoatSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [pageNumber, setPageNumber] = useState(1);
@@ -24,7 +35,7 @@ export default function AdminDoiSoat() {
 
     const [showCreate, setShowCreate] = useState(false);
     const [showDetail, setShowDetail] = useState<number | null>(null);
-    const [detailData, setDetailData] = useState<any>(null);
+    const [detailData, setDetailData] = useState<DoiSoatDetail | null>(null);
     const [maGiaoDich, setMaGiaoDich] = useState("");
     
     // Form tạo mới
@@ -34,18 +45,20 @@ export default function AdminDoiSoat() {
     const loadData = useCallback(async () => {
         try {
             setLoading(true);
+            setError("");
             const res = await getAdminDoiSoat({ pageNumber, pageSize: 10 });
             setList(res.items);
             setTotalPages(res.totalPages);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (error: unknown) {
+            setError(getErrorMessage(error));
         } finally {
             setLoading(false);
         }
     }, [pageNumber]);
 
     useEffect(() => {
-        void loadData();
+        const timeoutId = window.setTimeout(() => void loadData(), 0);
+        return () => window.clearTimeout(timeoutId);
     }, [loadData]);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -60,8 +73,8 @@ export default function AdminDoiSoat() {
             setShowCreate(false);
             void loadData();
             alert("Tạo kỳ đối soát thành công!");
-        } catch (err: any) {
-            alert(err.message);
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
         } finally {
             setBusy(false);
         }
@@ -73,8 +86,8 @@ export default function AdminDoiSoat() {
             const res = await getAdminDoiSoatDetail(id);
             setDetailData(res);
             setShowDetail(id);
-        } catch (err: any) {
-            alert(err.message);
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
         } finally {
             setBusy(false);
         }
@@ -88,8 +101,8 @@ export default function AdminDoiSoat() {
             alert("Xác nhận thanh toán thành công!");
             setShowDetail(null);
             void loadData();
-        } catch (err: any) {
-            alert(err.message);
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
         } finally {
             setBusy(false);
         }
@@ -112,6 +125,12 @@ export default function AdminDoiSoat() {
                     </button>
                 </div>
             </header>
+
+            {error && (
+                <div className="admin-promotions-error" role="alert">
+                    {error}
+                </div>
+            )}
 
             <section className="admin-promotions-panel">
                 {loading ? (

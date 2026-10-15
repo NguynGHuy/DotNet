@@ -18,8 +18,11 @@ function FoodReviewList({ maMonAn }: Props) {
     useEffect(() => {
         let cancelled = false;
 
-        setLoading(true);
-        getFoodReviews(maMonAn, { pageNumber, pageSize: 3 })
+        const frameId = window.requestAnimationFrame(() => {
+            setLoading(true);
+            setError("");
+
+            getFoodReviews(maMonAn, { pageNumber, pageSize: 3 })
             .then((data) => {
                 if (!cancelled) {
                     setReviews(data.items);
@@ -40,9 +43,11 @@ function FoodReviewList({ maMonAn }: Props) {
             .finally(() => {
                 if (!cancelled) setLoading(false);
             });
+        });
 
         return () => {
             cancelled = true;
+            window.cancelAnimationFrame(frameId);
         };
     }, [maMonAn, pageNumber]);
 

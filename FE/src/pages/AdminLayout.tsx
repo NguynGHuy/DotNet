@@ -115,6 +115,7 @@ function AdminLayout() {
     const logout = () => {
         localStorage.removeItem("token");
         setEmail("");
+        setMobileOpen(false);
         navigate("/dang-nhap");
     };
 
@@ -151,7 +152,8 @@ function AdminLayout() {
             .find((item) =>
                 item.end
                     ? location.pathname === item.to
-                    : location.pathname.startsWith(item.to)
+                    : location.pathname === item.to ||
+                      location.pathname.startsWith(`${item.to}/`)
             ) ?? NAV_ITEMS[0];
 
     const avatarText = email.charAt(0).toUpperCase() || "A";
@@ -173,7 +175,11 @@ function AdminLayout() {
                 }`}
             >
                 <div className="admin-pro-sidebar-header">
-                    <Link to="/admin" className="admin-pro-brand">
+                    <Link
+                        to="/admin"
+                        className="admin-pro-brand"
+                        onClick={() => setMobileOpen(false)}
+                    >
                         <span className="admin-pro-brand-icon">
                             <UtensilsCrossed size={20} />
                         </span>
@@ -217,6 +223,7 @@ function AdminLayout() {
                                 key={item.to}
                                 to={item.to}
                                 end={item.end}
+                                onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
                                     isActive ? "active" : ""
                                 }

@@ -73,7 +73,11 @@ function AdminHome() {
     }, []);
 
     useEffect(() => {
-        void loadDashboard();
+        const frameId = window.requestAnimationFrame(() => {
+            void loadDashboard();
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
     }, [loadDashboard]);
 
     if (loading) {

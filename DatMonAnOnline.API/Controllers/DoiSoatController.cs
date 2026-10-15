@@ -1,8 +1,10 @@
 using DatMonAnOnline.API.Common;
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
 namespace DatMonAnOnline.API.Controllers;
@@ -13,10 +15,14 @@ namespace DatMonAnOnline.API.Controllers;
 public class AdminDoiSoatController : ControllerBase
 {
     private readonly DatMonAnOnlineContext _context;
+    private readonly DateTime _batDauApDung;
 
-    public AdminDoiSoatController(DatMonAnOnlineContext context)
+    public AdminDoiSoatController(
+        DatMonAnOnlineContext context,
+        IOptions<DoiSoatOptions> options)
     {
         _context = context;
+        _batDauApDung = options.Value.BatDauApDung;
     }
 
     [HttpGet]
@@ -70,15 +76,28 @@ public class AdminDoiSoatController : ControllerBase
             return BadRequest(new { message = "Khoảng thời gian không hợp lệ." });
 
         var start = req.TuNgay.ToDateTime(TimeOnly.MinValue);
-        var end = req.DenNgay.ToDateTime(new TimeOnly(23, 59, 59));
+        var endExclusive = req.DenNgay.AddDays(1).ToDateTime(TimeOnly.MinValue);
 
         var donHangs = await _context.Donhangs
             .Include(x => x.Thanhtoans).ThenInclude(x => x.MaPhuongThucNavigation)
-            .Where(x => x.MaNhaHang == req.MaNhaHang && x.MaTrangThai == 5 && x.ThoiGianDat >= start && x.ThoiGianDat <= end &&
-                        !_context.Chitietdoisoats.Any(ct => ct.MaDonHang == x.MaDonHang))
+            .Where(x =>
+                x.MaNhaHang == req.MaNhaHang &&
+                x.MaTrangThai == 5 &&
+                x.MaHopDong != null &&
+                x.ThoiGianDat >= _batDauApDung &&
+                x.ThoiGianGiaoThucTe.HasValue &&
+                x.ThoiGianGiaoThucTe.Value >= start &&
+                x.ThoiGianGiaoThucTe.Value < endExclusive &&
+                !_context.Chitietdoisoats.Any(ct => ct.MaDonHang == x.MaDonHang))
             .ToListAsync();
 
-        if (!donHangs.Any()) return BadRequest(new { message = "Không có đơn hàng hoàn thành nào chưa đối soát trong khoảng thời gian này." });
+        if (!donHangs.Any())
+        {
+            return BadRequest(new
+            {
+                message = "Không có đơn hàng hợp lệ nào đã hoàn thành và chưa được đối soát trong khoảng thời gian này."
+            });
+        }
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
 

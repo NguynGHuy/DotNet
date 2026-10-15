@@ -1,5 +1,6 @@
 using DatMonAnOnline.API.Hubs;
 using DatMonAnOnline.API.Models;
+using DatMonAnOnline.API.Options;
 using DatMonAnOnline.API.Security;
 using DatMonAnOnline.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -214,6 +215,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
+builder.Services
+    .AddOptions<DoiSoatOptions>()
+    .Bind(builder.Configuration.GetSection(DoiSoatOptions.SectionName))
+    .Validate(
+        options => options.BatDauApDung != default,
+        "Cấu hình DoiSoat:BatDauApDung chưa được thiết lập hoặc không hợp lệ.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<ICheckoutCartReservationService, CheckoutCartReservationService>();
 var smtpOptions = builder.Services
     .AddOptions<SmtpEmailOptions>()

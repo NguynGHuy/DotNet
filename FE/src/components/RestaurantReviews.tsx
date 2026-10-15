@@ -16,16 +16,33 @@ function RestaurantReviews({ maNhaHang }: Props) {
     const [totalPages, setTotalPages] = useState(0);
 
     useEffect(() => {
-        setLoading(true);
-        getRestaurantReviews(maNhaHang, { pageNumber, pageSize: 5 })
-            .then((data) => {
-                setReviews(data.items);
-                setTotalItems(data.totalItems);
-                setTotalPages(data.totalPages);
-                if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
-            })
-            .catch((err: Error) => setError(err.message))
-            .finally(() => setLoading(false));
+        let cancelled = false;
+
+        const frameId = window.requestAnimationFrame(() => {
+            setLoading(true);
+            setError("");
+
+            getRestaurantReviews(maNhaHang, { pageNumber, pageSize: 5 })
+                .then((data) => {
+                    if (cancelled) return;
+
+                    setReviews(data.items);
+                    setTotalItems(data.totalItems);
+                    setTotalPages(data.totalPages);
+                    if (data.pageNumber !== pageNumber) setPageNumber(data.pageNumber);
+                })
+                .catch((err: Error) => {
+                    if (!cancelled) setError(err.message);
+                })
+                .finally(() => {
+                    if (!cancelled) setLoading(false);
+                });
+        });
+
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(frameId);
+        };
     }, [maNhaHang, pageNumber]);
 
     return (

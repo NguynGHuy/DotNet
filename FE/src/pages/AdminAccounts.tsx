@@ -76,7 +76,11 @@ function AdminAccounts() {
     }, [keyword, pageNumber, roleFilter, statusFilter]);
 
     useEffect(() => {
-        void loadAccounts();
+        const frameId = window.requestAnimationFrame(() => {
+            void loadAccounts();
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
     }, [loadAccounts]);
 
     const handleToggle = async (account: AdminAccount) => {
