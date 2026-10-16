@@ -181,6 +181,7 @@ namespace DatMonAnOnline.API.Controllers
 
                 var hopDongNhanDon = hopDongsDaKhoa.SingleOrDefault();
 
+                /* tam - test
                 if (hopDongNhanDon == null)
                 {
                     await transaction.RollbackAsync();
@@ -192,6 +193,7 @@ namespace DatMonAnOnline.API.Controllers
                             "Không thể tạo đơn mới."
                     });
                 }
+                */
 
                 // Đơn hàng - khóa lượt sử dụng khuyến mãi
                 decimal giamGiaNhaHang = 0;
@@ -869,6 +871,11 @@ namespace DatMonAnOnline.API.Controllers
                 .ToListAsync();
 
             var lyDo = request.LyDoHuy.Trim();
+            decimal soTienHoan = 0;
+            var daHoanTien = false;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             var claimed = await _context.Donhangs
                 .Where(order =>
                     order.MaDonHang == donHang.MaDonHang &&
@@ -879,6 +886,7 @@ namespace DatMonAnOnline.API.Controllers
 
             if (claimed == 0)
             {
+                await transaction.RollbackAsync();
                 return Conflict(new
                 {
                     Message = "Trạng thái đơn vừa thay đổi. Vui lòng tải lại trước khi hủy."
@@ -887,6 +895,13 @@ namespace DatMonAnOnline.API.Controllers
 
             donHang.MaTrangThai = 6;
             donHang.LyDoHuy = lyDo;
+
+            var khoanHoan = donHang.Thanhtoans
+                .Where(payment =>
+                    payment.TrangThaiThanhToan == "ThanhCong" &&
+                    payment.MaPhuongThucNavigation.TenPhuongThuc is "Momo" or "VNPay" or "ZaloPay")
+                .OrderByDescending(payment => payment.MaThanhToan)
+                .FirstOrDefault();
 
             foreach (var payment in donHang.Thanhtoans.Where(payment =>
                          payment.TrangThaiThanhToan == "ChoThanhToan"))
@@ -953,7 +968,38 @@ namespace DatMonAnOnline.API.Controllers
                 thongBaoHuyDaTao.Add((taiKhoanNhan, thongBao));
             }
 
+            var daCoHoanTien = await _context.Hoantiens
+                .AnyAsync(item => item.MaDonHang == donHang.MaDonHang);
+
+            if (khoanHoan != null && donHang.ThanhTien > 0 && !daCoHoanTien)
+            {
+                var khachCuaDon = await _context.Khachhangs
+                    .FirstAsync(item => item.MaKhachHang == donHang.MaKhachHang);
+                var bayGio = DateTime.Now;
+                soTienHoan = donHang.ThanhTien;
+                khachCuaDon.DiemTichLuy += (int)soTienHoan;
+
+                _context.Hoantiens.Add(new Hoantien
+                {
+                    MaThanhToan = khoanHoan.MaThanhToan,
+                    MaDonHang = donHang.MaDonHang,
+                    MaTaiKhoanYeuCau = maTaiKhoan.Value,
+                    MaTaiKhoanXuLy = maTaiKhoan.Value,
+                    SoTienHoan = soTienHoan,
+                    LyDoHoan = lyDo,
+                    KenhHoanTien = "ThuCong",
+                    TrangThai = "ThanhCong",
+                    MaYeuCauHoan = $"HOAN-{donHang.MaDonHang}",
+                    ThoiGianYeuCau = bayGio,
+                    ThoiGianXuLy = bayGio,
+                    ThoiGianHoanThanh = bayGio,
+                    NgayCapNhat = bayGio
+                });
+                daHoanTien = true;
+            }
+
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             foreach (var item in thongBaoHuyDaTao)
             {
@@ -1002,7 +1048,9 @@ namespace DatMonAnOnline.API.Controllers
 
             return Ok(new
             {
-                Message = "Huỷ đơn hàng thành công."
+                Message = "Huỷ đơn hàng thành công.",
+                DaHoanTien = daHoanTien,
+                SoTienHoan = soTienHoan
             });
         }
 
@@ -1438,6 +1486,7 @@ namespace DatMonAnOnline.API.Controllers
                 );
             }
 
+            /* tam - test
             var homNay = DateOnly.FromDateTime(DateTime.Now);
 
             var coHopDongHieuLuc = await _context.Hopdongnhahangs
@@ -1456,6 +1505,7 @@ namespace DatMonAnOnline.API.Controllers
                     "Nhà hàng chưa có hợp đồng còn hiệu lực để nhận đơn mới."
                 );
             }
+            */
 
             var trangThaiNhaHang =
                 TrangThaiNhaHangHelper.KiemTra(nhaHang);

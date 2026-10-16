@@ -58,6 +58,40 @@ namespace DatMonAnOnline.API.Controllers
             });
         }
 
+        [HttpGet("hoan-tien")]
+        public async Task<IActionResult> GetHoanTien()
+        {
+            var maTaiKhoan = GetMaTaiKhoan();
+            if (maTaiKhoan == null) return Unauthorized(new { message = "Token không hợp lệ." });
+
+            var maKhachHang = await _context.Khachhangs
+                .Where(item => item.MaTaiKhoan == maTaiKhoan.Value)
+                .Select(item => (int?)item.MaKhachHang)
+                .FirstOrDefaultAsync();
+            if (maKhachHang == null)
+                return NotFound(new { message = "Không tìm thấy hồ sơ khách hàng." });
+
+            var danhSach = await _context.Hoantiens
+                .AsNoTracking()
+                .Where(item => _context.Donhangs.Any(order =>
+                    order.MaDonHang == item.MaDonHang &&
+                    order.MaKhachHang == maKhachHang))
+                .OrderByDescending(item => item.ThoiGianHoanThanh)
+                .Select(item => new
+                {
+                    item.LyDoHoan,
+                    MaDonHangHienThi = _context.Donhangs
+                        .Where(order => order.MaDonHang == item.MaDonHang)
+                        .Select(order => order.MaDonHangHienThi)
+                        .FirstOrDefault(),
+                    item.SoTienHoan,
+                    item.ThoiGianHoanThanh
+                })
+                .ToListAsync();
+
+            return Ok(danhSach);
+        }
+
         [HttpPut("ho-so")]
         public async Task<IActionResult> UpdateHoSo(UpdateHoSoDto request)
         {

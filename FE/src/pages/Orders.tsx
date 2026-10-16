@@ -514,6 +514,15 @@ function Orders() {
               {cancelTarget.tenNhaHang}.
             </p>
 
+            {cancelTarget.trangThaiThanhToan === "ThanhCong" &&
+              cancelTarget.tenPhuongThuc !== "COD" &&
+              cancelTarget.thanhTien > 0 && (
+                <p>
+                  Số tiền {cancelTarget.thanhTien.toLocaleString("vi-VN")} đ
+                  sẽ được hoàn vào ví.
+                </p>
+              )}
+
             <label htmlFor="cancel-order-reason">Lý do hủy đơn</label>
 
             <textarea

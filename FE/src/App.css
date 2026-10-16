@@ -41474,6 +41474,22 @@ fieldset.merchant-promo-form-body {
   border-radius: 13px;
 }
 
+button.profile-tool-card {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-refund-history-card {
+  grid-column: 1 / -1;
+}
+
+.profile-refund-history-card .profile-tool-card-top {
+  margin-bottom: 16px;
+}
+
 .profile-wallet-card {
   color: #fff;
   background:
@@ -41538,6 +41554,36 @@ fieldset.merchant-promo-form-body {
   color: rgba(255, 255, 255, 0.82);
   font-size: 11px;
   line-height: 1.55;
+}
+
+.profile-refund-list {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-refund-list li {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.profile-refund-list li div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.profile-refund-list p,
+.profile-refund-list time {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
 }
 
 .profile-tool-status {

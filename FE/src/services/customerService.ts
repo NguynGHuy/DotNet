@@ -57,6 +57,20 @@ export async function uploadCustomerAvatar(file: File) {
     }) as Promise<{ message: string; anhDaiDien: string }>;
 }
 
+export interface RefundHistoryItem {
+    lyDoHoan: string;
+    maDonHangHienThi: string;
+    soTienHoan: number;
+    thoiGianHoanThanh: string;
+}
+
+export function getRefundHistory() {
+    const token = localStorage.getItem("token");
+    return apiFetch("/khach-hang/hoan-tien", {
+        headers: { Authorization: `Bearer ${token}` },
+    }) as Promise<RefundHistoryItem[]>;
+}
+
 export async function deleteCustomerAvatar() {
     const token = localStorage.getItem("token");
     return apiFetch("/khach-hang/anh-dai-dien", {

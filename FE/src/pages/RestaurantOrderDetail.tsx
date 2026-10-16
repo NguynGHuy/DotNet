@@ -162,7 +162,15 @@ function RestaurantOrderDetail() {
 
   const handleCancel = async () => {
     if (!order) return;
-    const reason = window.prompt("Nhập lý do hủy đơn hàng:");
+    const seHoan =
+      order.trangThaiThanhToan === "ThanhCong" &&
+      !order.tenPhuongThuc?.toUpperCase().includes("COD") &&
+      order.thanhTien > 0;
+    const reason = window.prompt(
+      seHoan
+        ? `Hủy đơn sẽ hoàn ${order.thanhTien.toLocaleString("vi-VN")} đ vào ví khách. Nhập lý do hủy:`
+        : "Nhập lý do hủy đơn hàng:",
+    );
     if (!reason?.trim()) return;
 
     try {

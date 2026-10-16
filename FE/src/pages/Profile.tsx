@@ -28,14 +28,38 @@ import { changePassword } from "../services/authService";
 import {
   deleteCustomerAvatar,
   getCustomerProfile,
+  getRefundHistory,
   uploadCustomerAvatar,
   updateCustomerProfile,
 } from "../services/customerService";
 import { resolveMediaUrl } from "../services/api";
 
-import type { CustomerProfile } from "../services/customerService";
+import type { CustomerProfile, RefundHistoryItem } from "../services/customerService";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+
+function LichSuHoanList({ items }: { items: RefundHistoryItem[] }) {
+  if (items.length === 0) {
+    return <span className="profile-tool-status">Chưa có khoản hoàn tiền</span>;
+  }
+
+  return (
+    <ul className="profile-refund-list">
+      {items.map((item) => (
+        <li key={`${item.maDonHangHienThi}-${item.thoiGianHoanThanh}`}>
+          <div>
+            <strong>{item.maDonHangHienThi}</strong>
+            <span>{item.soTienHoan.toLocaleString("vi-VN")} đ</span>
+          </div>
+          <p>{item.lyDoHoan}</p>
+          <time>
+            {new Date(item.thoiGianHoanThanh).toLocaleString("vi-VN")}
+          </time>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function resizeAvatar(file: File) {
   return new Promise<File>((resolve, reject) => {
@@ -98,6 +122,8 @@ function resizeAvatar(file: File) {
 function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [lichSuHoan, setLichSuHoan] = useState<RefundHistoryItem[]>([]);
+  const [moLichSuHoan, setMoLichSuHoan] = useState(false);
   const [hoTen, setHoTen] = useState("");
   const [ngaySinh, setNgaySinh] = useState("");
   const [gioiTinh, setGioiTinh] = useState("");
@@ -125,8 +151,12 @@ function Profile() {
       if (showLoading) setLoading(true);
       setError("");
 
-      const data = (await getCustomerProfile()) as CustomerProfile;
+      const [data, refunds] = await Promise.all([
+        getCustomerProfile() as Promise<CustomerProfile>,
+        getRefundHistory(),
+      ]);
       setProfile(data);
+      setLichSuHoan(refunds);
       setHoTen(data.hoTen || "");
       setNgaySinh(data.ngaySinh || "");
       setGioiTinh(data.gioiTinh || "");
@@ -491,33 +521,53 @@ function Profile() {
           </div>
 
           <div className="profile-tools-grid">
-            <article className="profile-tool-card profile-wallet-card">
-              <div className="profile-tool-card-top">
-                <span className="profile-tool-icon"><WalletCards size={22} /></span>
-                <span className="profile-tool-label">Ví hoàn tiền</span>
-              </div>
-              <div className="profile-wallet-balance">
-                <strong>0</strong>
-                <span>đ</span>
-              </div>
-              <p>
-                Tiền từ đơn thanh toán online bị khách hàng hoặc quán hủy sẽ
-                được hoàn vào ví này.
-              </p>
-              <span className="profile-tool-status">Chưa có khoản hoàn tiền</span>
-            </article>
+            {moLichSuHoan ? (
+              <button
+                type="button"
+                className="profile-tool-card profile-wallet-card profile-refund-history-card"
+                onClick={() => setMoLichSuHoan(false)}
+              >
+                <div className="profile-tool-card-top">
+                  <span className="profile-tool-icon"><WalletCards size={22} /></span>
+                  <span className="profile-tool-label">Lịch sử hoàn tiền</span>
+                </div>
+                <LichSuHoanList items={lichSuHoan} />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="profile-tool-card profile-wallet-card"
+                  onClick={() => setMoLichSuHoan(true)}
+                >
+                  <div className="profile-tool-card-top">
+                    <span className="profile-tool-icon"><WalletCards size={22} /></span>
+                    <span className="profile-tool-label">Ví hoàn tiền</span>
+                  </div>
+                  <div className="profile-wallet-balance">
+                    <strong>{(profile?.diemTichLuy ?? 0).toLocaleString("vi-VN")}</strong>
+                    <span>đ</span>
+                  </div>
+                  <p>
+                    Tiền từ đơn thanh toán online bị khách hàng hoặc quán hủy sẽ
+                    được hoàn vào ví này.
+                  </p>
+                  <LichSuHoanList items={lichSuHoan.slice(0, 1)} />
+                </button>
 
-            <Link to="/kho-voucher" className="profile-tool-card profile-voucher-card">
-              <div className="profile-tool-card-top">
-                <span className="profile-tool-icon"><TicketPercent size={22} /></span>
-                <span className="profile-tool-coming">Mở kho</span>
-              </div>
-              <h3>Kho voucher</h3>
-              <p>Lưu trữ và quản lý các mã giảm giá dành riêng cho bạn.</p>
-              <span className="profile-voucher-preview">
-                <TicketPercent size={15} /> Voucher của bạn sẽ xuất hiện tại đây
-              </span>
-            </Link>
+                <Link to="/kho-voucher" className="profile-tool-card profile-voucher-card">
+                  <div className="profile-tool-card-top">
+                    <span className="profile-tool-icon"><TicketPercent size={22} /></span>
+                    <span className="profile-tool-coming">Mở kho</span>
+                  </div>
+                  <h3>Kho voucher</h3>
+                  <p>Lưu trữ và quản lý các mã giảm giá dành riêng cho bạn.</p>
+                  <span className="profile-voucher-preview">
+                    <TicketPercent size={15} /> Voucher của bạn sẽ xuất hiện tại đây
+                  </span>
+                </Link>
+              </>
+            )}
           </div>
         </section>
       </ScrollReveal>
