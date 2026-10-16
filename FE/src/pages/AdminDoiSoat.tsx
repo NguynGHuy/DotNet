@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Plus, X, Eye } from "lucide-react";
+import { RefreshCw, Wallet, Plus, X, Eye } from "lucide-react";
 import Pagination from "../components/Pagination";
 import {
     getAdminDoiSoat,
@@ -7,7 +7,7 @@ import {
     getAdminDoiSoatDetail,
     payDoiSoat,
     type DoiSoatDetail,
-    type DoiSoatSummary,
+    type DoiSoatSummary
 } from "../services/doiSoatService";
 
 function formatMoney(value: number) {
@@ -71,6 +71,7 @@ export default function AdminDoiSoat() {
                 denNgay: formCreate.denNgay
             });
             setShowCreate(false);
+            setFormCreate({ maNhaHang: "", tuNgay: "", denNgay: "" });
             void loadData();
             alert("Tạo kỳ đối soát thành công!");
         } catch (error: unknown) {
@@ -100,6 +101,7 @@ export default function AdminDoiSoat() {
             await payDoiSoat(showDetail!, maGiaoDich);
             alert("Xác nhận thanh toán thành công!");
             setShowDetail(null);
+            setMaGiaoDich("");
             void loadData();
         } catch (error: unknown) {
             alert(getErrorMessage(error));
@@ -117,7 +119,7 @@ export default function AdminDoiSoat() {
                     <p>Quản lý doanh thu, phí nền tảng và thanh toán cho nhà hàng.</p>
                 </div>
                 <div className="admin-promotions-heading-actions">
-                    <button type="button" className="refresh" onClick={loadData} disabled={loading}>
+                    <button type="button" className="refresh" onClick={() => void loadData()} disabled={loading}>
                         <RefreshCw size={15} /> Tải lại
                     </button>
                     <button type="button" className="create" onClick={() => setShowCreate(true)}>
@@ -149,28 +151,39 @@ export default function AdminDoiSoat() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {list.map(item => (
-                                    <tr key={item.maDoiSoat}>
-                                        <td>
-                                            <strong>Kỳ #{item.maDoiSoat}</strong>
-                                            <small>{item.tuNgay} đến {item.denNgay}</small>
-                                        </td>
-                                        <td>{item.tenNhaHang} <small>Mã: {item.maNhaHang}</small></td>
-                                        <td>{item.tongSoDon} đơn</td>
-                                        <td><strong style={{ color: "#e14a1b" }}>{formatMoney(item.soTienCanDoiSoat)}</strong></td>
-                                        <td>
-                                            <span className={`admin-promotion-state ${item.trangThai === 'DaThanhToan' ? 'active' : 'upcoming'}`}>
-                                                <i aria-hidden="true" />
-                                                {STATUS_LABEL[item.trangThai] || item.trangThai}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button className="admin-account-toggle unlock" onClick={() => handleViewDetail(item.maDoiSoat)}>
-                                                <Eye size={14} /> Chi tiết
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {list.map(item => {
+                                    const absTien = Math.abs(item.soTienCanDoiSoat);
+                                    let textColor = "#16805a"; // Không công nợ
+                                    if (item.soTienCanDoiSoat > 0) textColor = "#c2410c"; // Hệ thống trả
+                                    else if (item.soTienCanDoiSoat < 0) textColor = "#dc2626"; // Nhà hàng trả
+
+                                    return (
+                                        <tr key={item.maDoiSoat}>
+                                            <td>
+                                                <strong>Kỳ #{item.maDoiSoat}</strong>
+                                                <small>{item.tuNgay} đến {item.denNgay}</small>
+                                            </td>
+                                            <td>{item.tenNhaHang} <small>Mã: {item.maNhaHang}</small></td>
+                                            <td>{item.tongSoDon} đơn</td>
+                                            <td>
+                                                <strong style={{ color: textColor }}>
+                                                    {item.soTienCanDoiSoat < 0 ? "-" : ""}{formatMoney(absTien)}
+                                                </strong>
+                                            </td>
+                                            <td>
+                                                <span className={`admin-promotion-state ${item.trangThai === 'DaThanhToan' ? 'active' : 'upcoming'}`}>
+                                                    <i aria-hidden="true" />
+                                                    {STATUS_LABEL[item.trangThai] || item.trangThai}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button className="admin-account-toggle unlock" onClick={() => void handleViewDetail(item.maDoiSoat)}>
+                                                    <Eye size={14} /> Chi tiết
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -183,7 +196,7 @@ export default function AdminDoiSoat() {
                 <div className="admin-promotion-modal-overlay">
                     <div className="admin-promotion-modal edit-modal">
                         <button className="admin-promotion-modal-close" onClick={() => setShowCreate(false)}><X size={18} /></button>
-                        <form onSubmit={handleCreate}>
+                        <form onSubmit={(e) => void handleCreate(e)}>
                             <h2>Tạo kỳ đối soát mới</h2>
                             <p style={{ marginBottom: 20 }}>Tổng hợp các đơn đã hoàn thành chưa được đối soát.</p>
                             
@@ -213,7 +226,7 @@ export default function AdminDoiSoat() {
             {showDetail && detailData && (
                 <div className="admin-promotion-modal-overlay">
                     <div className="admin-promotion-modal">
-                        <button className="admin-promotion-modal-close" onClick={() => setShowDetail(null)}><X size={18} /></button>
+                        <button className="admin-promotion-modal-close" onClick={() => { setShowDetail(null); setMaGiaoDich(""); }}><X size={18} /></button>
                         <h2>Chi tiết kỳ đối soát #{detailData.maDoiSoat}</h2>
                         <p style={{ marginBottom: 20 }}>Nhà hàng: {detailData.tenNhaHang}</p>
 
@@ -223,11 +236,34 @@ export default function AdminDoiSoat() {
                                 <p>Giảm giá NH chi trả: <strong>{formatMoney(detailData.tongGiamGiaNhaHang)}</strong></p>
                                 <p>Phí nền tảng thu: <strong style={{ color: 'red' }}>{formatMoney(detailData.tongPhiNenTang)}</strong></p>
                             </div>
-                            <div style={{ padding: 15, background: '#fff0e8', borderRadius: 10 }}>
-                                <p>Tiền NH thực nhận: <strong>{formatMoney(detailData.tongTienNhaHangNhan)}</strong></p>
+                            <div style={{ borderLeft: '1px solid #ddd', paddingLeft: 15 }}>
+                                <p>Doanh thu thuần: <strong>{formatMoney(detailData.tongTienNhaHangNhan)}</strong></p>
                                 <p>Tiền NH đã thu (COD): <strong>{formatMoney(detailData.tongTienNhaHangDaThu)}</strong></p>
                                 <hr style={{ margin: '10px 0', border: '1px solid #fed7aa' }}/>
-                                <p>Hệ thống cần thanh toán: <strong style={{ fontSize: 18, color: '#c2410c' }}>{formatMoney(detailData.soTienCanDoiSoat)}</strong></p>
+                                
+                                {(() => {
+                                    const value = detailData.soTienCanDoiSoat;
+                                    const isPositive = value > 0;
+                                    const isNegative = value < 0;
+                                    const absValue = Math.abs(value);
+                                    let text = "Không phát sinh công nợ:";
+                                    let color = "#16805a"; // Xanh lá
+                                    
+                                    if (isPositive) {
+                                        text = "Hệ thống cần thanh toán cho nhà hàng:";
+                                        color = "#c2410c"; // Cam đậm
+                                    } else if (isNegative) {
+                                        text = "Nhà hàng cần nạp lại hệ thống:";
+                                        color = "#dc2626"; // Đỏ
+                                    }
+
+                                    return (
+                                        <p style={{ marginTop: 10 }}>
+                                            {text} <br/>
+                                            <strong style={{ fontSize: 18, color }}>{formatMoney(absValue)}</strong>
+                                        </p>
+                                    );
+                                })()}
                             </div>
                         </div>
 
@@ -243,11 +279,11 @@ export default function AdminDoiSoat() {
                                         onChange={e => setMaGiaoDich(e.target.value)}
                                     />
                                     <button 
-                                        onClick={handlePay} 
+                                        onClick={() => void handlePay()} 
                                         disabled={busy}
                                         style={{ background: '#16805a', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
                                     >
-                                        Xác nhận đã chuyển khoản
+                                        {detailData.soTienCanDoiSoat > 0 ? "Xác nhận đã chuyển khoản" : "Xác nhận đã nhận tiền"}
                                     </button>
                                 </div>
                             </div>

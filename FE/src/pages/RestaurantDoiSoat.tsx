@@ -73,7 +73,7 @@ export default function RestaurantDoiSoat() {
         try {
             setBusy(true);
             await confirmDoiSoat(showDetail!);
-            alert("Xác nhận thành công! Vui lòng chờ Admin chuyển khoản.");
+            alert("Xác nhận thành công! Vui lòng chờ Admin xử lý.");
             setShowDetail(null);
             void loadData();
         } catch (caughtError: unknown) {
@@ -91,48 +91,61 @@ export default function RestaurantDoiSoat() {
                     <h1>Đối soát doanh thu</h1>
                     <p>Kiểm tra số liệu và nhận thanh toán từ hệ thống.</p>
                 </div>
-                <button type="button" className="merchant-info-reset" onClick={loadData} disabled={loading}>
+                <button type="button" className="merchant-info-reset" onClick={() => void loadData()} disabled={loading}>
                     <RefreshCw size={16} /> Tải lại
                 </button>
             </header>
 
-            {error && <p className="merchant-info-error" role="alert">{error}</p>}
+            {error && <p className="merchant-info-error" role="alert" style={{ color: "red", marginBottom: 15 }}>{error}</p>}
 
             <div className="merchant-info-section">
                 {loading ? <p>Đang tải dữ liệu...</p> : list.length === 0 ? <p>Chưa có kỳ đối soát nào.</p> : (
-                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #eee' }}>
-                                <th style={{ padding: 12 }}>Kỳ đối soát</th>
-                                <th style={{ padding: 12 }}>Số đơn</th>
-                                <th style={{ padding: 12 }}>Thực nhận từ hệ thống</th>
-                                <th style={{ padding: 12 }}>Trạng thái</th>
-                                <th style={{ padding: 12 }}>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {list.map(item => (
-                                <tr key={item.maDoiSoat} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: 12 }}>
-                                        <strong>#{item.maDoiSoat}</strong>
-                                        <br/><small>{item.tuNgay} ➝ {item.denNgay}</small>
-                                    </td>
-                                    <td style={{ padding: 12 }}>{item.tongSoDon}</td>
-                                    <td style={{ padding: 12 }}><strong style={{ color: '#ea580c', fontSize: 16 }}>{formatMoney(item.soTienCanDoiSoat)}</strong></td>
-                                    <td style={{ padding: 12 }}>
-                                        <span className={`merchant-info-approval ${item.trangThai === 'ChoXacNhan' ? '' : 'is-approved'}`}>
-                                            {STATUS_LABEL[item.trangThai] || item.trangThai}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: 12 }}>
-                                        <button className="merchant-info-save" style={{ padding: '6px 12px', minHeight: 'auto' }} onClick={() => handleViewDetail(item.maDoiSoat)}>
-                                            <Eye size={14}/> Xem
-                                        </button>
-                                    </td>
+                    <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #eee' }}>
+                                    <th style={{ padding: 12 }}>Kỳ đối soát</th>
+                                    <th style={{ padding: 12 }}>Số đơn</th>
+                                    <th style={{ padding: 12 }}>Tiền cần thanh toán</th>
+                                    <th style={{ padding: 12 }}>Trạng thái</th>
+                                    <th style={{ padding: 12 }}>Thao tác</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {list.map(item => {
+                                    const absTien = Math.abs(item.soTienCanDoiSoat);
+                                    let textColor = "#16805a"; 
+                                    if (item.soTienCanDoiSoat > 0) textColor = "#ea580c"; 
+                                    else if (item.soTienCanDoiSoat < 0) textColor = "#dc2626";
+
+                                    return (
+                                        <tr key={item.maDoiSoat} style={{ borderBottom: '1px solid #eee' }}>
+                                            <td style={{ padding: 12 }}>
+                                                <strong>#{item.maDoiSoat}</strong>
+                                                <br/><small>{item.tuNgay} ➝ {item.denNgay}</small>
+                                            </td>
+                                            <td style={{ padding: 12 }}>{item.tongSoDon}</td>
+                                            <td style={{ padding: 12 }}>
+                                                <strong style={{ color: textColor, fontSize: 16 }}>
+                                                    {item.soTienCanDoiSoat < 0 ? "-" : ""}{formatMoney(absTien)}
+                                                </strong>
+                                            </td>
+                                            <td style={{ padding: 12 }}>
+                                                <span className={`merchant-info-approval ${item.trangThai === 'ChoXacNhan' ? '' : 'is-approved'}`}>
+                                                    {STATUS_LABEL[item.trangThai] || item.trangThai}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: 12 }}>
+                                                <button className="merchant-info-save" style={{ padding: '6px 12px', minHeight: 'auto' }} onClick={() => void handleViewDetail(item.maDoiSoat)}>
+                                                    <Eye size={14}/> Xem
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
                 {totalPages > 1 && <Pagination pageNumber={pageNumber} totalPages={totalPages} onPageChange={setPageNumber} />}
             </div>
@@ -151,14 +164,33 @@ export default function RestaurantDoiSoat() {
                         <div className="merchant-config-body">
                             <div style={{ background: '#f8f9fa', padding: 15, borderRadius: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
-                                    <p>Tổng tiền món: <strong>{formatMoney(detailData.tongTienHang)}</strong></p>
+                                    <p>Tổng tiền hàng: <strong>{formatMoney(detailData.tongTienHang)}</strong></p>
                                     <p>Quán giảm giá: <strong>-{formatMoney(detailData.tongGiamGiaNhaHang)}</strong></p>
                                     <p>Phí nền tảng: <strong style={{ color: 'red' }}>-{formatMoney(detailData.tongPhiNenTang)}</strong></p>
                                 </div>
                                 <div style={{ borderLeft: '1px solid #ddd', paddingLeft: 15 }}>
                                     <p>Doanh thu thuần: <strong>{formatMoney(detailData.tongTienNhaHangNhan)}</strong></p>
                                     <p>Quán đã thu (COD): <strong style={{ color: 'red' }}>-{formatMoney(detailData.tongTienNhaHangDaThu)}</strong></p>
-                                    <h3 style={{ marginTop: 10, color: '#ea580c' }}>Thực nhận: {formatMoney(detailData.soTienCanDoiSoat)}</h3>
+                                    <hr style={{ margin: '10px 0', border: '1px solid #fed7aa' }}/>
+
+                                    {(() => {
+                                        const value = detailData.soTienCanDoiSoat;
+                                        const isPositive = value > 0;
+                                        const isNegative = value < 0;
+                                        const absValue = Math.abs(value);
+                                        let text = "Không phát sinh công nợ";
+                                        let color = "#16805a"; 
+                                        
+                                        if (isPositive) {
+                                            text = "Thực nhận từ hệ thống:";
+                                            color = "#ea580c"; 
+                                        } else if (isNegative) {
+                                            text = "Bạn cần thanh toán lại cho hệ thống:";
+                                            color = "#dc2626"; 
+                                        }
+
+                                        return <h3 style={{ marginTop: 10, color }}>{text} {formatMoney(absValue)}</h3>;
+                                    })()}
                                 </div>
                             </div>
                             
@@ -166,7 +198,7 @@ export default function RestaurantDoiSoat() {
                                 <div style={{ marginTop: 20, textAlign: 'right' }}>
                                     <button 
                                         className="merchant-info-save" 
-                                        onClick={handleConfirm}
+                                        onClick={() => void handleConfirm()}
                                         disabled={busy}
                                         style={{ width: '100%', fontSize: 15, padding: 12 }}
                                     >
@@ -177,7 +209,7 @@ export default function RestaurantDoiSoat() {
 
                             {detailData.trangThai === "DaThanhToan" && (
                                 <div style={{ marginTop: 20, padding: 15, background: '#ecfdf5', color: '#047857', borderRadius: 8, textAlign: 'center' }}>
-                                    <strong>Đã nhận thanh toán từ hệ thống</strong><br/>
+                                    <strong>Đã nhận thanh toán</strong><br/>
                                     Mã GD: {detailData.maGiaoDichDoiSoat}
                                 </div>
                             )}
